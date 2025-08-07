@@ -1,0 +1,6 @@
+path: C:/Users/47449/Desktop/yolo/yolov11/ultralytics-main/datasets/eyes_split
+train: train
+val: val
+#test: test
+nc: 8
+names: ['N', 'D', 'G', 'C', 'A', 'H', 'M', 'O']

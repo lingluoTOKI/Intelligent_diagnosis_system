@@ -1,0 +1,14 @@
+# 数据增强配置
+augmentation:
+  hsv_h: 0.3
+  hsv_s: 0.6
+  degrees: 45
+  translate: 0.2
+  scale: 0.5
+  shear: 15
+  perspective: 0.001
+  flipud: 0.5
+  fliplr: 0.5
+  mosaic: 1.0
+  mixup: 0.2   # 直接在此配置MixUp
+  cutmix: 0.2  # 直接在此配置CutMix

@@ -214,3 +214,15 @@ __marimo__/
 # local models
 vosk-model-cn-0.22/
 
+
+# secrets
+saved_api_key.txt
+.env
+.env.*
+# IDE
+.idea/
+.vscode/
+# local history/cache
+.history/
+.claude/
+

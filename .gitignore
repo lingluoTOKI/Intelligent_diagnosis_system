@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# local/editor/cache
+.history/
+.claude/
+.vscode/
+.idea/
+# local models
+vosk-model-cn-0.22/
+

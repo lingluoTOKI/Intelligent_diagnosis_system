@@ -1600,7 +1600,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(button_layout)
 
         # 显示对话框
-        history_dialog.showMaximized()  # 默认最大化显示
+        history_dialog.setWindowState(Qt.WindowMaximized)
         history_dialog.exec_()
 
     def view_history_record(self, record):
@@ -1848,49 +1848,48 @@ class MainWindow(QMainWindow):
             selected_rows.add(item.row())
 
         if not selected_rows:
-            self.show_message_box("提示", "请先选择要删除的记录", QMessageBox.Information)
+            self.show_message_box("提示", "请先选择要删除的记录！")
             return
 
         # 确认删除
         reply = QMessageBox.question(
-            self, "确认删除", 
-            f"确定要删除选中的 {len(selected_rows)} 条记录吗？",
+            self, "确认删除", f"确定要删除选中的{len(selected_rows)}条记录吗？",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
 
         if reply == QMessageBox.Yes:
+            # 加载历史记录
+            history = self.load_history_records()
+            history = list(reversed(history))  # 与表格显示顺序一致
+
+            # 删除选中的记录
+            rows_to_delete = sorted(selected_rows, reverse=True)
+            for row in rows_to_delete:
+                if 0 <= row < len(history):
+                    # 删除对应的图像文件
+                    image_path = history[row]["image_path"]
+                    if os.path.exists(image_path):
+                        try:
+                            os.remove(image_path)
+                        except Exception as e:
+                            print(f"删除图像文件失败: {e}")
+                    
+                    # 从列表中删除记录
+                    del history[row]
+
+            # 保存修改后的历史记录
+            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
+            history_file = os.path.join(history_dir, "history.json")
+
             try:
-                # 加载历史记录
-                history = self.load_history_records()
-                history = list(reversed(history))  # 转换为列表并保持逆序
+                with open(history_file, 'w', encoding='utf-8') as f:
+                    json.dump(list(reversed(history)), f, ensure_ascii=False, indent=2)
 
-                # 删除选中的记录
-                for row in sorted(selected_rows, reverse=True):
-                    if row < len(history):
-                        # 删除对应的图像文件
-                        image_path = history[row]["image_path"]
-                        if os.path.exists(image_path):
-                            try:
-                                os.remove(image_path)
-                            except Exception as e:
-                                print(f"删除图像文件失败: {e}")
-
-                        # 从列表中删除记录
-                        del history[row]
-
-                # 保存更新后的历史记录
-                history = list(reversed(history))  # 恢复原始顺序
-                with open("detection_history.json", "w", encoding="utf-8") as f:
-                    json.dump(history, f, ensure_ascii=False, indent=2)
-
-                self.show_message_box("成功", f"已删除 {len(selected_rows)} 条记录", QMessageBox.Information)
-                
-                # 不要重新调用show_history()，避免递归
-                # 而是刷新当前表格
+                # 刷新表格
                 self.refresh_history_table()
-
+                self.show_message_box("成功", f"已删除{len(selected_rows)}条记录！")
             except Exception as e:
-                self.show_message_box("错误", f"删除记录时发生错误: {str(e)}", QMessageBox.Critical)
+                self.show_message_box("错误", f"删除记录失败: {str(e)}")
 
     def populate_history_table(self):
         """填充历史记录表格（无UI操作，避免递归）"""
@@ -1961,19 +1960,20 @@ class MainWindow(QMainWindow):
         )
 
         if reply == QMessageBox.Yes:
-            try:
-                # 删除历史记录文件
-                history_file = "detection_history.json"
-                
-                if os.path.exists(history_file):
+            # 删除历史记录文件
+            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
+            history_file = os.path.join(history_dir, "history.json")
+
+            if os.path.exists(history_file):
+                try:
                     os.remove(history_file)
-                    # 刷新表格而不是重新调用show_history()
+                    # 刷新表格
                     self.refresh_history_table()
-                    self.show_message_box("成功", "所有历史记录已清空！", QMessageBox.Information)
-                else:
-                    self.show_message_box("提示", "没有历史记录可清空！", QMessageBox.Information)
-            except Exception as e:
-                self.show_message_box("错误", f"清空历史记录失败: {str(e)}", QMessageBox.Critical)
+                    self.show_message_box("成功", "所有历史记录已清空！")
+                except Exception as e:
+                    self.show_message_box("错误", f"清空历史记录失败: {str(e)}")
+            else:
+                self.show_message_box("提示", "没有历史记录可清空！")
 
     def show_trend_analysis(self):
         """显示病情趋势分析 - 单图切换显示"""

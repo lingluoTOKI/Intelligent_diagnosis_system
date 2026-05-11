@@ -1,0 +1,22 @@
+{
+  "network": {
+    "pc_ip": "172.20.10.3",
+    "board_ip": "172.20.10.8",
+    "camera_port": 5002,
+    "diagnosis_port": 5003,
+    "command_port": 5004,
+    "screen_port": 5000,
+    "control_port": 5001
+  },
+  "startup": {
+    "auto_detect_ip": false,
+    "start_delay": 2,
+    "max_retries": 3
+  },
+  "services": {
+    "main_system": true,
+    "diagnosis_server": true,
+    "screen_sharing": true,
+    "camera_integration": true
+  }
+}

@@ -3359,6 +3359,8 @@ class MainWindow(QMainWindow):
 
         # 创建布局
         main_layout = QVBoxLayout(history_dialog)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(15)
 
         # 创建标题
         title_label = QLabel("检测历史记录")
@@ -3489,8 +3491,9 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: #e53e3e;
                 color: white;
-                padding: 8px 16px;
+                padding: 8px 20px;
                 border-radius: 6px;
+                min-width: 130px;
             }}
             QPushButton:hover {{
                 background-color: #c53030;
@@ -3508,8 +3511,9 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: #ed8936;
                 color: white;
-                padding: 8px 16px;
+                padding: 8px 20px;
                 border-radius: 6px;
+                min-width: 130px;
             }}
             QPushButton:hover {{
                 background-color: #dd6b20;
@@ -3527,8 +3531,9 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: {self.accent_color};
                 color: white;
-                padding: 8px 16px;
+                padding: 8px 20px;
                 border-radius: 6px;
+                min-width: 130px;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -3538,8 +3543,17 @@ class MainWindow(QMainWindow):
 
         # 趋势分析按钮
         trend_btn = QPushButton("📈 病情趋势分析")
-        trend_btn.setStyleSheet(
-            f"background-color: {self.accent_color}; color: white; font-weight: bold; padding: 8px 20px; border-radius: 6px;")
+        trend_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.accent_color};
+                color: white;
+                font-weight: bold;
+                padding: 8px 20px;
+                border-radius: 6px;
+                min-width: 130px;
+            }}
+            QPushButton:hover {{ background-color: #0097B2; }}
+        """)
         trend_btn.clicked.connect(self.show_trend_analysis)
 
         button_layout.addStretch()
@@ -4200,12 +4214,51 @@ class MainWindow(QMainWindow):
         dialog.setWindowTitle("疾病分类结果报告")
         dialog.setMinimumSize(750, 600)
         dialog.setStyleSheet(f"""
-            QDialog {{ background-color: {self.background_color}; color: {self.text_color}; }}
-            QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 13px; }}
-            QPushButton:hover {{ background-color: #0097B2; }}
-            QTableWidget {{ background-color: {self.secondary_bg}; color: {self.text_color}; border: 1px solid #3b4252; border-radius: 6px; gridline-color: #3b4252; }}
-            QHeaderView::section {{ background-color: {self.primary_color}; color: #81A1C1; padding: 10px; border: none; border-bottom: 1px solid #3b4252; font-weight: bold; }}
-            QTableWidget::item {{ padding: 5px; }}
+            QDialog {{
+                background-color: {self.background_color};
+                color: {self.text_color};
+            }}
+            QPushButton {{
+                background-color: {self.accent_color};
+                color: white;
+                padding: 8px 20px;
+                border-radius: 4px;
+                font-weight: bold;
+                font-size: 13px;
+            }}
+            QPushButton:hover {{
+                background-color: #0097B2;
+            }}
+            QTableWidget {{
+                background-color: {self.secondary_bg};
+                color: {self.text_color};
+                border: 1px solid #3b4252;
+                border-radius: 6px;
+                gridline-color: #2c323c;
+                outline: none;
+            }}
+            QTableWidget::item:focus {{
+                outline: none;
+            }}
+            QTableWidget::item {{
+                padding: 8px;
+                border-bottom: 1px solid #2c323c;
+            }}
+            QTableWidget::item:selected {{
+                background-color: rgba(128, 90, 213, 0.2);
+                color: white;
+            }}
+            QTableWidget::item:alternate {{
+                background-color: #262B33;
+            }}
+            QHeaderView::section {{
+                background-color: {self.primary_color};
+                color: #81A1C1;
+                padding: 10px;
+                border: none;
+                border-bottom: 2px solid {self.highlight_color};
+                font-weight: bold;
+            }}
         """)
 
         main_layout = QVBoxLayout(dialog)

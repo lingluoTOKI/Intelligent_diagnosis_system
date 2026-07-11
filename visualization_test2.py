@@ -3049,7 +3049,7 @@ class MainWindow(QMainWindow):
             self.show_message_box("错误", f"保存API密钥时发生错误: {str(e)}", QMessageBox.Critical)
 
     def _cleanup_temp_images(self):
-        """启动时自动清理 medical_images/ 中 7 天前的临时图像"""
+        """启动时清理过期临时图像 + 对应数据库记录"""
         try:
             img_dir = "medical_images"
             if not os.path.isdir(img_dir):
@@ -3067,6 +3067,20 @@ class MainWindow(QMainWindow):
                             pass
             if cleaned > 0:
                 print(f"[Cleanup] 已清理 {cleaned} 个过期临时图像")
+
+            # 清理数据库中指向不存在临时图像的记录
+            try:
+                db = get_history_db()
+                removed = 0
+                for r in db.get_all():
+                    path = r.get("image_path", "")
+                    if "temp_image_" in path and not os.path.exists(path):
+                        db.delete_by_record_id(r["record_id"])
+                        removed += 1
+                if removed > 0:
+                    print(f"[Cleanup] 已清理 {removed} 条无效历史记录")
+            except Exception:
+                pass
         except Exception:
             pass  # 清理失败不阻塞启动
 

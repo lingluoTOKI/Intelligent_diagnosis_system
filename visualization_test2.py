@@ -5,6 +5,8 @@ import sys
 import cv2
 import json
 import os
+import base64
+import sqlite3
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # 放在所有导入之前
 
 import requests
@@ -54,6 +56,94 @@ except ImportError:
         "VOICE_RECEIVE_PORT": 5006,
     }
     connection_manager = None
+
+
+# ===== SQLite 历史记录数据库 =====
+class HistoryDB:
+    """轻量级 SQLite 历史记录管理器, 替代 JSON 文件存储"""
+
+    def __init__(self):
+        self.db_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
+        os.makedirs(self.db_dir, exist_ok=True)
+        self.db_path = os.path.join(self.db_dir, "history.db")
+        self._init_db()
+
+    def _init_db(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    record_id TEXT UNIQUE NOT NULL,
+                    timestamp TEXT NOT NULL,
+                    image_path TEXT,
+                    disease_name TEXT NOT NULL,
+                    confidence REAL NOT NULL
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON records(timestamp DESC)")
+            conn.commit()
+
+    def add(self, record_id, timestamp, image_path, disease_name, confidence):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO records (record_id, timestamp, image_path, disease_name, confidence) VALUES (?,?,?,?,?)",
+                (record_id, timestamp, image_path, disease_name, round(confidence, 4))
+            )
+            conn.commit()
+
+    def get_all(self, limit=500):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT * FROM records ORDER BY timestamp DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def delete_by_record_id(self, record_id):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM records WHERE record_id = ?", (record_id,))
+            conn.commit()
+
+    def delete_all(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM records")
+            conn.commit()
+
+    def count(self):
+        with sqlite3.connect(self.db_path) as conn:
+            return conn.execute("SELECT COUNT(*) FROM records").fetchone()[0]
+
+    def migrate_from_json(self, json_path):
+        """从旧版 JSON 文件迁移数据到 SQLite"""
+        if os.path.exists(json_path):
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                for r in data:
+                    self.add(
+                        r.get("record_id", str(uuid.uuid4())),
+                        r.get("timestamp", ""),
+                        r.get("image_path", ""),
+                        r.get("disease_name", ""),
+                        r.get("confidence", 0)
+                    )
+                # 迁移后重命名旧文件
+                os.rename(json_path, json_path + ".bak")
+                print(f"[HistoryDB] 已从 JSON 迁移 {len(data)} 条记录到 SQLite")
+            except Exception as e:
+                print(f"[HistoryDB] JSON 迁移失败: {e}")
+
+
+_history_db = None
+
+
+def get_history_db():
+    global _history_db
+    if _history_db is None:
+        _history_db = HistoryDB()
+    return _history_db
+# ===== 结束 SQLite =====
+
 
 # 简化的语音组件
 class NetworkDetector:
@@ -1609,7 +1699,7 @@ class BoardCameraReceiver(QObject):
                     print("[保存] 未找到保存请求头,使用默认路径保存")
                     
                     # 使用默认路径保存
-                    default_path = r"C:\Users\47449\Desktop\yolo\Intelligent_diagnosis_system\ultralytics-main\datasets\test"
+                    default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "medical_images")
                     filename = f'auto_saved_{int(time.time())}.jpg'
                     
                     success = self._save_image_to_pc_direct(image, filename, default_path)
@@ -1821,7 +1911,10 @@ class MainWindow(QMainWindow):
         
         # 异步加载历史记录
         QTimer.singleShot(500, self.load_history_records)
-        
+
+        # 启动时清理过期临时图像 (7天前)
+        QTimer.singleShot(1000, self._cleanup_temp_images)
+
         # 设置键盘快捷键,提升用户体验
         self.setup_shortcuts()
 
@@ -2056,7 +2149,25 @@ class MainWindow(QMainWindow):
         self.board_interaction_button = QPushButton("📱 开发板交互")
         self.voice_server_button = QPushButton("🎤 语音服务")
 
-        tool_style = f"QPushButton {{ background-color: {self.primary_color}; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px; border-radius: 4px; }} QPushButton:hover {{ background-color: #4C566A; }}"
+        tool_style = f"""
+            QPushButton {{
+                background-color: #3B4252;
+                border: 1px solid #4C566A;
+                color: {self.text_color};
+                padding: 10px;
+                border-radius: 6px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #4C566A;
+                border: 1px solid {self.accent_color};
+            }}
+            QPushButton:disabled {{
+                background-color: {self.primary_color};
+                color: #616E88;
+                border: 1px solid #3b4252;
+            }}
+        """
         for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.voice_server_button]:
             btn.setStyleSheet(tool_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -2130,12 +2241,13 @@ class MainWindow(QMainWindow):
         self.chat_display.setReadOnly(True)
         self.chat_display.setStyleSheet(f"""
             QTextEdit {{
-                background-color: #1a202c;
+                background-color: {self.primary_color};
                 border: 1px solid #4C566A;
                 border-radius: 6px;
                 padding: 15px;
                 color: {self.text_color};
                 font-size: 14px;
+                line-height: 1.6;
             }}
         """)
         chat_layout.addWidget(self.chat_display, stretch=1)
@@ -2143,7 +2255,20 @@ class MainWindow(QMainWindow):
         self.chat_input = QTextEdit()
         self.chat_input.setPlaceholderText("在此描述其他症状或向AI提问...")
         self.chat_input.setMaximumHeight(100)
-        self.chat_input.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; border-radius: 4px; padding: 10px;")
+        self.chat_input.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: #1a202c;
+                border: 2px solid #3b4252;
+                border-radius: 8px;
+                padding: 12px;
+                color: {self.text_color};
+                font-size: 14px;
+            }}
+            QTextEdit:focus {{
+                border: 2px solid {self.highlight_color};
+                background-color: {self.primary_color};
+            }}
+        """)
 
         voice_ctrl_layout = QHBoxLayout()
         self.voice_chat_enabled = QCheckBox("启用语音回复")
@@ -2408,9 +2533,10 @@ class MainWindow(QMainWindow):
             QStatusBar {{
                 background-color: {self.primary_color};
                 color: {self.text_color};
-                border-top: 1px solid {self.accent_color};
-                padding: 3px;
-                font-size: 11px;
+                border-top: 1px solid #3b4252;
+                padding: 8px 15px;
+                font-size: 13px;
+                font-weight: bold;
             }}
         """)
         self.setStatusBar(self.status_bar)
@@ -2903,11 +3029,12 @@ class MainWindow(QMainWindow):
                     self.deepseek_api = DeepSeekAPI()
                 self.deepseek_api.set_api_key(api_key)
                 
-                # 持久化保存API密钥到文件
+                # 持久化保存API密钥到文件 (Base64混淆)
                 try:
+                    encoded = base64.b64encode(api_key.encode('utf-8')).decode('utf-8')
                     with open("saved_api_key.txt", 'w', encoding='utf-8') as f:
-                        f.write(api_key)
-                    print("API密钥已保存到文件")
+                        f.write(encoded)
+                    print("API密钥已加密保存到文件")
                 except Exception as e:
                     print(f"保存API密钥到文件时出错: {e}")
                 
@@ -2920,6 +3047,28 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"保存API密钥时出错: {e}")
             self.show_message_box("错误", f"保存API密钥时发生错误: {str(e)}", QMessageBox.Critical)
+
+    def _cleanup_temp_images(self):
+        """启动时自动清理 medical_images/ 中 7 天前的临时图像"""
+        try:
+            img_dir = "medical_images"
+            if not os.path.isdir(img_dir):
+                return
+            cutoff = time.time() - 7 * 24 * 3600
+            cleaned = 0
+            for f in os.listdir(img_dir):
+                if f.startswith("temp_image_") and f.endswith(".png"):
+                    fpath = os.path.join(img_dir, f)
+                    if os.path.getmtime(fpath) < cutoff:
+                        try:
+                            os.remove(fpath)
+                            cleaned += 1
+                        except OSError:
+                            pass
+            if cleaned > 0:
+                print(f"[Cleanup] 已清理 {cleaned} 个过期临时图像")
+        except Exception:
+            pass  # 清理失败不阻塞启动
 
     def show_message_box(self, title, message, icon=QMessageBox.Information):
         """显示消息框"""
@@ -3043,8 +3192,9 @@ class MainWindow(QMainWindow):
                 self.results_button.setEnabled(True)
                 self.advice_button.setEnabled(True)
                 self.status_bar.showMessage("检测完成")
-                # 保存到历史记录（创建临时图像路径）
-                temp_image_path = f"temp_image_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
+                # 保存到历史记录（图像统一存至 medical_images）
+                os.makedirs("medical_images", exist_ok=True)
+                temp_image_path = f"medical_images/temp_image_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
                 cv2.imwrite(temp_image_path, self.current_image)
                 self.save_to_history(os.path.abspath(temp_image_path), disease_name, confidence)
             else:
@@ -3286,63 +3436,34 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def save_to_history(self, image_path, disease_name, confidence):
-        """保存检测结果到历史记录"""
+        """保存检测结果到历史记录 (SQLite)"""
         try:
-            # 检查图像文件是否存在
-            if not os.path.exists(image_path):
-                print(f"[WARN] 图像不存在：{image_path}")
-            
-            # 创建历史记录目录（如果不存在）
-            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
-            os.makedirs(history_dir, exist_ok=True)
-
-            # 历史记录文件路径
-            history_file = os.path.join(history_dir, "history.json")
-
-            # 创建记录
-            record = {
-                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "image_path": image_path,
-                "disease_name": disease_name,
-                "confidence": round(confidence, 2),
-                "record_id": str(uuid.uuid4())  # 使用UUID作为唯一标识符
-            }
-
-            # 读取现有记录
-            history = []
-            if os.path.exists(history_file):
-                try:
-                    with open(history_file, 'r', encoding='utf-8') as f:
-                        history = json.load(f)
-                except Exception as e:
-                    print(f"加载历史记录失败: {e}")
-
-            # 添加新记录
-            history.append(record)
-
-            # 保存记录
-            with open(history_file, 'w', encoding='utf-8') as f:
-                json.dump(history, f, ensure_ascii=False, indent=2)
-            
+            db = get_history_db()
+            db.add(
+                record_id=str(uuid.uuid4()),
+                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                image_path=image_path,
+                disease_name=disease_name,
+                confidence=confidence
+            )
             return True
         except Exception as e:
             print(f"保存历史记录失败: {e}")
             return False
 
     def load_history_records(self):
-        """加载历史记录"""
-        history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
-        history_file = os.path.join(history_dir, "history.json")
-        history = []
-
-        if os.path.exists(history_file):
-            try:
-                with open(history_file, 'r', encoding='utf-8') as f:
-                    history = json.load(f)
-            except Exception as e:
-                print(f"加载历史记录失败: {e}")
-
-        return history
+        """加载历史记录 (SQLite, 首次自动迁移旧 JSON)"""
+        try:
+            db = get_history_db()
+            # 首次使用自动迁移旧数据
+            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
+            json_path = os.path.join(history_dir, "history.json")
+            if os.path.exists(json_path):
+                db.migrate_from_json(json_path)
+            return db.get_all()
+        except Exception as e:
+            print(f"加载历史记录失败: {e}")
+            return []
 
     def show_history(self):
         """显示历史记录对话框"""
@@ -3806,7 +3927,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("就绪")
 
     def delete_selected_history(self):
-        """删除选中的历史记录"""
+        """删除选中的历史记录 (SQLite)"""
         selected_rows = set()
         for item in self.history_table.selectedItems():
             selected_rows.add(item.row())
@@ -3815,32 +3936,19 @@ class MainWindow(QMainWindow):
             self.show_message_box("提示", "请先选择要删除的记录！")
             return
 
-        # 确认删除
         reply = QMessageBox.question(
             self, "确认删除", f"确定要删除选中的{len(selected_rows)}条记录吗？",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
 
         if reply == QMessageBox.Yes:
-            # 加载历史记录
-            history = self.load_history_records()
-            history = list(reversed(history))  # 与表格显示顺序一致
-
-            # 删除选中的记录
-            rows_to_delete = sorted(selected_rows, reverse=True)
-            for row in rows_to_delete:
-                if 0 <= row < len(history):
-                    del history[row]
-
-            # 保存修改后的历史记录
-            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
-            history_file = os.path.join(history_dir, "history.json")
-
             try:
-                with open(history_file, 'w', encoding='utf-8') as f:
-                    json.dump(list(reversed(history)), f, ensure_ascii=False, indent=2)
-
-                # 刷新表格
+                db = get_history_db()
+                history = db.get_all()
+                rows_to_delete = sorted(selected_rows, reverse=True)
+                for row in rows_to_delete:
+                    if 0 <= row < len(history):
+                        db.delete_by_record_id(history[row]["record_id"])
                 self.show_history()
                 self.show_message_box("成功", f"已删除{len(selected_rows)}条记录！")
             except Exception as e:
@@ -3855,20 +3963,13 @@ class MainWindow(QMainWindow):
         )
 
         if reply == QMessageBox.Yes:
-            # 删除历史记录文件
-            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
-            history_file = os.path.join(history_dir, "history.json")
-
-            if os.path.exists(history_file):
-                try:
-                    os.remove(history_file)
-                    # 刷新表格
-                    self.show_history()
-                    self.show_message_box("成功", "所有历史记录已清空！")
-                except Exception as e:
-                    self.show_message_box("错误", f"清空历史记录失败: {str(e)}")
-            else:
-                self.show_message_box("提示", "没有历史记录可清空！")
+            try:
+                db = get_history_db()
+                db.delete_all()
+                self.show_history()
+                self.show_message_box("成功", "所有历史记录已清空！")
+            except Exception as e:
+                self.show_message_box("错误", f"清空历史记录失败: {str(e)}")
 
     def show_trend_analysis(self):
         """显示病情趋势分析"""
@@ -4400,17 +4501,22 @@ class MainWindow(QMainWindow):
             api_key_file = "saved_api_key.txt"
             if os.path.exists(api_key_file):
                 with open(api_key_file, 'r', encoding='utf-8') as f:
-                    saved_key = f.read().strip()
+                    saved_data = f.read().strip()
+                    # 尝试Base64解码, 兼容旧版明文格式
+                    try:
+                        saved_key = base64.b64decode(saved_data).decode('utf-8')
+                    except Exception:
+                        saved_key = saved_data  # 旧版明文兼容
                     if saved_key and saved_key.startswith('sk-'):
                         # 确保deepseek_api已初始化
                         if self.deepseek_api is None:
                             self.deepseek_api = DeepSeekAPI()
                         self.deepseek_api.set_api_key(saved_key)
-                        
-                        # 在输入框中显示密钥（隐藏形式）
+
+                        # 在输入框中显示密钥
                         if hasattr(self, 'api_key_input'):
                             self.api_key_input.setText(saved_key)
-                        
+
                         print("已加载保存的API密钥")
                         self.status_bar.showMessage("已自动加载保存的API密钥")
         except Exception as e:
@@ -5392,10 +5498,14 @@ class MainWindow(QMainWindow):
             
         elif event.event_type == "completed":
             self.show_ai_progress(False)
-            self.display_chat_with_context(event.data)
+
+            # 使用 format_advice_html 渲染问答内容,复用精美医疗排版
+            formatted_html = self.format_advice_html(event.data)
+            self.chat_display.setHtml(formatted_html)
+
             self.chat_input.clear()
             self.status_bar.showMessage("对话完成")
-            
+
             # 如果启用语音对话,播放AI回复
             if self.voice_chat_enabled.isChecked():
                 print("[DEBUG] 语音对话已启用,准备播放AI回复")

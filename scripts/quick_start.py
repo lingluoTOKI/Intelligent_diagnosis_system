@@ -146,12 +146,12 @@ def start_board_mode():
     """启动开发板模式"""
     print("\n📱 启动开发板...")
     
-    if not os.path.exists('src/board/board_integrated_system.py'):
-        print("❌ 找不到 src/board/board_integrated_system.py")
+    if not os.path.exists('board_integrated_system.py'):
+        print("❌ 找不到 board_integrated_system.py")
         return False
     
     try:
-        process = subprocess.Popen([sys.executable, 'src/board/board_integrated_system.py'])
+        process = subprocess.Popen([sys.executable, 'board_integrated_system.py'])
         print(f"✅ 开发板已启动 (PID: {process.pid})")
         print("📷 摄像头和触摸界面应该已激活")
         return True

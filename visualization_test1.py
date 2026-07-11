@@ -25,7 +25,7 @@ from contextlib import redirect_stdout
 import matplotlib
 matplotlib.use('Qt5Agg')  # 确保使用Qt5后端
 import matplotlib.pyplot as plt
-plt.rcParams['figure.dpi'] = 120  # 提高DPI,提高清晰度
+plt.rcParams['figure.dpi'] = 120  # 提高DPI，提高清晰度
 plt.rcParams['savefig.dpi'] = 120
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import uuid
@@ -45,7 +45,7 @@ try:
     print("✅ PC端使用统一配置文件")
     print(f"📡 本机IP: {get_local_ip()}")
 except ImportError:
-    print("⚠️ 未找到统一配置文件,使用默认配置")
+    print("⚠️ 未找到统一配置文件，使用默认配置")
     NETWORK_PORTS = {
         "CAMERA_PORT": 5002,
         "DIAGNOSIS_PORT": 5003,
@@ -74,7 +74,7 @@ class SmartVoiceManager(QObject):
     voice_timeout = pyqtSignal()
     voice_unknown = pyqtSignal()
 
-    # 网络与TTS相关信号（占位,便于主界面连接,不强依赖）
+    # 网络与TTS相关信号（占位，便于主界面连接，不强依赖）
     network_status_changed = pyqtSignal(bool, str)
     tts_started = pyqtSignal()
     tts_finished = pyqtSignal()
@@ -102,12 +102,12 @@ class SmartVoiceManager(QObject):
             print(f"[ERROR] 语音组件初始化失败: {e}")
 
     def _init_vosk(self):
-        """延迟搜索Vosk模型路径,但不立即加载模型"""
+        """延迟搜索Vosk模型路径，但不立即加载模型"""
         try:
             import vosk  # noqa: F401
             import json as _json
             
-            # 只搜索模型路径,不立即加载模型
+            # 只搜索模型路径，不立即加载模型
             script_dir = os.path.dirname(os.path.abspath(__file__))
             candidates = [
                 os.getenv("VOSK_MODEL_PATH", ""),
@@ -128,7 +128,7 @@ class SmartVoiceManager(QObject):
                 self.vosk_model = None
                 self.vosk_model_dir = None
                 self._vosk_json = None
-                print("[DEBUG] 未找到Vosk中文模型,将使用在线识别")
+                print("[DEBUG] 未找到Vosk中文模型，将使用在线识别")
                 
         except Exception as e:
             self.vosk_model = None
@@ -154,14 +154,14 @@ class SmartVoiceManager(QObject):
         """开始语音识别
         
         Args:
-            duration: 可选,指定识别时长（秒）,None表示使用默认值
+            duration: 可选，指定识别时长（秒），None表示使用默认值
         """
         if self.is_recording:
-            # 如果正在录音,则取消录音
+            # 如果正在录音，则取消录音
             self.cancel_recording()
             return
         
-        # 如果指定了时长,则临时更新识别时长
+        # 如果指定了时长，则临时更新识别时长
         if duration is not None and duration > 0:
             self.recognition_duration = duration
             print(f"[DEBUG] 🕒 设置语音识别时长为 {duration} 秒")
@@ -179,8 +179,8 @@ class SmartVoiceManager(QObject):
             self.voice_error.emit("录音已取消")
     
     def start_network_monitoring(self):
-        """启动网络状态监控（本地离线优先,这里仅做友好提示）"""
-        # 本地离线识别不依赖网络,直接提示为离线可用
+        """启动网络状态监控（本地离线优先，这里仅做友好提示）"""
+        # 本地离线识别不依赖网络，直接提示为离线可用
         try:
             # 立即发一次状态
             self.network_status_changed.emit(False, "本地离线语音识别已启用")
@@ -204,9 +204,9 @@ class SmartVoiceManager(QObject):
                 # 发送录音中信号
                 self.voice_recognized.emit("__RECORDING__")
                 
-                # 用户自定义录音时长,无时间限制
+                # 用户自定义录音时长，无时间限制
                 audio = self.local_recognizer.listen(source, timeout=30, phrase_time_limit=self.recognition_duration)
-                print(f"[DEBUG] ✅ 录音完成,音频长度: {len(audio.frame_data)} bytes")
+                print(f"[DEBUG] ✅ 录音完成，音频长度: {len(audio.frame_data)} bytes")
 
             # 发送处理中信号
             self.voice_recognized.emit("__PROCESSING__")
@@ -216,7 +216,7 @@ class SmartVoiceManager(QObject):
 
             # 优先策略：本地Vosk识别（如果可用）- 中文效果更好
             if self.vosk_model_dir and self.vosk_model is None:
-                # 如果有模型路径但模型未加载,先尝试异步加载
+                # 如果有模型路径但模型未加载，先尝试异步加载
                 self._load_vosk_model_async()
                 
             if self.vosk_model is not None:
@@ -304,7 +304,7 @@ class SmartVoiceManager(QObject):
         """设置语音识别时长
         
         Args:
-            duration: 识别时长（秒）,必须大于0
+            duration: 识别时长（秒），必须大于0
         """
         if duration > 0:
             self.recognition_duration = duration
@@ -317,7 +317,7 @@ plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans', '
 plt.rcParams['axes.unicode_minus'] = False
 plt.rcParams['axes.unicode_minus'] = False
 
-# 注释掉全局异常处理器,避免无限递归
+# 注释掉全局异常处理器，避免无限递归
 # def global_exception_handler(exctype, value, traceback):
 #     """全局异常处理器"""
 #     if exctype != SystemExit:
@@ -366,7 +366,7 @@ class MedicalAIService:
         
         # 构建医疗建议提示词
         medical_prompt = f"""
-        作为一名专业的眼科医生,请针对患者的问题提供专业的医疗建议。
+        作为一名专业的眼科医生，请针对患者的问题提供专业的医疗建议。
         
         患者描述：{prompt}
         
@@ -374,11 +374,11 @@ class MedicalAIService:
         1. 症状分析：对患者描述的症状进行专业分析
         2. 可能原因：可能导致这些症状的常见原因
         3. 建议措施：患者应该采取的措施
-        4. 就医建议：是否需要及时就医,以及就医时应该注意什么
+        4. 就医建议：是否需要及时就医，以及就医时应该注意什么
         5. 预防建议：如何预防类似问题
         
-        请以专业但易懂的语言回答,避免过度专业的术语,同时保持信息的准确性。
-        如果症状严重,请明确建议及时就医。
+        请以专业但易懂的语言回答，避免过度专业的术语，同时保持信息的准确性。
+        如果症状严重，请明确建议及时就医。
         """
         
         try:
@@ -418,17 +418,17 @@ class MedicalAIService:
 
 ### 🔍 日常护理
 1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
-2. **保持良好的用眼习惯** - 适当休息,避免长时间用眼疲劳
-3. **注意眼部卫生** - 保持手部清洁,避免用手直接接触眼部
+2. **保持良好的用眼习惯** - 适当休息，避免长时间用眼疲劳
+3. **注意眼部卫生** - 保持手部清洁，避免用手直接接触眼部
 
 ### ⚠️ 重要提醒
-- 如有不适症状,请及时就医
-- 以上建议仅供参考,不能替代专业医疗诊断
+- 如有不适症状，请及时就医
+- 以上建议仅供参考，不能替代专业医疗诊断
 
 ---
 
 ## 🚀 获取更专业建议
-如需更详细的医疗建议,建议您：
+如需更详细的医疗建议，建议您：
 - 启用 **DeepSeek API** 获取AI专业分析
 - 咨询专业眼科医生进行详细检查
 
@@ -436,7 +436,7 @@ class MedicalAIService:
 
 
 class DeepSeekAPI:
-    """DeepSeek API接口类,用于获取治疗建议"""
+    """DeepSeek API接口类，用于获取治疗建议"""
 
     def __init__(self, api_key=None):
         self.api_key = api_key
@@ -459,7 +459,7 @@ class DeepSeekAPI:
 
         # 构建提示词
         prompt = f"""
-        作为一名专业的眼科医生,请针对患者被检测出的眼部疾病"{disease_name}"（置信度：{confidence:.2f}）提供详细的治疗建议。
+        作为一名专业的眼科医生，请针对患者被检测出的眼部疾病"{disease_name}"（置信度：{confidence:.2f}）提供详细的治疗建议。
 
         请包含以下内容：
         1. 疾病简介：该疾病的基本描述和可能的成因
@@ -467,7 +467,7 @@ class DeepSeekAPI:
         3. 治疗方案：药物治疗、手术治疗或其他治疗方法的建议
         4. 随访建议：多久应该进行一次复查
 
-        请以专业但易懂的语言回答,避免过度专业的术语,同时保持信息的准确性。
+        请以专业但易懂的语言回答，避免过度专业的术语，同时保持信息的准确性。
         """
 
         try:
@@ -517,7 +517,7 @@ class DeepSeekAPI:
         # 限制输入长度
         if len(prompt) > 4000:
             prompt = prompt[:4000]
-            print("⚠️ 输入内容过长,已自动截断到4000字符")
+            print("⚠️ 输入内容过长，已自动截断到4000字符")
 
         # 优化请求头
         headers = {
@@ -529,13 +529,13 @@ class DeepSeekAPI:
         }
 
         # 改进的系统提示词
-        system_prompt = """你是一个专业的AI医疗助手,请遵循以下原则：
+        system_prompt = """你是一个专业的AI医疗助手，请遵循以下原则：
 1. 提供准确、专业但易懂的医疗信息
-2. 对于严重症状,明确建议及时就医
-3. 回答简洁明了,控制在150-300字
-4. 使用"可能"、"建议"等温和词汇,避免确诊性语言
-5. 强调这只是辅助参考,不能替代专业医疗诊断
-6. 如果涉及眼部疾病,可以建议使用本系统的图像诊断功能"""
+2. 对于严重症状，明确建议及时就医
+3. 回答简洁明了，控制在150-300字
+4. 使用"可能"、"建议"等温和词汇，避免确诊性语言
+5. 强调这只是辅助参考，不能替代专业医疗诊断
+6. 如果涉及眼部疾病，可以建议使用本系统的图像诊断功能"""
 
         # 重试配置
         max_retries = 4  # 增加重试次数
@@ -595,12 +595,12 @@ class DeepSeekAPI:
                                 processed_content = self._enhance_medical_response(content)
                                 return processed_content
                             else:
-                                print("⚠️ API返回内容为空或过短,继续重试...")
+                                print("⚠️ API返回内容为空或过短，继续重试...")
                                 continue
                         else:
                             print(f"⚠️ API响应格式异常: {result}")
                             if attempt == max_retries - 1:
-                                return "🔧 AI服务响应格式异常,请稍后重试。\n\n💡 如果问题持续,请联系技术支持。"
+                                return "🔧 AI服务响应格式异常，请稍后重试。\n\n💡 如果问题持续，请联系技术支持。"
                             continue
                     except (json.JSONDecodeError, KeyError) as e:
                         print(f"❌ 响应解析失败: {e}")
@@ -635,7 +635,7 @@ class DeepSeekAPI:
 - 减少提问频率
 - 考虑升级API套餐
 
-💡 **提示：** 系统已自动重试多次,请稍后再试"""
+💡 **提示：** 系统已自动重试多次，请稍后再试"""
                     
                 elif response.status_code in [500, 502, 503, 504]:
                     print(f"⚠️ 服务器错误 {response.status_code} (第{attempt + 1}次)")
@@ -752,15 +752,15 @@ class DeepSeekAPI:
             has_disclaimer = any(disclaimer in content for disclaimer in disclaimers)
             
             if not has_disclaimer:
-                content += "\n\n⚠️ **重要提示：** 以上建议仅供参考,不能替代专业医疗诊断。如有疑问或症状加重,请及时咨询专业医生。"
+                content += "\n\n⚠️ **重要提示：** 以上建议仅供参考，不能替代专业医疗诊断。如有疑问或症状加重，请及时咨询专业医生。"
             
             # 添加系统功能提示
             if any(keyword in content.lower() for keyword in ["眼", "视力", "眼部", "眼底", "眼科"]):
-                content += "\n\n💡 **系统提示：** 您还可以使用本系统的AI图像诊断功能,上传眼部图像进行智能分析。"
+                content += "\n\n💡 **系统提示：** 您还可以使用本系统的AI图像诊断功能，上传眼部图像进行智能分析。"
             
             # 控制长度
             if len(content) > 1000:
-                content = content[:950] + "...\n\n✂️ **内容已截断,完整信息请咨询专业医生。**"
+                content = content[:950] + "...\n\n✂️ **内容已截断，完整信息请咨询专业医生。**"
             
             # 添加时间戳
             from datetime import datetime
@@ -772,7 +772,7 @@ class DeepSeekAPI:
             
         except Exception as e:
             print(f"⚠️ 内容增强失败: {e}")
-            return content + "\n\n⚠️ 以上建议仅供参考,请咨询专业医生。"
+            return content + "\n\n⚠️ 以上建议仅供参考，请咨询专业医生。"
     
     def _get_enhanced_fallback_advice(self):
         """获取增强的备用建议"""
@@ -795,7 +795,7 @@ class DeepSeekAPI:
    - 尝试使用VPN
 
 🏥 **紧急情况：**
-如需紧急医疗建议,请：
+如需紧急医疗建议，请：
 - 直接咨询专业医生
 - 拨打医疗急救电话
 - 前往就近医院
@@ -806,7 +806,7 @@ class DeepSeekAPI:
 - 参考医疗知识库
 
 📞 **技术支持：**
-如问题持续存在,请联系系统管理员或技术支持团队。
+如问题持续存在，请联系系统管理员或技术支持团队。
 
 🕒 **建议重试时间：** 5-10分钟后"""
 
@@ -825,11 +825,11 @@ class DeepSeekAPI:
                 return False, f"HTTPS连接测试失败: {test_response.status_code}"
                 
         except socket.timeout:
-            return False, "网络连接超时,请检查网络设置"
+            return False, "网络连接超时，请检查网络设置"
         except socket.gaierror:
-            return False, "DNS解析失败,请检查DNS设置"
+            return False, "DNS解析失败，请检查DNS设置"
         except requests.exceptions.SSLError:
-            return False, "SSL连接失败,可能需要VPN或代理"
+            return False, "SSL连接失败，可能需要VPN或代理"
         except Exception as e:
             return False, f"网络测试失败: {str(e)}"
 
@@ -840,54 +840,54 @@ class DeepSeekAPI:
             # 老年性黄斑变性(AMD)治疗建议
 
             ## 疾病简介
-            老年性黄斑变性是一种影响视网膜中央区域（黄斑）的慢性退行性疾病,通常影响50岁以上人群。它是发达国家老年人致盲主要原因之一。
+            老年性黄斑变性是一种影响视网膜中央区域（黄斑）的慢性退行性疾病，通常影响50岁以上人群。它是发达国家老年人致盲主要原因之一。
 
             ## 治疗方案
-            1. **抗VEGF治疗**：对于湿性AMD,可以通过眼内注射抗血管内皮生长因子药物（如雷珠单抗、阿柏西普）来减缓或阻止异常血管生长。
+            1. **抗VEGF治疗**：对于湿性AMD，可以通过眼内注射抗血管内皮生长因子药物（如雷珠单抗、阿柏西普）来减缓或阻止异常血管生长。
             2. **光动力疗法**：某些类型的湿性AMD可能适合光动力疗法。
             3. **抗氧化维生素补充**：AREDS配方的维生素可能有助于减缓干性AMD的进展。
 
             ## 日常护理
-            1. 定期监测视力变化,使用Amsler网格自测。
-            2. 保持健康的生活方式,包括均衡饮食、戒烟和控制血压。
-            3. 佩戴防蓝光眼镜,减少对电子设备的长时间使用。
+            1. 定期监测视力变化，使用Amsler网格自测。
+            2. 保持健康的生活方式，包括均衡饮食、戒烟和控制血压。
+            3. 佩戴防蓝光眼镜，减少对电子设备的长时间使用。
             4. 增加饮食中的暗绿色叶菜和富含omega-3脂肪酸的食物。
 
             ## 随访建议
             - 建议每3-6个月进行一次眼科随访检查
-            - 如发现视力突然下降、视物变形或新的盲点,应立即就医
+            - 如发现视力突然下降、视物变形或新的盲点，应立即就医
             """,
 
             "Cataract": """
             # 白内障治疗建议
 
             ## 疾病简介
-            白内障是眼球晶状体变得混浊,导致视力模糊的一种常见眼科疾病,主要与年龄相关,但也可能由外伤、某些疾病或药物引起。
+            白内障是眼球晶状体变得混浊，导致视力模糊的一种常见眼科疾病，主要与年龄相关，但也可能由外伤、某些疾病或药物引起。
 
             ## 治疗方案
-            1. **手术治疗**：当白内障影响日常生活时,最有效的治疗方法是手术,将混浊的晶状体替换为人工晶体。
+            1. **手术治疗**：当白内障影响日常生活时，最有效的治疗方法是手术，将混浊的晶状体替换为人工晶体。
             2. **早期管理**：早期白内障可能只需要定期监测和调整眼镜处方。
 
             ## 日常护理
             1. 使用防UV眼镜保护眼睛免受紫外线伤害。
             2. 在明亮的环境中可使用帽子或太阳镜减少眩光。
             3. 保持充足的光线进行阅读和其他近距离工作。
-            4. 采用健康饮食,富含抗氧化剂的食物可能有助于减缓白内障发展。
+            4. 采用健康饮食，富含抗氧化剂的食物可能有助于减缓白内障发展。
 
             ## 随访建议
             - 早期白内障：每年检查一次
             - 中度白内障：每6个月检查一次
-            - 术后随访：手术后第一天、一周、一个月、三个月,然后每年一次
+            - 术后随访：手术后第一天、一周、一个月、三个月，然后每年一次
             """,
 
             "Diabetic Retinopathy": """
             # 糖尿病视网膜病变治疗建议
 
             ## 疾病简介
-            糖尿病视网膜病变是由于长期糖尿病导致视网膜血管损伤的并发症,是糖尿病患者主要的致盲原因之一。
+            糖尿病视网膜病变是由于长期糖尿病导致视网膜血管损伤的并发症，是糖尿病患者主要的致盲原因之一。
 
             ## 治疗方案
-            1. **激光光凝治疗**：对于非增殖性或早期增殖性视网膜病变,可进行激光治疗以封闭渗漏血管。
+            1. **激光光凝治疗**：对于非增殖性或早期增殖性视网膜病变，可进行激光治疗以封闭渗漏血管。
             2. **抗VEGF治疗**：眼内注射抗血管内皮生长因子药物可减少异常血管生长和黄斑水肿。
             3. **玻璃体切除术**：对于严重增殖性视网膜病变或持续性玻璃体出血。
             
@@ -901,47 +901,47 @@ class DeepSeekAPI:
             - 无明显病变：每年检查一次
             - 轻中度非增殖性病变：每6-12个月检查一次
             - 重度非增殖性或增殖性病变：每3-6个月检查一次
-            - 接受治疗后：根据医生建议,通常更频繁
+            - 接受治疗后：根据医生建议，通常更频繁
             """,
 
             "Glaucoma": """
             # 青光眼治疗建议
 
             ## 疾病简介
-            青光眼是一组眼部疾病,特征是视神经损伤,通常与眼内压升高有关,可导致渐进性、不可逆的视力丧失。
+            青光眼是一组眼部疾病，特征是视神经损伤，通常与眼内压升高有关，可导致渐进性、不可逆的视力丧失。
 
             ## 治疗方案
-            1. **药物治疗**：眼药水（如前列腺素类似物、β-阻滞剂）是首选治疗,目的是降低眼压。
+            1. **药物治疗**：眼药水（如前列腺素类似物、β-阻滞剂）是首选治疗，目的是降低眼压。
             2. **激光治疗**：激光小梁成形术或激光周边虹膜切除术可以改善房水流出。
-            3. **手术治疗**：对于药物和激光治疗效果不佳的患者,可能需要小梁切除术等手术。
+            3. **手术治疗**：对于药物和激光治疗效果不佳的患者，可能需要小梁切除术等手术。
 
             ## 日常护理
-            1. **严格按照医嘱用药**：定时点眼药水,不要擅自停药。
+            1. **严格按照医嘱用药**：定时点眼药水，不要擅自停药。
             2. **避免增加眼压的活动**：如倒立、屏气或重量训练。
             3. **定期测量眼压**：了解自己的眼压变化情况。
-            4. **保护眼睛**：避免眼外伤,戴防护眼镜进行高风险活动。
+            4. **保护眼睛**：避免眼外伤，戴防护眼镜进行高风险活动。
 
             ## 随访建议
             - 稳定期：每3-6个月复查一次
             - 治疗调整期：可能需要更频繁复查
-            - 治疗后：按医生建议进行复查,通常开始较频繁,稳定后可减少
+            - 治疗后：按医生建议进行复查，通常开始较频繁，稳定后可减少
             """,
 
             "Hypertensive Retinopathy": """
             # 高血压视网膜病变治疗建议
 
             ## 疾病简介
-            高血压视网膜病变是长期高血压导致视网膜血管改变的一种并发症,表现为视网膜动脉狭窄、交叉压迫现象、出血和渗出等。
+            高血压视网膜病变是长期高血压导致视网膜血管改变的一种并发症，表现为视网膜动脉狭窄、交叉压迫现象、出血和渗出等。
 
             ## 治疗方案
-            1. **控制血压**：这是治疗的核心,通常需要服用降压药物。
+            1. **控制血压**：这是治疗的核心，通常需要服用降压药物。
             2. **对症治疗**：针对视网膜出血或渗出的特定症状进行处理。
 
             ## 日常护理
-            1. **严格控制血压**：定期监测血压,按时服药。
+            1. **严格控制血压**：定期监测血压，按时服药。
             2. **健康生活方式**：低盐饮食、控制体重、规律运动、减少压力。
-            3. **避免影响**：戒烟限酒,避免咖啡因等刺激性物质。
-            4. **注意用眼卫生**：避免长时间近距离用眼,定期休息。
+            3. **避免影响**：戒烟限酒，避免咖啡因等刺激性物质。
+            4. **注意用眼卫生**：避免长时间近距离用眼，定期休息。
 
             ## 随访建议
             - 轻度病变：每6个月进行一次眼科检查
@@ -953,11 +953,11 @@ class DeepSeekAPI:
             # 近视治疗建议
 
             ## 疾病简介
-            近视是一种屈光不正,远处物体的光线聚焦在视网膜前方而非视网膜上,导致远处物体模糊。
+            近视是一种屈光不正，远处物体的光线聚焦在视网膜前方而非视网膜上，导致远处物体模糊。
 
             ## 治疗方案
             1. **光学矫正**：眼镜或隐形眼镜是最常见的矫正方法。
-            2. **角膜塑形术**：夜间佩戴特制硬性隐形眼镜,暂时改变角膜形状。
+            2. **角膜塑形术**：夜间佩戴特制硬性隐形眼镜，暂时改变角膜形状。
             3. **近视控制**：低浓度阿托品眼药水、多焦点隐形眼镜或特殊眼镜可能减缓近视进展。
             4. **手术治疗**：如激光角膜屈光手术(LASIK)、小切口角膜透镜取出术(SMILE)等。
 
@@ -968,22 +968,22 @@ class DeepSeekAPI:
             4. **保持良好照明**：读书写字时保持充足光线。
 
             ## 随访建议
-            - 儿童和青少年：每6个月检查一次,监测近视进展
+            - 儿童和青少年：每6个月检查一次，监测近视进展
             - 成人稳定近视：每年检查一次
-            - 高度近视(>600度)：每半年检查一次,监测眼底变化
+            - 高度近视(>600度)：每半年检查一次，监测眼底变化
             """,
 
             "Normal": """
             # 正常眼部健康维护建议
 
             ## 评估结果
-            您的眼部检查结果显示为正常,没有检测到明显的眼部疾病。这是一个好消息,但保持定期检查和良好的眼部保健习惯仍然很重要。
+            您的眼部检查结果显示为正常，没有检测到明显的眼部疾病。这是一个好消息，但保持定期检查和良好的眼部保健习惯仍然很重要。
 
             ## 日常护理建议
-            1. **定期休息眼睛**：使用电子设备时,遵循20-20-20法则。
-            2. **均衡饮食**：摄入富含维生素A、C、E和叶黄素的食物,如绿叶蔬菜、胡萝卜和浆果。
-            3. **保护眼睛**：在阳光强烈时佩戴太阳镜,进行可能导致眼部伤害的活动时佩戴防护眼镜。
-            4. **良好用眼习惯**：保持适当的阅读距离和光线,避免在光线不足的环境下用眼。
+            1. **定期休息眼睛**：使用电子设备时，遵循20-20-20法则。
+            2. **均衡饮食**：摄入富含维生素A、C、E和叶黄素的食物，如绿叶蔬菜、胡萝卜和浆果。
+            3. **保护眼睛**：在阳光强烈时佩戴太阳镜，进行可能导致眼部伤害的活动时佩戴防护眼镜。
+            4. **良好用眼习惯**：保持适当的阅读距离和光线，避免在光线不足的环境下用眼。
             5. **充分休息**：充足的睡眠有助于眼部健康。
 
             ## 随访建议
@@ -997,32 +997,32 @@ class DeepSeekAPI:
             # 其他眼部疾病治疗建议
 
             ## 注意事项
-            系统检测到您可能患有未明确分类的眼部疾病。由于无法确定具体疾病类型,建议您尽快咨询专业眼科医生进行详细检查和诊断。
+            系统检测到您可能患有未明确分类的眼部疾病。由于无法确定具体疾病类型，建议您尽快咨询专业眼科医生进行详细检查和诊断。
 
             ## 一般护理建议
             1. **避免揉搓眼睛**：可能加重刺激或导致感染。
-            2. **注意用眼卫生**：使用干净的手和毛巾,避免交叉感染。
-            3. **适当休息**：减少用眼疲劳,特别是在使用电子设备时。
+            2. **注意用眼卫生**：使用干净的手和毛巾，避免交叉感染。
+            3. **适当休息**：减少用眼疲劳，特别是在使用电子设备时。
             4. **保持良好生活习惯**：均衡饮食、充足睡眠、适量运动。
 
             ## 就医建议
-            强烈建议您尽快前往专业眼科医疗机构就诊,接受全面检查,以明确诊断并获得针对性治疗方案。
+            强烈建议您尽快前往专业眼科医疗机构就诊，接受全面检查，以明确诊断并获得针对性治疗方案。
 
             ## 随访管理
-            在确诊前,如症状加重（如视力下降、眼痛加剧、出现新症状）,应立即就医。
+            在确诊前，如症状加重（如视力下降、眼痛加剧、出现新症状），应立即就医。
             """
         }
 
-        return advice_dict.get(disease_name, "暂无该疾病的治疗建议,请咨询专业医生。")
+        return advice_dict.get(disease_name, "暂无该疾病的治疗建议，请咨询专业医生。")
 
 
-# 删除百度API类,简化代码
+# 删除百度API类，简化代码
 
 
 class EyeDiseaseDetector:
-    """眼部疾病检测器,包含结果解析所需的映射关系"""
+    """眼部疾病检测器，包含结果解析所需的映射关系"""
     
-    # 类级别的模型缓存,避免重复加载同一模型
+    # 类级别的模型缓存，避免重复加载同一模型
     _model_cache = {}
     
     def __init__(self):
@@ -1053,11 +1053,11 @@ class EyeDiseaseDetector:
         }
 
     def load_model(self, model_path):
-        """加载模型,使用缓存机制提高性能"""
+        """加载模型，使用缓存机制提高性能"""
         try:
-            # 如果已经加载了相同的模型,直接返回
+            # 如果已经加载了相同的模型，直接返回
             if self.current_model_path == model_path and self.model is not None:
-                print(f"[DEBUG] 模型已加载,跳过重复加载: {model_path}")
+                print(f"[DEBUG] 模型已加载，跳过重复加载: {model_path}")
                 return True
             
             # 检查缓存
@@ -1071,7 +1071,7 @@ class EyeDiseaseDetector:
             print(f"[DEBUG] 正在加载新模型: {model_path}")
             model = YOLO(model_path)
             
-            # 缓存模型（限制缓存大小,避免内存过度使用）
+            # 缓存模型（限制缓存大小，避免内存过度使用）
             if len(self._model_cache) >= 3:  # 最多缓存3个模型
                 # 删除最老的模型
                 oldest_key = next(iter(self._model_cache))
@@ -1098,7 +1098,7 @@ class EyeDiseaseDetector:
 
 
 class ResultProcessor:
-    """检测结果处理工具类,负责解析、展示和格式化结果"""
+    """检测结果处理工具类，负责解析、展示和格式化结果"""
     def __init__(self, detector: EyeDiseaseDetector):
         self.detector = detector  # 疾病检测器实例（包含映射关系）
         self.current_disease = None  # 当前检测到的疾病
@@ -1177,7 +1177,7 @@ class ResultProcessor:
         return False
 
     def get_fallback_result(self):
-        """当解析失败时,返回默认的备用结果（AMD,置信度0.98）"""
+        """当解析失败时，返回默认的备用结果（AMD，置信度0.98）"""
         self.current_disease = "AMD"
         self.current_confidence = 0.98
         return self.current_disease, self.current_confidence
@@ -1207,14 +1207,14 @@ class ResultProcessor:
                 min-width: 450px;
             }}
             QPushButton {{
-                background-color: #00B5D8;
+                background-color: #4299e1;
                 color: white;
                 padding: 8px 16px;
                 border-radius: 6px;
                 font-weight: bold;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         msg_box.exec_()
@@ -1258,7 +1258,7 @@ class CommandListener(QObject):
             self.listening_thread = threading.Thread(target=self._listen_loop, daemon=True)
             self.listening_thread.start()
             
-            print(f"[开发板] 命令监听器已启动,监听端口 {port}")
+            print(f"[开发板] 命令监听器已启动，监听端口 {port}")
             
         except Exception as e:
             print(f"[开发板] 启动命令监听器失败: {e}")
@@ -1335,7 +1335,7 @@ class BoardCameraReceiver(QObject):
             self.receiving_thread = threading.Thread(target=self._receive_loop, daemon=True)
             self.receiving_thread.start()
             
-            print(f"[开发板] 摄像头数据接收器已启动,监听端口 {port}")
+            print(f"[开发板] 摄像头数据接收器已启动，监听端口 {port}")
             self.connection_status_changed.emit(True)
             
         except Exception as e:
@@ -1372,7 +1372,7 @@ class BoardCameraReceiver(QObject):
     def _process_received_data(self, data, addr):
         """处理接收到的数据"""
         try:
-            print(f"[调试] 收到数据包,总长度: {len(data)} 字节")
+            print(f"[调试] 收到数据包，总长度: {len(data)} 字节")
             print(f"[调试] 数据包前20字节: {data[:20].hex() if len(data) >= 20 else data.hex()}")
             
             # 检查是否是心跳包
@@ -1415,7 +1415,7 @@ class BoardCameraReceiver(QObject):
             
             # 原有的复杂格式处理（保留兼容性）
             if len(data) < 9:  # 最小包头长度
-                print(f"[调试] 数据包太短,长度: {len(data)},需要至少9字节")
+                print(f"[调试] 数据包太短，长度: {len(data)}，需要至少9字节")
                 return
             
             # 解析包头：[4字节请求ID哈希][2字节包索引][2字节总包数][1字节标志位][数据]
@@ -1428,7 +1428,7 @@ class BoardCameraReceiver(QObject):
             
             # 处理第一个包中的request_id信息
             if packet_index == 0:
-                print(f"[调试] 处理第一个包,数据总长度: {len(data)}")
+                print(f"[调试] 处理第一个包，数据总长度: {len(data)}")
                 
                 if len(data) >= 11:
                     # 第一个包包含request_id信息：[包头][2字节长度][request_id][图像数据]
@@ -1443,8 +1443,8 @@ class BoardCameraReceiver(QObject):
                             
                             # 存储request_id到packet_id的映射
                             self.packet_to_request[packet_id] = request_id
-                            print(f"[开发板] 收到图像包,packet_id: {packet_id}, request_id: {request_id}")
-                            print(f"[开发板] 映射关系已存储,当前映射数量: {len(self.packet_to_request)}")
+                            print(f"[开发板] 收到图像包，packet_id: {packet_id}, request_id: {request_id}")
+                            print(f"[开发板] 映射关系已存储，当前映射数量: {len(self.packet_to_request)}")
                             print(f"[开发板] 当前请求头数量: {len(self.request_headers)}")
                         except UnicodeDecodeError as e:
                             print(f"[调试] request_id解码失败: {e}")
@@ -1452,11 +1452,11 @@ class BoardCameraReceiver(QObject):
                             packet_data = data[9:]
                     else:
                         packet_data = data[9:]
-                        print(f"[调试] 第一个包数据长度不足,无法提取request_id")
+                        print(f"[调试] 第一个包数据长度不足，无法提取request_id")
                         print(f"[调试] 需要: {11 + request_id_len}, 实际: {len(data)}")
                 else:
                     packet_data = data[9:]
-                    print(f"[调试] 第一个包长度不足11字节,无法读取request_id长度")
+                    print(f"[调试] 第一个包长度不足11字节，无法读取request_id长度")
             else:
                 packet_data = data[9:]
             
@@ -1495,7 +1495,7 @@ class BoardCameraReceiver(QObject):
                 response_data = json.dumps(response).encode('utf-8')
                 self.socket.sendto(response_data, addr)
                 
-                print(f"[开发板] 收到心跳包,延迟: {response['latency']}ms")
+                print(f"[开发板] 收到心跳包，延迟: {response['latency']}ms")
                 
         except Exception as e:
             print(f"[开发板] 心跳处理错误: {e}")
@@ -1511,18 +1511,18 @@ class BoardCameraReceiver(QObject):
             image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
             
             if image is not None:
-                print(f"[开发板] 图像重组成功,大小: {image.shape}")
+                print(f"[开发板] 图像重组成功，大小: {image.shape}")
                 
                 # 查找对应的request_id
                 request_id = self.packet_to_request.get(packet_id)
-                print(f"[开发板] 查找request_id映射,packet_id: {packet_id}, found: {request_id is not None}")
+                print(f"[开发板] 查找request_id映射，packet_id: {packet_id}, found: {request_id is not None}")
                 print(f"[开发板] 当前映射关系: {list(self.packet_to_request.keys())}")
                 print(f"[开发板] 当前请求头: {list(self.request_headers.keys())}")
                 
                 if request_id:
                     # 查找对应的请求头信息
                     request_header = self.request_headers.get(request_id)
-                    print(f"[开发板] 查找请求头信息,request_id: {request_id}, found: {request_header is not None}")
+                    print(f"[开发板] 查找请求头信息，request_id: {request_id}, found: {request_header is not None}")
                     
                     if request_header:
                         # 发送诊断请求信号
@@ -1537,14 +1537,14 @@ class BoardCameraReceiver(QObject):
                         del self.packet_buffer[packet_id]
                         del self.request_headers[request_id]
                         del self.packet_to_request[packet_id]
-                        print(f"[开发板] 图像处理完成,request_id: {request_id}")
+                        print(f"[开发板] 图像处理完成，request_id: {request_id}")
                     else:
-                        print(f"[开发板] 未找到请求头信息,request_id: {request_id}")
-                        # 清理包缓存,但保留映射关系以便调试
+                        print(f"[开发板] 未找到请求头信息，request_id: {request_id}")
+                        # 清理包缓存，但保留映射关系以便调试
                         if packet_id in self.packet_buffer:
                             del self.packet_buffer[packet_id]
                 else:
-                    print(f"[开发板] 未找到request_id映射,packet_id: {packet_id}")
+                    print(f"[开发板] 未找到request_id映射，packet_id: {packet_id}")
                     # 清理包缓存
                     if packet_id in self.packet_buffer:
                         del self.packet_buffer[packet_id]
@@ -1565,13 +1565,13 @@ class BoardCameraReceiver(QObject):
             image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
             
             if image is not None:
-                print(f"[保存] 图像重组成功,大小: {image.shape}")
+                print(f"[保存] 图像重组成功，大小: {image.shape}")
                 
                 # 查找对应的保存请求头
                 save_request_header = None
                 save_request_id = None
                 
-                # 遍历所有请求头,找到保存请求
+                # 遍历所有请求头，找到保存请求
                 for req_id, header in self.request_headers.items():
                     if header.get('type') == 'image_save_request':
                         save_request_header = header
@@ -1583,7 +1583,7 @@ class BoardCameraReceiver(QObject):
                     pc_save_path = save_request_header.get('pc_save_path', '')
                     filename = save_request_header.get('filename', f'saved_image_{int(time.time())}.jpg')
                     
-                    print(f"[保存] 找到保存请求,文件名: {filename}")
+                    print(f"[保存] 找到保存请求，文件名: {filename}")
                     print(f"[保存] 保存路径: {pc_save_path}")
                     
                     if pc_save_path:
@@ -1606,7 +1606,7 @@ class BoardCameraReceiver(QObject):
                         print("[保存] 未找到PC端保存路径")
                         self._send_save_response(save_request_id, False, filename, addr)
                 else:
-                    print("[保存] 未找到保存请求头,使用默认路径保存")
+                    print("[保存] 未找到保存请求头，使用默认路径保存")
                     
                     # 使用默认路径保存
                     default_path = r"C:\Users\47449\Desktop\yolo\Intelligent_diagnosis_system\ultralytics-main\datasets\test"
@@ -1644,7 +1644,7 @@ class BoardCameraReceiver(QObject):
                 print(f"   文件大小: {file_size} 字节")
                 return True
             else:
-                print(f"❌ [保存] 图像保存失败,文件未创建")
+                print(f"❌ [保存] 图像保存失败，文件未创建")
                 return False
             
         except Exception as e:
@@ -1678,7 +1678,7 @@ class BoardCameraReceiver(QObject):
     def store_request_header(self, request_id, header):
         """存储请求头信息"""
         self.request_headers[request_id] = header
-        print(f"[开发板] 存储请求头,request_id: {request_id}")
+        print(f"[开发板] 存储请求头，request_id: {request_id}")
     
     def get_connection_status(self):
         """获取连接状态"""
@@ -1713,21 +1713,19 @@ class MainWindow(QMainWindow):
         self.command_listener.start_listening(5004)  # 启动命令监听
         print("✅ PC端命令监听器已自动启动 (端口5004)")
         
-        self.setMinimumSize(1200, 700)  # 降低最小尺寸要求,提高适应性
+        self.setMinimumSize(1200, 700)  # 降低最小尺寸要求，提高适应性
         
         # 启动时自动全屏显示
         self.showMaximized()
         
-        # 医疗风颜色主题 - 临床暗黑风格
-        self.background_color = "#1E222A"    # 更深沉的背景
-        self.primary_color = "#282C34"       # 主面板色
-        self.secondary_bg = "#21252B"        # 次级面板色
-        self.accent_color = "#00B5D8"        # 医疗青色 (主色调)
-        self.highlight_color = "#805AD5"     # 沉稳紫 (替代刺眼的粉色)
-        self.text_color = "#E5E9F0"          # 柔和的灰白文字
-        self.success_color = "#38A169"       # 成功/连接状态绿
-        self.danger_color = "#E53E3E"        # 警告/断开状态红
-
+        # 颜色主题
+        self.background_color = "#1a202c"
+        self.primary_color = "#2d3748"
+        self.secondary_bg = "#2a3441"
+        self.accent_color = "#4299e1"
+        self.highlight_color = "#ed64a6"  # 改为粉色
+        self.text_color = "#e2e8f0"
+        
         # 设置全局样式
         self.setStyleSheet(f"""
             QMainWindow, QWidget {{
@@ -1813,7 +1811,7 @@ class MainWindow(QMainWindow):
         # 延迟加载保存的API密钥
         QTimer.singleShot(100, self.load_saved_api_key)
         
-        # 延迟初始化重量级组件,提高启动速度
+        # 延迟初始化重量级组件，提高启动速度
         QTimer.singleShot(300, self.lazy_load_components)
         
         # 显示加载状态
@@ -1822,7 +1820,7 @@ class MainWindow(QMainWindow):
         # 异步加载历史记录
         QTimer.singleShot(500, self.load_history_records)
         
-        # 设置键盘快捷键,提升用户体验
+        # 设置键盘快捷键，提升用户体验
         self.setup_shortcuts()
 
     def setup_shortcuts(self):
@@ -1868,14 +1866,14 @@ class MainWindow(QMainWindow):
             self.start_voice_input()
 
     def lazy_load_components(self):
-        """延迟加载重量级组件,提高启动响应速度"""
+        """延迟加载重量级组件，提高启动响应速度"""
         try:
             # 初始化DeepSeek API组件
             if self.deepseek_api is None:
                 self.deepseek_api = DeepSeekAPI()
                 print("[DEBUG] DeepSeek API已初始化")
             
-            # 初始化语音组件（现在不会阻塞,因为Vosk模型延迟加载）
+            # 初始化语音组件（现在不会阻塞，因为Vosk模型延迟加载）
             if self.voice_manager is None:
                 self.voice_manager = SmartVoiceManager()
                 self.connect_smart_voice_signals()
@@ -1892,11 +1890,11 @@ class MainWindow(QMainWindow):
             threading.Thread(target=self.init_speech_components_async, daemon=True).start()
             
             # 更新状态
-            self.status_bar.showMessage("系统组件加载完成,可以开始使用")
+            self.status_bar.showMessage("系统组件加载完成，可以开始使用")
             
         except Exception as e:
             print(f"[ERROR] 延迟加载组件失败: {e}")
-            self.status_bar.showMessage("部分组件加载失败,基本功能可用")
+            self.status_bar.showMessage("部分组件加载失败，基本功能可用")
 
     def init_speech_components_async(self):
         """异步初始化语音组件"""
@@ -1905,7 +1903,7 @@ class MainWindow(QMainWindow):
             
             # 初始化传统语音组件作为备用
             self.recognizer = sr.Recognizer()
-            self.microphone = sr.Microphone()  # 快速初始化,不做耗时测试
+            self.microphone = sr.Microphone()  # 快速初始化，不做耗时测试
             
             # 初始化TTS引擎
             try:
@@ -1916,7 +1914,7 @@ class MainWindow(QMainWindow):
                 print("[DEBUG] TTS引擎初始化成功")
             except:
                 self.tts_engine = None
-                print("[WARNING] TTS引擎初始化失败,语音播放功能不可用")
+                print("[WARNING] TTS引擎初始化失败，语音播放功能不可用")
             
             print("[DEBUG] 语音组件异步初始化完成")
             
@@ -1927,352 +1925,886 @@ class MainWindow(QMainWindow):
         # 主布局 - 使用QSplitter实现可调整的两部分布局
         main_splitter = QSplitter(Qt.Horizontal)
         self.setCentralWidget(main_splitter)
-        main_splitter.setStretchFactor(0, 6)  # 左侧视觉区占比 6
-        main_splitter.setStretchFactor(1, 4)  # 右侧分析区占比 4
-        main_splitter.setMinimumSize(1000, 600)
+        main_splitter.setStretchFactor(0, 1)  # 左侧可拉伸
+        main_splitter.setStretchFactor(1, 1)  # 右侧可拉伸
+        main_splitter.setMinimumSize(1000, 600)  # 进一步降低最小尺寸
 
-        # ========================================================
-        # 左侧容器 - 视觉与操作区
-        # ========================================================
+        # 左侧容器 - 图像和检测结果
         left_widget = QWidget()
         left_layout = QVBoxLayout(left_widget)
         left_layout.setSpacing(15)
         left_layout.setContentsMargins(20, 20, 10, 20)
 
         # 标题
-        title_label = QLabel("AI 眼科疾病智诊系统")
+        title_label = QLabel("AI眼科疾病智诊系统")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Microsoft YaHei", 22, QFont.Bold))
-        title_label.setStyleSheet(f"color: {self.accent_color}; letter-spacing: 3px; margin-bottom: 10px;")
+        title_label.setFont(QFont("Microsoft YaHei", 24, QFont.Bold))
+        title_label.setStyleSheet(f"""
+            padding: 15px;
+            color: {self.accent_color};
+            border-bottom: 2px solid {self.accent_color};
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+        """)
         left_layout.addWidget(title_label)
 
-        # --- 1. 图像展示区 (采用 QTabWidget 节省空间) ---
-        self.image_tab_widget = QTabWidget()
-        self.image_tab_widget.setStyleSheet(f"""
-            QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 10px 25px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 14px; margin-right: 2px; }}
-            QTabBar::tab:selected {{ background-color: {self.accent_color}; color: white; }}
+        # 图像显示区域
+        self.image_display_layout = QHBoxLayout()
+        self.image_display_layout.setSpacing(20)
+
+        # 创建摄像头预览、原始图像、检测结果三个容器
+        # 摄像头预览容器
+        camera_group = QGroupBox("📱 开发板摄像头")
+        camera_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        camera_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid #28a745;
+                border-radius: 8px;
+                margin-top: 20px;
+                padding-top: 15px;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: #28a745;
+            }}
         """)
 
-        # 标签页 A：本地图像分析
-        local_tab = QWidget()
-        local_layout = QHBoxLayout(local_tab)
-        local_layout.setSpacing(15)
+        left_group = QGroupBox("原始图像")
+        left_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        left_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.accent_color};
+                border-radius: 8px;
+                margin-top: 20px;
+                padding-top: 15px;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.accent_color};
+            }}
+        """)
 
-        # 原始图像卡片
-        self.original_image_label = QLabel("等待加载图像...")
-        self.original_image_label.setAlignment(Qt.AlignCenter)
-        self.original_image_label.setMinimumSize(300, 300)
-        self.original_image_label.setMaximumSize(600, 600)
-        self.original_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.original_image_label.setScaledContents(False)
-        self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 6px; border: 1px solid #2c323c;")
-        local_layout.addWidget(self.original_image_label)
+        right_group = QGroupBox("检测结果")
+        right_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        right_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.highlight_color};
+                border-radius: 8px;
+                margin-top: 20px;
+                padding-top: 15px;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.highlight_color};
+            }}
+        """)
 
-        # 检测结果卡片
-        self.detected_image_label = QLabel("等待检测结果...")
-        self.detected_image_label.setAlignment(Qt.AlignCenter)
-        self.detected_image_label.setMinimumSize(300, 300)
-        self.detected_image_label.setMaximumSize(600, 600)
-        self.detected_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.detected_image_label.setScaledContents(False)
-        self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 6px; border: 1px solid {self.highlight_color};")
-        local_layout.addWidget(self.detected_image_label)
-        self.image_tab_widget.addTab(local_tab, "🖼️ 本地图像分析")
-
-        # 标签页 B：开发板流媒体
-        board_tab = QWidget()
-        board_layout = QVBoxLayout(board_tab)
-
-        self.camera_preview_label = QLabel("摄像头未连接\n点击连接开始预览")
+        # 摄像头预览标签
+        camera_layout_inner = QVBoxLayout()
+        self.camera_preview_label = QLabel()
         self.camera_preview_label.setAlignment(Qt.AlignCenter)
         self.camera_preview_label.setMinimumSize(200, 150)
         self.camera_preview_label.setMaximumSize(350, 250)
         self.camera_preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.camera_preview_label.setScaledContents(False)
-        self.camera_preview_label.setStyleSheet("background-color: #1a1e24; border-radius: 6px; color: #616E88;")
-        board_layout.addWidget(self.camera_preview_label)
-
-        # 摄像头控制条
-        cam_ctrl_layout = QHBoxLayout()
-        self.board_camera_status = QLabel("🔴 未连接")
-        self.board_camera_status.setStyleSheet("font-weight: bold; color: #E53E3E;")
-        self.connect_camera_button = QPushButton("🔗 连接开发板")
-        self.capture_from_camera_button = QPushButton("📸 截取并诊断")
+        self.camera_preview_label.setStyleSheet(f"""
+            background-color: #1e2a38;
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+        """)
+        self.camera_preview_label.setText("摄像头未连接\\n点击连接开始预览")
+        
+        # 摄像头控制按钮
+        camera_controls_layout = QHBoxLayout()
+        self.connect_camera_button = QPushButton("🔗 连接")
+        self.capture_from_camera_button = QPushButton("📸 拍照")
         self.capture_from_camera_button.setEnabled(False)
-
-        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 8px 15px; border-radius: 4px; font-weight: bold; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
-        for btn in [self.connect_camera_button, self.capture_from_camera_button]:
-            btn.setStyleSheet(cam_btn_style)
-            btn.setCursor(QCursor(Qt.PointingHandCursor))
-
+        
+        # 设置摄像头按钮样式
+        camera_button_style = """
+            QPushButton {
+                background-color: #28a745;
+                color: white;
+                font-size: 11px;
+                font-weight: bold;
+                border-radius: 6px;
+                padding: 6px;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+            QPushButton:disabled {
+                background-color: #6c757d;
+                color: #adb5bd;
+            }
+        """
+        
+        self.connect_camera_button.setStyleSheet(camera_button_style)
+        self.capture_from_camera_button.setStyleSheet(camera_button_style)
+        self.connect_camera_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.capture_from_camera_button.setCursor(QCursor(Qt.PointingHandCursor))
+        
+        # 连接事件处理器
         self.connect_camera_button.clicked.connect(self.toggle_camera_connection)
         self.capture_from_camera_button.clicked.connect(self.capture_from_board_camera)
+        
+        camera_controls_layout.addWidget(self.connect_camera_button)
+        camera_controls_layout.addWidget(self.capture_from_camera_button)
+        
+        # 添加开发板摄像头连接状态标签
+        self.board_camera_status = QLabel("🔴 未连接")
+        self.board_camera_status.setAlignment(Qt.AlignCenter)
+        self.board_camera_status.setStyleSheet("""
+            QLabel {
+                background-color: #2a3441;
+                color: #e2e8f0;
+                padding: 5px;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }
+        """)
+        
+        camera_layout_inner.addWidget(self.camera_preview_label)
+        camera_layout_inner.addWidget(self.board_camera_status)
+        camera_layout_inner.addLayout(camera_controls_layout)
+        camera_group.setLayout(camera_layout_inner)
 
-        cam_ctrl_layout.addWidget(self.board_camera_status)
-        cam_ctrl_layout.addStretch()
-        cam_ctrl_layout.addWidget(self.connect_camera_button)
-        cam_ctrl_layout.addWidget(self.capture_from_camera_button)
-        board_layout.addLayout(cam_ctrl_layout)
-        self.image_tab_widget.addTab(board_tab, "📱 硬件实时视窗")
+        # 原始图像标签
+        left_layout_inner = QVBoxLayout()
+        self.original_image_label = QLabel()
+        self.original_image_label.setAlignment(Qt.AlignCenter)
+        self.original_image_label.setMinimumSize(300, 300)
+        self.original_image_label.setMaximumSize(600, 600)
+        self.original_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.original_image_label.setScaledContents(False)  # 关键：不拉伸
+        self.original_image_label.setStyleSheet(f"""
+            background-color: #1e2a38;
+            border-radius: 8px;
+            padding: 10px;
+        """)
+        self.original_image_label.setText("等待加载图像...")
+        left_layout_inner.addWidget(self.original_image_label)
+        left_group.setLayout(left_layout_inner)
 
-        left_layout.addWidget(self.image_tab_widget, stretch=1)  # 图像区占据弹性空间
+        # 检测图像标签
+        right_layout_inner = QVBoxLayout()
+        self.detected_image_label = QLabel()
+        self.detected_image_label.setAlignment(Qt.AlignCenter)
+        self.detected_image_label.setMinimumSize(300, 300)
+        self.detected_image_label.setMaximumSize(600, 600)
+        self.detected_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.detected_image_label.setScaledContents(False)  # 关键：不拉伸
+        self.detected_image_label.setStyleSheet(f"""
+            background-color: #1e2a38;
+            border-radius: 8px;
+            padding: 10px;
+        """)
+        self.detected_image_label.setText("等待检测结果...")
+        right_layout_inner.addWidget(self.detected_image_label)
+        right_group.setLayout(right_layout_inner)
 
-        # --- 2. 按钮控制面板 (逻辑分组) ---
-        btn_panel = QWidget()
-        btn_panel.setStyleSheet(f"background-color: {self.secondary_bg}; border-radius: 8px; border-top: 3px solid {self.accent_color};")
-        btn_layout_v = QVBoxLayout(btn_panel)
-        btn_layout_v.setContentsMargins(15, 15, 15, 15)
-        btn_layout_v.setSpacing(15)
+        self.image_display_layout.addWidget(camera_group)
+        self.image_display_layout.addWidget(left_group)
+        self.image_display_layout.addWidget(right_group)
 
-        # 核心工作流按钮
-        main_flow_layout = QHBoxLayout()
-        main_flow_layout.setSpacing(10)
-        self.model_button = QPushButton("1. 🔁 加载模型")
-        self.image_button = QPushButton("2. 🖼️ 加载图像")
-        self.detect_button = QPushButton("3. 🔍 开始检测")
-        self.results_button = QPushButton("4. 📊 查看报告")
+        # 添加图像显示区域到主布局
+        left_layout.addLayout(self.image_display_layout)
 
-        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 13px; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
-        for btn in [self.model_button, self.image_button, self.detect_button, self.results_button]:
-            btn.setStyleSheet(main_btn_style)
-            btn.setCursor(QCursor(Qt.PointingHandCursor))
-            btn.setMinimumHeight(45)
-            main_flow_layout.addWidget(btn)
-
-        self.model_button.clicked.connect(lambda: self.load_model(None))
-        self.image_button.clicked.connect(self.load_image)
-        self.image_button.setEnabled(False)
-        self.detect_button.clicked.connect(self.detect_image)
-        self.detect_button.setEnabled(False)
-        self.results_button.clicked.connect(self.show_results)
-        self.results_button.setEnabled(False)
-
-        # 扩展工具按钮
-        tools_layout = QHBoxLayout()
-        tools_layout.setSpacing(10)
-        self.batch_button = QPushButton("📁 批量处理")
-        self.history_button = QPushButton("📜 历史记录")
-        self.board_interaction_button = QPushButton("📱 开发板交互")
-        self.voice_server_button = QPushButton("🎤 语音服务")
-
-        tool_style = f"QPushButton {{ background-color: {self.primary_color}; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px; border-radius: 4px; }} QPushButton:hover {{ background-color: #4C566A; }}"
-        for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.voice_server_button]:
-            btn.setStyleSheet(tool_style)
-            btn.setCursor(QCursor(Qt.PointingHandCursor))
-            tools_layout.addWidget(btn)
-
-        self.batch_button.clicked.connect(self.batch_process)
-        self.batch_button.setEnabled(False)
-        self.history_button.clicked.connect(self.show_history)
-        self.board_interaction_button.clicked.connect(self.show_board_interaction)
-        self.voice_server_button.clicked.connect(self.toggle_voice_server)
-
-        btn_layout_v.addLayout(main_flow_layout)
-        btn_layout_v.addLayout(tools_layout)
-        left_layout.addWidget(btn_panel, stretch=0)  # 保持按钮区原始高度
-
-        # ========================================================
-        # 右侧容器 - AI 分析与设置区 (同样采用 Tab 化)
-        # ========================================================
-        right_widget = QWidget()
-        right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(10, 20, 20, 20)
-
-        self.right_tab_widget = QTabWidget()
-        self.right_tab_widget.setStyleSheet(f"""
-            QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 12px 20px; font-weight: bold; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; }}
-            QTabBar::tab:selected {{ background-color: {self.highlight_color}; color: white; }}
+        # 按钮面板
+        buttons_group = QGroupBox("操作菜单")
+        buttons_group.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        buttons_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.accent_color};
+                border-radius: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.accent_color};
+            }}
         """)
 
-        # --- Tab 1: AI 诊疗建议 (主视图) ---
-        advice_tab = QWidget()
-        advice_layout = QVBoxLayout(advice_tab)
+        self.button_panel = QGridLayout()
+        self.button_panel.setSpacing(20)
+        self.button_panel.setContentsMargins(25, 20, 25, 20)
+        self.button_panel.setColumnStretch(0, 1)
+        self.button_panel.setColumnStretch(1, 1)
+        self.button_panel.setColumnStretch(2, 1)
+        self.button_panel.setColumnStretch(3, 1)
+        self.button_panel.setColumnStretch(4, 1)
 
-        # 全屏/操作工具栏
-        advice_tool_layout = QHBoxLayout()
-        self.advice_button = QPushButton("🔄 生成当前报告")
-        self.advice_button.setStyleSheet(f"QPushButton {{ background-color: {self.highlight_color}; color: white; padding: 6px 12px; border-radius: 4px; font-weight: bold; }} QPushButton:disabled {{ background-color: #3b4252; }}")
+        # 按钮样式
+        button_style = f"""
+            QPushButton {{
+                background-color: {self.accent_color};
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 12px;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }}
+            QPushButton:hover {{
+                background-color: #3182ce;
+            }}
+            QPushButton:pressed {{
+                background-color: #2b6cb0;
+            }}
+            QPushButton:disabled {{
+                background-color: #718096;
+                color: #a0aec0;
+            }}
+        """
+
+
+
+        # 图像选择按钮
+        self.image_button = QPushButton("🖼️ 加载图像")
+        self.image_button.setStyleSheet(button_style)
+        self.image_button.clicked.connect(self.load_image)
+        self.image_button.setEnabled(False)
+        self.image_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.image_button.setFont(QFont("Microsoft YaHei", 10))
+
+        # 检测按钮
+        self.detect_button = QPushButton("🔍 开始检测")
+        self.detect_button.setStyleSheet(button_style)
+        self.detect_button.clicked.connect(self.detect_image)
+        self.detect_button.setEnabled(False)
+        self.detect_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.detect_button.setFont(QFont("Microsoft YaHei", 10))
+
+        # 结果按钮
+        self.results_button = QPushButton("📊 显示结果")
+        self.results_button.setStyleSheet(button_style)
+        self.results_button.clicked.connect(self.show_results)
+        self.results_button.setEnabled(False)
+        self.results_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.results_button.setFont(QFont("Microsoft YaHei", 10))
+
+        # AI建议按钮
+        self.advice_button = QPushButton("🤖 AI治疗建议")
+        self.advice_button.setStyleSheet(button_style.replace(self.accent_color, self.highlight_color))
         self.advice_button.clicked.connect(self.show_ai_advice)
         self.advice_button.setEnabled(False)
         self.advice_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.advice_button.setFont(QFont("Microsoft YaHei", 10))
 
-        self.fullscreen_advice_btn = QPushButton("🗖 全屏阅览")
-        self.fullscreen_advice_btn.setStyleSheet(f"QPushButton {{ background-color: transparent; border: 1px solid {self.highlight_color}; color: {self.highlight_color}; padding: 6px 12px; border-radius: 4px; }} QPushButton:hover {{ background-color: rgba(128, 90, 213, 0.2); }}")
-        self.fullscreen_advice_btn.clicked.connect(self.show_fullscreen_advice)
-        self.fullscreen_advice_btn.setCursor(QCursor(Qt.PointingHandCursor))
+        # 批量处理按钮
+        self.batch_button = QPushButton("📁 批量处理")
+        self.batch_button.setStyleSheet(button_style.replace(self.accent_color, '#805ad5'))
+        self.batch_button.clicked.connect(self.batch_process)
+        self.batch_button.setEnabled(False)
+        self.batch_button.setCursor(QCursor(Qt.PointingHandCursor))
 
-        advice_tool_layout.addWidget(self.advice_button)
-        advice_tool_layout.addStretch()
-        advice_tool_layout.addWidget(self.fullscreen_advice_btn)
+        # 历史记录按钮
+        self.history_button = QPushButton("📜 历史记录")
+        self.history_button.setStyleSheet(button_style.replace(self.accent_color, '#d69e2e'))
+        self.history_button.clicked.connect(self.show_history)
+        self.history_button.setCursor(QCursor(Qt.PointingHandCursor))
+        
+        # 开发板交互按钮
+        self.board_interaction_button = QPushButton("📱 开发板交互")
+        self.board_interaction_button.setStyleSheet(button_style.replace(self.accent_color, '#e53e3e'))
+        self.board_interaction_button.clicked.connect(self.show_board_interaction)
+        self.board_interaction_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.board_interaction_button.setToolTip("管理开发板摄像头、语音对话等功能")
+        
+        # 语音服务器按钮
+        self.voice_server_button = QPushButton("🎤 语音服务")
+        self.voice_server_button.setStyleSheet(button_style.replace(self.accent_color, '#38a169'))
+        self.voice_server_button.clicked.connect(self.toggle_voice_server)
+        self.voice_server_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.voice_server_button.setToolTip("启动/停止语音处理服务器")
 
-        # 建议展示文本框
+        # 模型选择按钮（合并了加载和切换功能）
+        self.model_button = QPushButton("🔁 选择模型")
+        self.model_button.setStyleSheet(button_style)
+        self.model_button.clicked.connect(lambda: self.load_model(None))
+        self.model_button.setToolTip("加载或切换YOLOv11眼底疾病检测模型")
+        self.model_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.model_button.setFont(QFont("Microsoft YaHei", 10))
+
+        # 统一按钮大小
+        for btn in [self.model_button, self.image_button,
+                    self.detect_button, self.results_button, self.advice_button]:
+            btn.setFixedSize(130, 45)
+            
+        self.batch_button.setFixedSize(130, 45)
+        self.history_button.setFixedSize(130, 45)
+        self.board_interaction_button.setFixedSize(130, 45)
+        self.voice_server_button.setFixedSize(130, 45)
+
+        # 添加按钮到面板
+        self.button_panel.addWidget(self.model_button, 0, 0)
+        self.button_panel.addWidget(self.image_button, 0, 1)
+        self.button_panel.addWidget(self.detect_button, 0, 2)
+        self.button_panel.addWidget(self.results_button, 0, 3)
+        self.button_panel.addWidget(self.advice_button, 0, 4)
+        self.button_panel.addWidget(self.batch_button, 1, 0)
+        self.button_panel.addWidget(self.history_button, 1, 1)
+        self.button_panel.addWidget(self.board_interaction_button, 1, 2)
+        self.button_panel.addWidget(self.voice_server_button, 1, 3)
+        
+        # 确保按钮面板有足够的最小宽度显示所有按钮
+        buttons_group.setMinimumWidth(700)
+        
+        buttons_group.setLayout(self.button_panel)
+        left_layout.addWidget(buttons_group)
+
+        # 右侧容器 - DeepSeek AI建议区域
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setSpacing(15)
+        right_layout.setContentsMargins(10, 20, 20, 20)
+
+        # AI建议区域标题
+        ai_title = QLabel("DeepSeek AI 智能诊疗建议")
+        ai_title.setAlignment(Qt.AlignCenter)
+        ai_title.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
+        ai_title.setStyleSheet(f"""
+            padding: 15px;
+            color: {self.highlight_color};
+            border-bottom: 2px solid {self.highlight_color};
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+            font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+        """)
+        right_layout.addWidget(ai_title)
+
+        # AI建议内容区域
+        advice_group = QGroupBox("个性化治疗建议")
+        advice_group.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        advice_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.highlight_color};
+                border-radius: 8px;
+                margin-top: 20px;
+                padding: 15px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.highlight_color};
+            }}
+        """)
+
+        advice_layout = QVBoxLayout()
+
+        # 医疗建议文本编辑器 (移除外层滚动区域，避免双滚动条)
         self.advice_text = QTextEdit()
         self.advice_text.setReadOnly(True)
         self.advice_text.setMinimumHeight(300)
+        # 移除最大高度限制，让它能够自由伸缩
         self.advice_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.advice_text.setFont(QFont("Microsoft YaHei", 14))
-        self.advice_text.setStyleSheet(f"background-color: {self.primary_color}; border: none; padding: 10px; color: {self.text_color}; font-size: 14px;")
-        self.advice_text.setHtml(f"<div style='text-align:center; margin-top:50px;'><h2 style='color:{self.highlight_color};'>DeepSeek 诊疗引擎</h2><p style='color:#616E88;'>请先进行疾病检测, 然后点击生成报告获取专业建议.</p></div>")
-
-        advice_layout.addLayout(advice_tool_layout)
-        advice_layout.addWidget(self.advice_text)
-        self.right_tab_widget.addTab(advice_tab, "🩺 诊疗建议")
-
-        # --- Tab 2: 自定义对话 ---
-        chat_tab = QWidget()
-        chat_layout = QVBoxLayout(chat_tab)
-        chat_layout.setSpacing(10)
-
-        # 对话历史显示区
-        self.chat_display = QTextEdit()
-        self.chat_display.setReadOnly(True)
-        self.chat_display.setStyleSheet(f"""
+        self.advice_text.setFont(QFont("Microsoft YaHei", 12))
+        self.advice_text.setStyleSheet(f"""
             QTextEdit {{
-                background-color: #1a202c;
-                border: 1px solid #4C566A;
-                border-radius: 6px;
-                padding: 15px;
+                background-color: {self.secondary_bg};
                 color: {self.text_color};
-                font-size: 14px;
+                border: 1px solid {self.accent_color};
+                border-radius: 8px;
+                padding: 15px;
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+            }}
+            QTextEdit QScrollBar:vertical {{
+                background-color: {self.secondary_bg};
+                width: 12px;
+                border-radius: 6px;
+            }}
+            QTextEdit QScrollBar::handle:vertical {{
+                background-color: {self.accent_color};
+                min-height: 20px;
+                border-radius: 6px;
             }}
         """)
-        chat_layout.addWidget(self.chat_display, stretch=1)
+        self.advice_text.setHtml(f"""
+        <html>
+        <head>
+        <style>
+            body {{
+                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
+                color: {self.text_color};
+                background-color: {self.secondary_bg};
+                line-height: 1.6;
+                padding: 10px;
+            }}
+            h1 {{
+                color: {self.highlight_color};
+                font-size: 24px;
+                text-align: center;
+                margin-bottom: 20px;
+            }}
+            p {{
+                font-size: 15px;
+                text-align: center;
+                margin: 10px 0;
+            }}
+            .feature-list {{
+                text-align: left;
+                margin: 20px 0;
+                padding: 15px;
+                background-color: rgba(66, 153, 225, 0.1);
+                border-radius: 8px;
+                border-left: 4px solid {self.accent_color};
+            }}
+        </style>
+        </head>
+        <body>
+            <h1>🤖 AI个性化治疗建议</h1>
+            <p>这里将显示AI生成的个性化医疗建议</p>
+            
+            <div class="feature-list">
+                <h3>功能说明：</h3>
+                <p><strong>1. 检测后建议：</strong>完成疾病检测后，点击「AI治疗建议」按钮获取针对性的治疗方案</p>
+                <p><strong>2. 自定义咨询：</strong>在下方输入框中描述症状，点击「发送问题」获取AI医疗建议</p>
+                <p><strong>3. 实时更新：</strong>建议内容会实时显示在此区域，无需额外弹窗</p>
+            </div>
+            
+            <p style="color: #a0aec0; font-size: 14px; margin-top: 20px;">
+                请先设置DeepSeek API密钥以获取最佳体验
+            </p>
+        </body>
+        </html>
+        """)
 
-        self.chat_input = QTextEdit()
-        self.chat_input.setPlaceholderText("在此描述其他症状或向AI提问...")
-        self.chat_input.setMaximumHeight(100)
-        self.chat_input.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; border-radius: 4px; padding: 10px;")
+        advice_layout.addWidget(self.advice_text)
+        
+        # 设置建议组的尺寸策略，允许垂直扩展
+        advice_group.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        advice_group.setLayout(advice_layout)
 
-        voice_ctrl_layout = QHBoxLayout()
-        self.voice_chat_enabled = QCheckBox("启用语音回复")
-        self.voice_chat_enabled.setStyleSheet(f"color: {self.text_color};")
-        self.voice_chat_enabled.stateChanged.connect(self.toggle_voice_chat)
+        # API密钥设置区域
+        api_group = QGroupBox("🔑 DeepSeek API设置")
+        api_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        api_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.accent_color};
+                border-radius: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
+                padding-bottom: 10px;
+                padding-left: 10px;
+                padding-right: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.accent_color};
+                font-weight: bold;
+            }}
+        """)
 
-        self.voice_input_button = QPushButton("🎤 按住说话")
-        self.voice_input_button.setStyleSheet(f"background-color: {self.accent_color}; color: white; padding: 6px 15px; border-radius: 15px;")
-        self.voice_input_button.clicked.connect(self.start_voice_input)
-        self.voice_input_button.setEnabled(False)
-        self.voice_input_button.setCursor(QCursor(Qt.PointingHandCursor))
-
-        voice_ctrl_layout.addWidget(self.voice_chat_enabled)
-        voice_ctrl_layout.addWidget(self.voice_input_button)
-        voice_ctrl_layout.addStretch()
-
-        chat_btns_layout = QHBoxLayout()
-        self.send_chat_button = QPushButton("发送提问")
-        self.send_chat_button.setStyleSheet(f"background-color: {self.highlight_color}; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold;")
-        self.send_chat_button.clicked.connect(self.send_chat_message)
-        self.send_chat_button.setCursor(QCursor(Qt.PointingHandCursor))
-
-        self.clear_chat_button = QPushButton("清除记录")
-        self.clear_chat_button.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px 20px; border-radius: 4px;")
-        self.clear_chat_button.clicked.connect(self.clear_chat_history)
-        self.clear_chat_button.setCursor(QCursor(Qt.PointingHandCursor))
-
-        chat_btns_layout.addStretch()
-        chat_btns_layout.addWidget(self.clear_chat_button)
-        chat_btns_layout.addWidget(self.send_chat_button)
-
-        self.ai_progress_bar = QProgressBar()
-        self.ai_progress_bar.setVisible(False)
-
-        chat_layout.addWidget(self.chat_input)
-        chat_layout.addLayout(voice_ctrl_layout)
-        chat_layout.addWidget(self.ai_progress_bar)
-        chat_layout.addLayout(chat_btns_layout)
-        chat_layout.addStretch()
-        self.right_tab_widget.addTab(chat_tab, "💬 医疗问答")
-
-        # --- Tab 3: 系统设置 (收纳低频配置) ---
-        settings_tab = QWidget()
-        settings_layout = QVBoxLayout(settings_tab)
-        settings_layout.setSpacing(15)
-
-        group_style = f"QGroupBox {{ border: 1px solid #4C566A; border-radius: 6px; margin-top: 15px; padding: 15px; }} QGroupBox::title {{ color: {self.accent_color}; top: -10px; left: 10px; }}"
-
-        api_group = QGroupBox("DeepSeek 引擎配置")
-        api_group.setStyleSheet(group_style)
-        api_layout_v = QVBoxLayout(api_group)
-
-        self.use_api_checkbox = QCheckBox("启用云端 AI 推理")
-        self.use_api_checkbox.setChecked(True)
-        self.use_api_checkbox.setStyleSheet(f"color: {self.text_color}; font-weight: bold;")
+        # API开关复选框
+        self.use_api_checkbox = QCheckBox("启用DeepSeek API（推荐）")
+        self.use_api_checkbox.setChecked(True)  # 默认启用
+        self.use_api_checkbox.setFont(QFont("Microsoft YaHei", 11))
+        self.use_api_checkbox.setStyleSheet(f"""
+            QCheckBox {{
+                color: {self.text_color};
+                font-weight: bold;
+                margin-bottom: 10px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {self.accent_color};
+                border-radius: 3px;
+                background-color: {self.secondary_bg};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {self.accent_color};
+                image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xIDQuNUw0LjUgOEwxMSAxIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K);
+            }}
+            QCheckBox::indicator:unchecked {{
+                background-color: {self.secondary_bg};
+            }}
+        """)
         self.use_api_checkbox.toggled.connect(self.toggle_api_usage)
 
-        key_input_layout = QHBoxLayout()
+        api_layout = QVBoxLayout()
+        api_layout.addWidget(self.use_api_checkbox)
+
+        # API密钥输入区域
+        api_input_layout = QHBoxLayout()
+
+        # API密钥输入框优化 - 使用QLineEdit实现密码模式
         self.api_key_input = QLineEdit()
-        self.api_key_input.setPlaceholderText("输入 DeepSeek API Key")
-        self.api_key_input.setEchoMode(QLineEdit.Password)
-        self.api_key_input.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; padding: 8px; border-radius: 4px; color: {self.text_color};")
+        self.api_key_input.setPlaceholderText("请输入DeepSeek API密钥（可选）")
+        self.api_key_input.setEchoMode(QLineEdit.Password)  # 密码模式显示
+        self.api_key_input.setMaximumHeight(50)
+        self.api_key_input.setMinimumWidth(500)  # 设置最小宽度确保文本显示完整
+        # 2. 字体与样式细化：统一字体渲染，优化聚焦样式
+        self.api_key_input.setFont(QFont("Microsoft YaHei", 14, QFont.Normal))
+        # 3. 样式表分层：基础态 + 聚焦态，增强用户反馈
+        self.api_key_input.setStyleSheet(f"""
+            QLineEdit {{
+                background-color: {self.secondary_bg};
+                color: {self.text_color};
+                border: 1px solid {self.accent_color};
+                border-radius: 6px;
+                padding: 10px 15px;  /* 增加内边距，让文本显示更清晰 */
+                font-size: 14px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', 'Arial', sans-serif;
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {self.highlight_color};  /* 聚焦时加粗边框，突出交互 */
+                outline: none;  /* 清除系统默认聚焦outline */
+                background-color: #2a3441;  /* 聚焦时稍微改变背景色 */
+            }}
+        """)
+        # 4. 逻辑增强：自动去除首尾空白（密钥含空格会失效，提前处理）
+        # 注释掉可能导致无限循环的trim_text函数
+        # def trim_text():
+        #     try:
+        #         text = self.api_key_input.toPlainText().strip()
+        #         # 移除换行符，确保API密钥是单行的
+        #         text = text.replace('\n', '').replace('\r', '')
+        #         # 只有当文本真正改变时才设置，避免无限循环
+        #         current_text = self.api_key_input.toPlainText()
+        #         if current_text != text and text:  # 只有当文本不为空且真正改变时才设置
+        #             self.api_key_input.blockSignals(True)  # 暂时阻塞信号
+        #             self.api_key_input.setPlainText(text)
+        #             self.api_key_input.blockSignals(False)  # 恢复信号
+        #     except Exception as e:
+        #         print(f"处理API密钥输入时出错: {e}")
+        # self.api_key_input.textChanged.connect(trim_text)
+        # 5. 交互体验优化：光标样式，提升视觉反馈
+        self.api_key_input.setCursor(QCursor(Qt.IBeamCursor))
 
+        # 显示/隐藏密码按钮
         self.toggle_password_button = QPushButton("👁")
-        self.toggle_password_button.setFixedSize(35, 35)
-        self.toggle_password_button.setStyleSheet("background: transparent; border: none; font-size: 16px;")
-        self.toggle_password_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.toggle_password_button.setMaximumWidth(40)
+        self.toggle_password_button.setMinimumWidth(40)
+        self.toggle_password_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.accent_color};
+                color: white;
+                padding: 8px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #3182ce;
+            }}
+        """)
         self.toggle_password_button.clicked.connect(self.toggle_password_visibility)
+        self.toggle_password_button.setCursor(QCursor(Qt.PointingHandCursor))
 
-        self.save_api_key_button = QPushButton("保存配置")
-        self.save_api_key_button.setStyleSheet(f"background-color: {self.success_color}; color: white; padding: 8px 15px; border-radius: 4px;")
+        # 保存API密钥按钮
+        self.save_api_key_button = QPushButton("保存密钥")
+        self.save_api_key_button.setMaximumWidth(100)  # 减少按钮宽度
+        self.save_api_key_button.setMinimumWidth(80)   # 设置最小宽度
+        self.save_api_key_button.setStyleSheet(button_style)
         self.save_api_key_button.clicked.connect(self.save_api_key)
         self.save_api_key_button.setCursor(QCursor(Qt.PointingHandCursor))
 
-        key_input_layout.addWidget(self.api_key_input)
-        key_input_layout.addWidget(self.toggle_password_button)
-        key_input_layout.addWidget(self.save_api_key_button)
+        api_input_layout.addWidget(self.api_key_input, 8)  # 输入框
+        api_input_layout.addWidget(self.toggle_password_button, 1)  # 显示/隐藏按钮
+        api_input_layout.addWidget(self.save_api_key_button, 2)  # 保存按钮
+        
+        api_layout.addLayout(api_input_layout)
+        api_group.setLayout(api_layout)
 
-        self.network_test_button = QPushButton("测试 API 连通性")
-        self.network_test_button.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px 15px; border-radius: 4px;")
+        # 自定义对话区域
+        chat_group = QGroupBox("💬 自定义医疗对话")
+        chat_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        chat_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.highlight_color};
+                border-radius: 8px;
+                margin-top: 15px;
+                padding-top: 15px;
+                padding-bottom: 10px;
+                padding-left: 10px;
+                padding-right: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.highlight_color};
+                font-weight: bold;
+            }}
+        """)
+
+        chat_layout = QVBoxLayout()
+        
+        # 对话输入框
+        self.chat_input = QTextEdit()
+        self.chat_input.setPlaceholderText("请输入您的医疗问题或症状描述...")
+        self.chat_input.setMaximumHeight(100)
+        self.chat_input.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {self.secondary_bg};
+                color: {self.text_color};
+                border: 1px solid {self.accent_color};
+                border-radius: 6px;
+                padding: 10px;
+                font-size: 12px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', 'Arial', sans-serif;
+            }}
+            QTextEdit:focus {{
+                border: 2px solid {self.highlight_color};
+                outline: none;
+            }}
+        """)
+        
+        # 语音对话控制区域
+        voice_layout = QVBoxLayout()  # 改为垂直布局以容纳更多控件
+        voice_controls = QHBoxLayout()  # 水平布局用于基本控件
+        
+        # 语音对话开关
+        self.voice_chat_enabled = QCheckBox("启用语音对话")
+        self.voice_chat_enabled.setStyleSheet(f"""
+            QCheckBox {{
+                color: {self.text_color};
+                font-size: 14px;
+                padding: 5px;
+            }}
+            QCheckBox::indicator {{
+                width: 18px;
+                height: 18px;
+                border: 2px solid {self.accent_color};
+                border-radius: 3px;
+                background-color: {self.secondary_bg};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {self.accent_color};
+                image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIHZpZXdCb3g9IjAgMCAxMCAxMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTggMy41TDMuNSA4TDIgNi41IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K);
+            }}
+        """)
+        
+        # 语音输入按钮
+        self.voice_input_button = QPushButton("🎤 语音输入")
+        self.voice_input_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.highlight_color};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-size: 14px;
+                font-weight: bold;
+                min-width: 100px;
+            }}
+            QPushButton:hover {{
+                background-color: #2c5aa0;
+                transform: translateY(-2px);
+            }}
+            QPushButton:pressed {{
+                background-color: #1e3f5f;
+            }}
+            QPushButton:disabled {{
+                background-color: #666;
+                color: #999;
+            }}
+        """)
+        self.voice_input_button.clicked.connect(self.start_voice_input)
+        self.voice_input_button.setCursor(QCursor(Qt.PointingHandCursor))
+        self.voice_input_button.setEnabled(False)  # 默认禁用，需要勾选checkbox才能启用
+        
+        # 麦克风测试按钮
+        self.mic_test_button = QPushButton("🔧 测试麦克风")
+        self.mic_test_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #dc2626;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: bold;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: #b91c1c;
+            }}
+            QPushButton:pressed {{
+                background-color: #991b1b;
+            }}
+        """)
+        self.mic_test_button.clicked.connect(self.test_microphone)
+        self.mic_test_button.setCursor(QCursor(Qt.PointingHandCursor))
+        
+        # 进度条（初始时隐藏）
+        self.ai_progress_bar = QProgressBar()
+        self.ai_progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: 2px solid {self.accent_color};
+                border-radius: 8px;
+                text-align: center;
+                background-color: {self.secondary_bg};
+                color: {self.text_color};
+                font-weight: bold;
+                min-height: 25px;
+            }}
+            QProgressBar::chunk {{
+                background-color: {self.accent_color};
+                border-radius: 6px;
+            }}
+        """)
+        self.ai_progress_bar.setRange(0, 100)
+        self.ai_progress_bar.setVisible(False)
+        
+        # 连接checkbox状态变化
+        self.voice_chat_enabled.stateChanged.connect(self.toggle_voice_chat)
+        
+        # 添加语音识别时长设置
+        duration_layout = QHBoxLayout()
+        duration_label = QLabel("语音识别时长:")
+        duration_label.setStyleSheet(f"color: {self.text_color}; font-size: 14px;")
+        
+        self.duration_slider = QSlider(Qt.Horizontal)
+        self.duration_slider.setMinimum(3)  # 最短3秒
+        self.duration_slider.setMaximum(30)  # 最长30秒
+        self.duration_slider.setValue(10)  # 默认10秒
+        self.duration_slider.setTickPosition(QSlider.TicksBelow)
+        self.duration_slider.setTickInterval(3)
+        self.duration_slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{
+                border: 1px solid {self.accent_color};
+                height: 8px;
+                background: {self.secondary_bg};
+                margin: 2px 0;
+                border-radius: 4px;
+            }}
+            QSlider::handle:horizontal {{
+                background: {self.highlight_color};
+                border: 1px solid {self.accent_color};
+                width: 18px;
+                margin: -2px 0;
+                border-radius: 9px;
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {self.highlight_color};
+                border-radius: 4px;
+            }}
+        """)
+        
+        self.duration_value_label = QLabel("10秒")
+        self.duration_value_label.setStyleSheet(f"color: {self.text_color}; font-size: 14px; min-width: 40px;")
+        
+        # 连接滑块值变化信号
+        self.duration_slider.valueChanged.connect(self.update_duration_value)
+        
+        duration_layout.addWidget(duration_label)
+        duration_layout.addWidget(self.duration_slider)
+        duration_layout.addWidget(self.duration_value_label)
+        
+        # 添加基本控件到水平布局
+        voice_controls.addWidget(self.voice_chat_enabled)
+        voice_controls.addWidget(self.voice_input_button)
+        voice_controls.addWidget(self.mic_test_button)
+        voice_controls.addStretch()
+        
+        # 将水平布局和时长设置添加到主垂直布局
+        voice_layout.addLayout(voice_controls)
+        voice_layout.addLayout(duration_layout)
+        
+        # 发送按钮
+        self.send_chat_button = QPushButton("发送问题")
+        self.send_chat_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.accent_color};
+                color: white;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-weight: bold;
+                font-size: 13px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', 'Arial', sans-serif;
+                min-height: 18px;
+            }}
+            QPushButton:hover {{
+                background-color: #3182ce;
+            }}
+        """)
+        self.send_chat_button.clicked.connect(self.send_chat_message)
+        self.send_chat_button.setCursor(QCursor(Qt.PointingHandCursor))
+        
+        # 清除历史按钮
+        self.clear_chat_button = QPushButton("清除历史")
+        self.clear_chat_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.highlight_color};
+                color: white;
+                padding: 8px 15px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', 'Arial', sans-serif;
+                min-height: 14px;
+            }}
+            QPushButton:hover {{
+                background-color: #d53f8c;
+            }}
+        """)
+        self.clear_chat_button.clicked.connect(self.clear_chat_history)
+        self.clear_chat_button.setCursor(QCursor(Qt.PointingHandCursor))
+        
+        # 网络测试按钮
+        self.network_test_button = QPushButton("测试网络")
+        self.network_test_button.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #38a169;
+                color: white;
+                padding: 8px 15px;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 11px;
+                font-family: 'Microsoft YaHei', 'Segoe UI', 'Arial', sans-serif;
+                min-height: 14px;
+            }}
+            QPushButton:hover {{
+                background-color: #2f855a;
+            }}
+        """)
         self.network_test_button.clicked.connect(self.test_network_and_show_result)
         self.network_test_button.setCursor(QCursor(Qt.PointingHandCursor))
 
-        api_layout_v.addWidget(self.use_api_checkbox)
-        api_layout_v.addLayout(key_input_layout)
-        api_layout_v.addWidget(self.network_test_button)
+        # 按钮布局
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.send_chat_button)
+        button_layout.addWidget(self.clear_chat_button)
+        button_layout.addWidget(self.network_test_button)
+        
+        chat_layout.addWidget(self.chat_input)
+        chat_layout.addLayout(voice_layout)
+        chat_layout.addWidget(self.ai_progress_bar)
+        chat_layout.addLayout(button_layout)
+        chat_group.setLayout(chat_layout)
 
-        # 语音辅助配置
-        mic_group = QGroupBox("外设测试")
-        mic_group.setStyleSheet(group_style)
-        mic_layout = QVBoxLayout(mic_group)
-        self.mic_test_button = QPushButton("测试麦克风")
-        self.mic_test_button.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px 15px; border-radius: 4px;")
-        self.mic_test_button.clicked.connect(self.test_microphone)
-        self.mic_test_button.setCursor(QCursor(Qt.PointingHandCursor))
-        mic_layout.addWidget(self.mic_test_button)
+        right_layout.addWidget(advice_group, 6)  # 增加建议组的比例
+        right_layout.addWidget(api_group, 1)     # 减少API组比例
+        right_layout.addWidget(chat_group, 3)    # 对话组保持不变
 
-        # 语音时长滑块
-        self.duration_slider = QSlider(Qt.Horizontal)
-        self.duration_slider.setRange(3, 30)
-        self.duration_slider.setValue(10)
-        self.duration_value_label = QLabel("10秒")
-        self.duration_value_label.setStyleSheet(f"color: {self.text_color};")
-        self.duration_slider.valueChanged.connect(self.update_duration_value)
-
-        dur_layout = QHBoxLayout()
-        dur_label = QLabel("语音最长识别时间:")
-        dur_label.setStyleSheet(f"color: {self.text_color};")
-        dur_layout.addWidget(dur_label)
-        dur_layout.addWidget(self.duration_slider)
-        dur_layout.addWidget(self.duration_value_label)
-        mic_layout.addLayout(dur_layout)
-
-        settings_layout.addWidget(api_group)
-        settings_layout.addWidget(mic_group)
-        settings_layout.addStretch()
-        self.right_tab_widget.addTab(settings_tab, "⚙️ 系统设置")
-
-        right_layout.addWidget(self.right_tab_widget)
-
-        # 添加到主分离器
+        # 添加左侧和右侧widget到splitter
         main_splitter.addWidget(left_widget)
         main_splitter.addWidget(right_widget)
         main_splitter.setSizes([900, 700])  # 调整初始大小比例
-
-        # 语音管理器将在延迟加载中初始化, 这里不做任何操作
-        # 避免阻塞主线程的Vosk模型加载
-    
-    def connect_smart_voice_signals(self):始化,这里不做任何操作
+        
+        # 语音管理器将在延迟加载中初始化，这里不做任何操作
         # 避免阻塞主线程的Vosk模型加载
     
     def connect_smart_voice_signals(self):
@@ -2294,7 +2826,7 @@ class MainWindow(QMainWindow):
     
     def on_smart_voice_recognized(self, text):
         """智能语音识别成功"""
-        # 过滤掉状态信号,只处理实际识别的文本
+        # 过滤掉状态信号，只处理实际识别的文本
         if text and not text.startswith('__') and hasattr(self, 'chat_input'):
             self.chat_input.setPlainText(text)
             self.status_bar.showMessage(f"智能语音识别成功: {text}")
@@ -2319,7 +2851,7 @@ class MainWindow(QMainWindow):
                     }}
                 """)
         elif text == "__RECORDING_START__":
-            self.status_bar.showMessage("🎤 开始录音,请说话...")
+            self.status_bar.showMessage("🎤 开始录音，请说话...")
             if hasattr(self, 'voice_input_button'):
                 self.voice_input_button.setText("🛑 点击停止")
                 self.voice_input_button.setEnabled(True)
@@ -2341,7 +2873,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'voice_input_button'):
             self.voice_input_button.setText("🎤 语音输入")
             self.voice_input_button.setEnabled(True)
-        if "录音已取消" not in error:  # 如果不是用户主动取消,则显示错误对话框
+        if "录音已取消" not in error:  # 如果不是用户主动取消，则显示错误对话框
             self.show_message_box("错误", f"智能语音识别失败：{error}", QMessageBox.Critical)
     
     def on_smart_voice_timeout(self):
@@ -2351,7 +2883,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'voice_input_button'):
             self.voice_input_button.setText("🎤 语音输入")
             self.voice_input_button.setEnabled(True)
-        self.show_message_box("提示", "录音超时,请重试", QMessageBox.Information)
+        self.show_message_box("提示", "录音超时，请重试", QMessageBox.Information)
     
     def on_smart_voice_unknown(self):
         """智能语音无法识别"""
@@ -2360,7 +2892,7 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'voice_input_button'):
             self.voice_input_button.setText("🎤 语音输入")
             self.voice_input_button.setEnabled(True)
-        self.show_message_box("提示", "无法识别您的语音,请清晰地说话后重试", QMessageBox.Information)
+        self.show_message_box("提示", "无法识别您的语音，请清晰地说话后重试", QMessageBox.Information)
     
     def on_network_status_changed(self, is_online, message):
         """网络状态变化"""
@@ -2414,10 +2946,10 @@ class MainWindow(QMainWindow):
             }}
         """)
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("系统就绪,请点击「加载模型」按钮选择模型文件")
+        self.status_bar.showMessage("系统就绪，请点击「加载模型」按钮选择模型文件")
 
     # ------------------------------------------------------------------
-    #  以下为功能实现（保持原实现不动,仅修正明显错误）
+    #  以下为功能实现（保持原实现不动，仅修正明显错误）
     # ------------------------------------------------------------------
     def toggle_password_visibility(self):
         """切换密码可见性"""
@@ -2444,20 +2976,20 @@ class MainWindow(QMainWindow):
             # 显示历史对话（最近5轮）
             if len(self.chat_history) > 1:
                 chat_html += """
-                <div style='background-color: #2a3441; border-left: 4px solid #00B5D8; padding: 15px; margin-bottom: 20px; border-radius: 8px;'>
-                    <h3 style='color: #00B5D8; margin-top: 0;'>📋 对话历史</h3>
+                <div style='background-color: #2a3441; border-left: 4px solid #4299e1; padding: 15px; margin-bottom: 20px; border-radius: 8px;'>
+                    <h3 style='color: #4299e1; margin-top: 0;'>📋 对话历史</h3>
                 """
                 
                 for i, chat in enumerate(self.chat_history[-6:-1], 1):  # 显示最近5轮历史
                     chat_html += f"""
                     <div style='margin-bottom: 15px; padding: 10px; background-color: #1a202c; border-radius: 6px;'>
-                        <div style='color: #805AD5; font-weight: bold; margin-bottom: 5px;'>
+                        <div style='color: #ed64a6; font-weight: bold; margin-bottom: 5px;'>
                             👤 第{i}轮问题 ({chat['timestamp']}):
                         </div>
                         <div style='color: #e2e8f0; margin-bottom: 8px; padding-left: 15px;'>
                             {chat['question'][:200]}{'...' if len(chat['question']) > 200 else ''}
                         </div>
-                        <div style='color: #00B5D8; font-weight: bold; margin-bottom: 5px;'>
+                        <div style='color: #4299e1; font-weight: bold; margin-bottom: 5px;'>
                             🩺 医生回复:
                         </div>
                         <div style='color: #e2e8f0; padding-left: 15px; font-size: 13px;'>
@@ -2470,22 +3002,22 @@ class MainWindow(QMainWindow):
             
             # 显示当前问题和回复
             if not self.chat_history:
-                # 如果没有对话历史,直接显示当前回复
-                self.chat_display.setHtml(self.format_advice_html(current_response))
+                # 如果没有对话历史，直接显示当前回复
+                self.advice_text.setHtml(self.format_advice_html(current_response))
                 return
             
             current_chat = self.chat_history[-1]
             chat_html += f"""
-            <div style='background-color: #2a3441; border-left: 4px solid #805AD5; padding: 15px; margin-bottom: 20px; border-radius: 8px;'>
-                <h3 style='color: #805AD5; margin-top: 0;'>💬 当前对话</h3>
+            <div style='background-color: #2a3441; border-left: 4px solid #ed64a6; padding: 15px; margin-bottom: 20px; border-radius: 8px;'>
+                <h3 style='color: #ed64a6; margin-top: 0;'>💬 当前对话</h3>
                 <div style='margin-bottom: 15px;'>
-                    <div style='color: #805AD5; font-weight: bold; margin-bottom: 5px;'>
+                    <div style='color: #ed64a6; font-weight: bold; margin-bottom: 5px;'>
                         👤 您的问题 ({current_chat['timestamp']}):
                     </div>
                     <div style='color: #e2e8f0; margin-bottom: 15px; padding: 10px; background-color: #1a202c; border-radius: 6px;'>
                         {current_chat['question']}
                     </div>
-                    <div style='color: #00B5D8; font-weight: bold; margin-bottom: 10px;'>
+                    <div style='color: #4299e1; font-weight: bold; margin-bottom: 10px;'>
                         🩺 AI医生回复:
                     </div>
                     <div style='background-color: #1a202c; padding: 15px; border-radius: 6px;'>
@@ -2499,21 +3031,21 @@ class MainWindow(QMainWindow):
             if len(self.chat_history) > 3:
                 chat_html += """
                 <div style='text-align: center; margin-top: 20px; padding: 10px; background-color: #2a3441; border-radius: 6px;'>
-                    <p style='color: #00B5D8; margin: 0; font-size: 12px;'>
-                        💡 提示: 对话历史已保留,AI会根据上下文提供更准确的建议
+                    <p style='color: #4299e1; margin: 0; font-size: 12px;'>
+                        💡 提示: 对话历史已保留，AI会根据上下文提供更准确的建议
                     </p>
                 </div>
                 """
             
             chat_html += "</div>"
             
-            # 设置到chat_display
-            self.chat_display.setHtml(chat_html)
+            # 设置到advice_text
+            self.advice_text.setHtml(chat_html)
             
         except Exception as e:
             print(f"显示对话上下文时出错: {e}")
-            # 如果出错,至少显示当前回复
-            self.chat_display.setHtml(self.format_advice_html(current_response))
+            # 如果出错，至少显示当前回复
+            self.advice_text.setHtml(self.format_advice_html(current_response))
 
     def format_advice_content(self, content):
         """格式化建议内容为HTML（不包含完整HTML结构）"""
@@ -2525,14 +3057,14 @@ class MainWindow(QMainWindow):
         content = html.escape(content)
         
         # 处理标题
-        content = re.sub(r'####\s*(.*?)(?=\n|$)', r'<h4 style="color: #00B5D8; margin: 15px 0 8px 0; font-size: 16px; border-bottom: 1px solid #00B5D8; padding-bottom: 3px;">\1</h4>', content)
-        content = re.sub(r'###\s*(.*?)(?=\n|$)', r'<h3 style="color: #805AD5; margin: 20px 0 10px 0; font-size: 18px; border-bottom: 2px solid #805AD5; padding-bottom: 5px;">\1</h3>', content)
-        content = re.sub(r'##\s*(.*?)(?=\n|$)', r'<h2 style="color: #00B5D8; margin: 25px 0 15px 0; font-size: 20px; border-bottom: 2px solid #00B5D8; padding-bottom: 8px;">\1</h2>', content)
-        content = re.sub(r'#\s*(.*?)(?=\n|$)', r'<h1 style="color: #805AD5; margin: 30px 0 20px 0; font-size: 24px; border-bottom: 3px solid #805AD5; padding-bottom: 10px;">\1</h1>', content)
+        content = re.sub(r'####\s*(.*?)(?=\n|$)', r'<h4 style="color: #4299e1; margin: 15px 0 8px 0; font-size: 16px; border-bottom: 1px solid #4299e1; padding-bottom: 3px;">\1</h4>', content)
+        content = re.sub(r'###\s*(.*?)(?=\n|$)', r'<h3 style="color: #ed64a6; margin: 20px 0 10px 0; font-size: 18px; border-bottom: 2px solid #ed64a6; padding-bottom: 5px;">\1</h3>', content)
+        content = re.sub(r'##\s*(.*?)(?=\n|$)', r'<h2 style="color: #4299e1; margin: 25px 0 15px 0; font-size: 20px; border-bottom: 2px solid #4299e1; padding-bottom: 8px;">\1</h2>', content)
+        content = re.sub(r'#\s*(.*?)(?=\n|$)', r'<h1 style="color: #ed64a6; margin: 30px 0 20px 0; font-size: 24px; border-bottom: 3px solid #ed64a6; padding-bottom: 10px;">\1</h1>', content)
         
         # 处理粗体和斜体
-        content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #00B5D8;">\1</strong>', content)
-        content = re.sub(r'\*(.*?)\*', r'<em style="color: #805AD5;">\1</em>', content)
+        content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #4299e1;">\1</strong>', content)
+        content = re.sub(r'\*(.*?)\*', r'<em style="color: #ed64a6;">\1</em>', content)
         
         # 处理列表
         content = re.sub(r'^- (.*?)(?=\n|$)', r'<li style="margin: 5px 0; color: #e2e8f0;">\1</li>', content, flags=re.MULTILINE)
@@ -2562,7 +3094,7 @@ class MainWindow(QMainWindow):
                 self.chat_history.clear()
                 self.advice_text.setHtml("""
                 <div style='text-align: center; padding: 50px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
-                    <h2 style='color: #00B5D8; margin-bottom: 20px;'>🗑️ 对话历史已清除</h2>
+                    <h2 style='color: #4299e1; margin-bottom: 20px;'>🗑️ 对话历史已清除</h2>
                     <p style='color: #e2e8f0; font-size: 16px;'>您可以开始新的医疗咨询对话</p>
                 </div>
                 """)
@@ -2578,11 +3110,11 @@ class MainWindow(QMainWindow):
         <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
             <h2 style='color: #f56565; margin-bottom: 20px;'>❌ {title}</h2>
             <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                <h3 style='color: #00B5D8; margin-top: 0;'>错误信息</h3>
+                <h3 style='color: #4299e1; margin-top: 0;'>错误信息</h3>
                 <p style='color: #f56565; margin: 10px 0; font-size: 14px;'>{error_message}</p>
             </div>
             <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
-                <h4 style='color: #805AD5; margin-top: 0;'>解决方案:</h4>
+                <h4 style='color: #ed64a6; margin-top: 0;'>解决方案:</h4>
                 <ul style='color: #e2e8f0; text-align: left; font-size: 14px;'>
                     <li>请检查网络连接是否正常</li>
                     <li>确认API密钥是否正确设置</li>
@@ -2601,7 +3133,7 @@ class MainWindow(QMainWindow):
             self.advice_text.setHtml("""
             <div style='text-align: center; padding: 50px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
                 <h2 style='color: #38a169; margin-bottom: 20px;'>🌐 正在测试网络连接...</h2>
-                <p style='color: #e2e8f0; font-size: 16px;'>请稍候,正在检测网络状态</p>
+                <p style='color: #e2e8f0; font-size: 16px;'>请稍候，正在检测网络状态</p>
             </div>
             """)
             self.status_bar.showMessage("正在测试网络连接...")
@@ -2621,7 +3153,7 @@ class MainWindow(QMainWindow):
             is_connected, message = self.deepseek_api.test_network_connection()
             
             if is_connected:
-                # 网络正常,测试DeepSeek API连接
+                # 网络正常，测试DeepSeek API连接
                 test_prompt = "请简单回复'连接测试成功'"
                 api_result = self.deepseek_api.get_custom_advice(test_prompt)
                 
@@ -2630,7 +3162,7 @@ class MainWindow(QMainWindow):
                     <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
                         <h2 style='color: #38a169; margin-bottom: 20px;'>✅ 网络连接正常</h2>
                         <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                            <h3 style='color: #00B5D8; margin-top: 0;'>测试结果</h3>
+                            <h3 style='color: #4299e1; margin-top: 0;'>测试结果</h3>
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ 基础网络连接：正常</p>
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ HTTPS连接：正常</p>
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ DeepSeek API连接：正常</p>
@@ -2644,17 +3176,17 @@ class MainWindow(QMainWindow):
                     <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
                         <h2 style='color: #f56565; margin-bottom: 20px;'>⚠️ DeepSeek API连接异常</h2>
                         <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                            <h3 style='color: #00B5D8; margin-top: 0;'>测试结果</h3>
+                            <h3 style='color: #4299e1; margin-top: 0;'>测试结果</h3>
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ 基础网络连接：正常</p>
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ HTTPS连接：正常</p>
                             <p style='color: #f56565; margin: 10px 0;'>❌ DeepSeek API连接：异常</p>
                         </div>
                         <div style='background-color: #1a202c; padding: 15px; border-radius: 6px; text-align: left;'>
-                            <h4 style='color: #805AD5; margin-top: 0;'>API响应:</h4>
+                            <h4 style='color: #ed64a6; margin-top: 0;'>API响应:</h4>
                             <p style='color: #e2e8f0; font-size: 14px;'>{api_result[:300]}...</p>
                         </div>
                         <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
-                            <h4 style='color: #00B5D8; margin-top: 0;'>解决建议:</h4>
+                            <h4 style='color: #4299e1; margin-top: 0;'>解决建议:</h4>
                             <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查API密钥是否正确</p>
                             <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查API密钥是否有足够余额</p>
                             <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 尝试使用VPN或代理</p>
@@ -2668,11 +3200,11 @@ class MainWindow(QMainWindow):
                 <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
                     <h2 style='color: #f56565; margin-bottom: 20px;'>❌ 网络连接异常</h2>
                     <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                        <h3 style='color: #00B5D8; margin-top: 0;'>测试结果</h3>
+                        <h3 style='color: #4299e1; margin-top: 0;'>测试结果</h3>
                         <p style='color: #f56565; margin: 10px 0;'>❌ {message}</p>
                     </div>
                     <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
-                        <h4 style='color: #00B5D8; margin-top: 0;'>解决建议:</h4>
+                        <h4 style='color: #4299e1; margin-top: 0;'>解决建议:</h4>
                         <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查网络连接是否稳定</p>
                         <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查防火墙设置</p>
                         <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 尝试重启路由器</p>
@@ -2816,7 +3348,7 @@ class MainWindow(QMainWindow):
         """)
         answer_layout = QVBoxLayout()
         
-        # 使用QTextEdit显示格式化的回答,设置适当的最小高度
+        # 使用QTextEdit显示格式化的回答，设置适当的最小高度
         answer_text = QTextEdit()
         answer_text.setPlainText(answer)
         answer_text.setReadOnly(True)
@@ -2865,13 +3397,13 @@ class MainWindow(QMainWindow):
                 font-size: 12px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         close_button.clicked.connect(dialog.accept)
         
         # 添加到主布局
-        main_layout.addWidget(scroll_area, 1)  # stretch=1,让滚动区域占据大部分空间
+        main_layout.addWidget(scroll_area, 1)  # stretch=1，让滚动区域占据大部分空间
         main_layout.addWidget(close_button)
         
         dialog.exec_()
@@ -2885,7 +3417,7 @@ class MainWindow(QMainWindow):
                 # 验证API密钥格式
                 if not api_key.startswith('sk-'):
                     reply = self.show_message_box("警告", 
-                        "API密钥格式可能不正确,通常以'sk-'开头。\n\n是否仍要保存此密钥？", 
+                        "API密钥格式可能不正确，通常以'sk-'开头。\n\n是否仍要保存此密钥？", 
                         QMessageBox.Question)
                     if reply != QMessageBox.Yes:
                         return
@@ -2893,7 +3425,7 @@ class MainWindow(QMainWindow):
                 # 验证API密钥长度（DeepSeek API密钥通常较长）
                 if len(api_key) < 20:
                     reply = self.show_message_box("警告", 
-                        "API密钥长度似乎过短,可能不是有效的DeepSeek API密钥。\n\n是否仍要保存此密钥？", 
+                        "API密钥长度似乎过短，可能不是有效的DeepSeek API密钥。\n\n是否仍要保存此密钥？", 
                         QMessageBox.Question)
                     if reply != QMessageBox.Yes:
                         return
@@ -2912,10 +3444,10 @@ class MainWindow(QMainWindow):
                     print(f"保存API密钥到文件时出错: {e}")
                 
                 self.status_bar.showMessage("API密钥已保存")
-                self.show_message_box("成功", "DeepSeek API密钥已保存,现在可以获取个性化治疗建议。", QMessageBox.Information)
+                self.show_message_box("成功", "DeepSeek API密钥已保存，现在可以获取个性化治疗建议。", QMessageBox.Information)
             else:
                 self.status_bar.showMessage("API密钥为空")
-                self.show_message_box("提示", "API密钥为空,将使用内置的治疗建议。", QMessageBox.Warning)
+                self.show_message_box("提示", "API密钥为空，将使用内置的治疗建议。", QMessageBox.Warning)
                 
         except Exception as e:
             print(f"保存API密钥时出错: {e}")
@@ -2928,7 +3460,7 @@ class MainWindow(QMainWindow):
         msg_box.setText(message)
         msg_box.setIcon(icon)
         
-        # 如果是Question类型的消息框,添加Yes/No按钮
+        # 如果是Question类型的消息框，添加Yes/No按钮
         if icon == QMessageBox.Question:
             msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
             msg_box.setDefaultButton(QMessageBox.No)
@@ -2945,7 +3477,7 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         return msg_box.exec_()
@@ -3002,7 +3534,7 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            self.status_bar.showMessage("正在检测,请稍候...")
+            self.status_bar.showMessage("正在检测，请稍候...")
             QApplication.processEvents()  # 更新UI
             # 捕获标准输出
             output_buffer = io.StringIO()
@@ -3155,8 +3687,8 @@ class MainWindow(QMainWindow):
             # 过滤掉数量为0的疾病
             filtered_disease_counter = {k: v for k, v in disease_counter.items() if v > 0}
 
-            # 定义颜色列表,确保每种疾病有固定颜色
-            colors = ['#00B5D8', '#805AD5', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565', '#4cb050']
+            # 定义颜色列表，确保每种疾病有固定颜色
+            colors = ['#4299e1', '#ed64a6', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565', '#4cb050']
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
             fig.set_facecolor('#2d3748')
@@ -3239,7 +3771,7 @@ class MainWindow(QMainWindow):
                 margin-right: 10px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         fullscreen_btn.clicked.connect(lambda: self.toggle_batch_report_fullscreen(dialog))
@@ -3257,7 +3789,7 @@ class MainWindow(QMainWindow):
                 margin-right: 10px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         close_btn.clicked.connect(dialog.accept)
@@ -3378,39 +3910,32 @@ class MainWindow(QMainWindow):
             QTableWidget {{
                 background-color: {self.secondary_bg};
                 color: {self.text_color};
-                border: 1px solid #3b4252;
+                border: 1px solid {self.accent_color};
                 border-radius: 6px;
-                gridline-color: #2c323c;
-                outline: none;
-            }}
-            QTableWidget::item:focus {{
-                outline: none;
             }}
             QHeaderView::section {{
                 background-color: {self.primary_color};
-                color: #81A1C1;
-                padding: 12px 15px;
-                border: none;
-                border-bottom: 2px solid {self.accent_color};
-                border-right: 1px solid #3b4252;
+                color: {self.text_color};
+                padding: 12px 8px;
+                border: 1px solid {self.accent_color};
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13px;
             }}
             QTableWidget::item {{
-                padding: 8px;
-                border-bottom: 1px solid #3b4252;
+                padding: 12px 8px;
+                border-bottom: 1px solid #4a5568;
+                font-size: 12px;
             }}
             QTableWidget::item:selected {{
-                background-color: rgba(0, 181, 216, 0.2);
+                background-color: {self.accent_color};
                 color: white;
             }}
             QTableWidget::item:alternate {{
-                background-color: #262B33;
+                background-color: #2a3441;
             }}
         """)
         
-        # 隐藏行号列,设置行高
-        self.history_table.verticalHeader().setVisible(False)
+        # 设置行高
         self.history_table.verticalHeader().setDefaultSectionSize(50)  # 设置默认行高为50像素
         self.history_table.verticalHeader().setMinimumSectionSize(45)  # 设置最小行高
 
@@ -3423,7 +3948,7 @@ class MainWindow(QMainWindow):
         history = self.load_history_records()
         self.history_table.setRowCount(len(history))
 
-        for row, record in enumerate(reversed(history)):  # 逆序显示,最新的在前
+        for row, record in enumerate(reversed(history)):  # 逆序显示，最新的在前
             timestamp_item = QTableWidgetItem(record["timestamp"])
             path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
             disease_item = QTableWidgetItem(record["disease_name"])
@@ -3446,7 +3971,7 @@ class MainWindow(QMainWindow):
                     min-height: 20px;
                 }}
                 QPushButton:hover {{
-                    background-color: #0097B2;
+                    background-color: #3182ce;
                 }}
             """)
             # 使用functools.partial来正确传递参数
@@ -3531,23 +4056,22 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         close_button.clicked.connect(history_dialog.accept)
 
-        # 趋势分析按钮
-        trend_btn = QPushButton("📈 病情趋势分析")
-        trend_btn.setStyleSheet(
-            f"background-color: {self.accent_color}; color: white; font-weight: bold; padding: 8px 20px; border-radius: 6px;")
-        trend_btn.clicked.connect(self.show_trend_analysis)
-
-        button_layout.addStretch()
-        button_layout.addWidget(trend_btn)
         button_layout.addWidget(delete_button)
         button_layout.addWidget(clear_button)
         button_layout.addWidget(close_button)
         main_layout.addLayout(button_layout)
+
+        # 在main_layout最后添加趋势可视化按钮
+        trend_btn = QPushButton("📈 病情趋势分析")
+        trend_btn.setStyleSheet(
+            f"background-color: {self.accent_color}; color: white; font-weight: bold; padding: 8px 16px; border-radius: 6px;")
+        trend_btn.clicked.connect(self.show_trend_analysis)
+        main_layout.addWidget(trend_btn)
 
         # 显示对话框
         history_dialog.setWindowState(Qt.WindowMaximized)
@@ -3706,7 +4230,7 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         close_button.clicked.connect(detail_dialog.accept)
@@ -3718,7 +4242,7 @@ class MainWindow(QMainWindow):
 
     def show_history_advice(self, disease_name, confidence):
         """显示历史记录的AI建议"""
-        self.status_bar.showMessage("正在生成AI治疗建议,请稍候...")
+        self.status_bar.showMessage("正在生成AI治疗建议，请稍候...")
         QApplication.processEvents()
 
         # 获取治疗建议原始文本
@@ -3780,7 +4304,7 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         close_button.clicked.connect(advice_dialog.accept)
@@ -3861,7 +4385,7 @@ class MainWindow(QMainWindow):
         # 加载历史记录
         history = self.load_history_records()
         if not history:
-            self.show_message_box("提示", "暂无历史记录,无法分析趋势。")
+            self.show_message_box("提示", "暂无历史记录，无法分析趋势。")
             return
 
         # 按日期统计
@@ -4007,7 +4531,7 @@ class MainWindow(QMainWindow):
         dates = sorted(date_count.keys())
         values = [date_count[d] for d in dates]
 
-        ax1.plot(dates, values, marker='o', color='#805AD5', linewidth=2, markersize=8)
+        ax1.plot(dates, values, marker='o', color='#ed64a6', linewidth=2, markersize=8)
         ax1.set_title('每日检测数量趋势', color='white', pad=20)
         ax1.set_xlabel('日期', color='white')
         ax1.set_ylabel('检测数量', color='white')
@@ -4041,7 +4565,7 @@ class MainWindow(QMainWindow):
             labels=list(disease_count.keys()),
             autopct='%1.1f%%',
             startangle=140,
-            colors=['#00B5D8', '#805AD5', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565', '#4cb050'],
+            colors=['#4299e1', '#ed64a6', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565', '#4cb050'],
             textprops={'color': 'white'}
         )
         ax2.set_title('疾病分布比例', color='white', pad=20)
@@ -4054,7 +4578,7 @@ class MainWindow(QMainWindow):
 
         # 柱状图
         ax3.set_facecolor('#2d3748')
-        ax3.bar(list(disease_count.keys()), list(disease_count.values()), color='#00B5D8')
+        ax3.bar(list(disease_count.keys()), list(disease_count.values()), color='#4299e1')
         ax3.set_title('疾病分布数量', color='white', pad=20)
         ax3.set_ylabel('数量', color='white')
         ax3.tick_params(axis='x', rotation=45, colors='white')
@@ -4086,7 +4610,7 @@ class MainWindow(QMainWindow):
         dates_sorted = sorted(date_disease.keys())
 
         # 每种疾病一个线条
-        colors = ['#00B5D8', '#805AD5', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565']
+        colors = ['#4299e1', '#ed64a6', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565']
 
         for i, disease in enumerate(diseases):
             values = []
@@ -4128,7 +4652,7 @@ class MainWindow(QMainWindow):
                 margin-top: 10px;
             }}
             QPushButton:hover {{
-                background-color: #0097B2;
+                background-color: #3182ce;
             }}
         """)
         close_btn.clicked.connect(dialog.accept)
@@ -4186,131 +4710,236 @@ class MainWindow(QMainWindow):
             self.detected_image_label.setText("无法显示检测结果")
 
     def show_disease_result(self, disease_name, confidence, image_path=None, image=None):
-        """显示疾病检测结果,采用全新现代医疗UI"""
+        """显示疾病检测结果，包含图像和详细信息"""
+        # 确保正确显示结果
         if not disease_name or disease_name == "未知":
+            # 使用硬编码的结果
             disease_name = "AMD"
             confidence = 0.98
             self.current_disease = disease_name
             self.current_confidence = confidence
 
+        # 如果没有传入image，使用当前图像
         if image is None:
             image = self.current_image
 
+        # 创建自定义对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("疾病分类结果报告")
-        dialog.setMinimumSize(750, 600)
+        dialog.setWindowTitle("分类结果")
+        dialog.setMinimumSize(700, 600)
         dialog.setStyleSheet(f"""
-            QDialog {{ background-color: {self.background_color}; color: {self.text_color}; }}
-            QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 20px; border-radius: 4px; font-weight: bold; font-size: 13px; }}
-            QPushButton:hover {{ background-color: #0097B2; }}
-            QTableWidget {{ background-color: {self.secondary_bg}; color: {self.text_color}; border: 1px solid #3b4252; border-radius: 6px; gridline-color: #3b4252; }}
-            QHeaderView::section {{ background-color: {self.primary_color}; color: #81A1C1; padding: 10px; border: none; border-bottom: 1px solid #3b4252; font-weight: bold; }}
-            QTableWidget::item {{ padding: 5px; }}
+            QDialog {{
+                background-color: {self.background_color};
+                color: {self.text_color};
+                min-width: 700px;
+            }}
+            QPushButton {{
+                background-color: {self.accent_color};
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-weight: bold;
+            }}
+            QPushButton:hover {{
+                background-color: #3182ce;
+            }}
+            QTableWidget {{
+                background-color: {self.secondary_bg};
+                color: {self.text_color};
+                border: 1px solid {self.accent_color};
+                border-radius: 6px;
+            }}
+            QHeaderView::section {{
+                background-color: {self.primary_color};
+                color: {self.text_color};
+                padding: 8px;
+                border: 1px solid {self.accent_color};
+            }}
         """)
 
+        # 创建主布局
         main_layout = QVBoxLayout(dialog)
-        main_layout.setContentsMargins(25, 25, 25, 25)
 
-        # 顶部标题栏
+        # 创建标题栏（标题+全屏按钮）
         title_layout = QHBoxLayout()
-        title_label = QLabel("📊 影像学分类结果")
+
+        # 创建标题
+        title_label = QLabel("疾病分类结果")
+        title_label.setAlignment(Qt.AlignCenter)
         title_label.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
-        title_label.setStyleSheet(f"color: {self.accent_color}; margin-bottom: 10px;")
+        title_label.setStyleSheet(f"color: {self.highlight_color};")
         title_layout.addWidget(title_label, 1)
+
+        # 全屏按钮
+        fullscreen_btn = QPushButton("全屏")
+        fullscreen_btn.setFixedSize(70, 30)
+        fullscreen_btn.clicked.connect(lambda: dialog.showFullScreen())
+        title_layout.addWidget(fullscreen_btn)
+
+        # 退出全屏按钮
+        exit_fullscreen_btn = QPushButton("退出全屏")
+        exit_fullscreen_btn.setFixedSize(100, 30)
+        exit_fullscreen_btn.clicked.connect(lambda: dialog.showNormal())
+        title_layout.addWidget(exit_fullscreen_btn)
+
         main_layout.addLayout(title_layout)
 
-        content_layout = QHBoxLayout()
+        # 左侧图像区域
+        image_group = QGroupBox("原始图像")
+        image_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
+        image_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.accent_color};
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.accent_color};
+            }}
+        """)
 
-        # 左侧：影像展示
-        image_group = QGroupBox("原片影像")
-        image_group.setStyleSheet(f"QGroupBox {{ border: 1px solid #3b4252; border-top: 3px solid {self.accent_color}; border-radius: 6px; padding-top: 20px; }} QGroupBox::title {{ color: {self.accent_color}; top: -5px; left: 10px; }}")
-        image_layout = QVBoxLayout(image_group)
+        image_layout = QVBoxLayout()
         image_label = QLabel()
         image_label.setAlignment(Qt.AlignCenter)
-        image_label.setMinimumSize(350, 350)
-        image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 4px;")
+        image_label.setMinimumSize(400, 400)
+        image_label.setScaledContents(False)  # 修复：不拉伸图像
+        image_label.setStyleSheet(f"""
+            background-color: #1e2a38;
+            border-radius: 8px;
+            padding: 10px;
+        """)
 
         if image is not None:
+            # 转换并显示图像
             if len(image.shape) == 2:
                 image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
             else:
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
             h, w, ch = image.shape
-            q_img = QImage(image.data, w, h, ch * w, QImage.Format_RGB888)
+            bytes_per_line = ch * w
+            q_img = QImage(image.data, w, h, bytes_per_line, QImage.Format_RGB888)
             pixmap = QPixmap.fromImage(q_img)
-            image_label.setPixmap(pixmap.scaled(image_label.width(), image_label.height(), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            # 缩放图像以适应标签大小，保持宽高比
+            scaled_pixmap = pixmap.scaled(
+                image_label.width(), image_label.height(),
+                Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
+            image_label.setPixmap(scaled_pixmap)
         else:
-            image_label.setText("影像加载失败")
+            image_name = os.path.basename(image_path) if image_path else "未知图像"
+            image_label.setText(f"无法加载图像\n{image_name}")
+            image_label.setAlignment(Qt.AlignCenter)
+            image_label.setStyleSheet(f"""
+                color: {self.text_color};
+                font-size: 14px;
+            """)
 
         image_layout.addWidget(image_label)
-        content_layout.addWidget(image_group, 1)
+        image_group.setLayout(image_layout)
 
-        # 右侧：数据与置信度
-        info_group = QGroupBox("AI 诊断指标")
-        info_group.setStyleSheet(f"QGroupBox {{ border: 1px solid #3b4252; border-top: 3px solid {self.highlight_color}; border-radius: 6px; padding-top: 20px; }} QGroupBox::title {{ color: {self.highlight_color}; top: -5px; left: 10px; }}")
+        main_layout.addWidget(image_group)
+
+        # 结果信息区域
+        info_group = QGroupBox("检测结果")
+        info_group.setStyleSheet(f"""
+            QGroupBox {{
+                border: 2px solid {self.highlight_color};
+                border-radius: 8px;
+                margin-top: 10px;
+                padding-top: 10px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 8px;
+                color: {self.highlight_color};
+            }}
+        """)
         info_layout = QVBoxLayout(info_group)
 
+        # 设置主要结果文本
         result_text = f"""
-        <div style='text-align:center; padding:10px;'>
-            <p style='font-size:16px; color:#A0AEC0; margin-bottom:5px;'>首选诊断 (Top-1)</p>
-            <p style='font-size:26px; font-weight:bold; color:{self.highlight_color}; margin:0;'>{disease_name}</p>
-            <p style='font-size:14px; margin-top:10px;'>模型置信度: <span style='color:{self.highlight_color}; font-weight:bold;'>{confidence:.2%}</span></p>
+        <div style='text-align:center; font-family:Microsoft YaHei, SimHei, sans-serif; padding:15px;'>
+            <p style='font-size:18px; margin:15px 0;'>检测到的疾病: <b style='color:{self.highlight_color};'>{disease_name}</b></p>
+            <p style='font-size:18px; margin:15px 0;'>置信度: <b style='color:{self.highlight_color};'>{confidence:.2f}</b></p>
         </div>
         """
+
         text_label = QLabel(result_text)
+        text_label.setWordWrap(True)
         info_layout.addWidget(text_label)
 
+        # 添加所有类别置信度表格
         if hasattr(self, 'all_classes_confidence') and self.all_classes_confidence:
+            classes_label = QLabel("所有类别的置信度:")
+            classes_label.setStyleSheet(f"color: {self.text_color}; margin-top: 10px;")
+            info_layout.addWidget(classes_label)
+
+            # 创建表格
             classes_table = QTableWidget()
             classes_table.setRowCount(len(self.all_classes_confidence))
             classes_table.setColumnCount(2)
-            classes_table.setHorizontalHeaderLabels(["病种分类", "置信度"])
-            classes_table.verticalHeader().setVisible(False)
-            classes_table.setAlternatingRowColors(True)
+            classes_table.setHorizontalHeaderLabels(["类别名称", "置信度"])
 
+            # 填充表格
             for row, (class_name, conf) in enumerate(self.all_classes_confidence.items()):
                 name_item = QTableWidgetItem(class_name)
                 conf_item = QTableWidgetItem(f"{conf:.4f}")
+
+                # 设置项目不可编辑
                 name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
                 conf_item.setFlags(conf_item.flags() & ~Qt.ItemIsEditable)
 
+                # 如果是主要检测结果，高亮显示
                 if class_name == disease_name:
-                    name_item.setForeground(QBrush(QColor(self.highlight_color)))
-                    conf_item.setForeground(QBrush(QColor(self.highlight_color)))
-                    font = name_item.font()
-                    font.setBold(True)
-                    name_item.setFont(font)
-                    conf_item.setFont(font)
+                    name_item.setBackground(QBrush(QColor(self.highlight_color)))
+                    conf_item.setBackground(QBrush(QColor(self.highlight_color)))
+                    name_item.setForeground(QBrush(QColor('white')))
+                    conf_item.setForeground(QBrush(QColor('white')))
 
                 classes_table.setItem(row, 0, name_item)
                 classes_table.setItem(row, 1, conf_item)
 
+            # 设置列宽
             classes_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
             classes_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+
             info_layout.addWidget(classes_table)
+        else:
+            no_classes_label = QLabel("无法获取所有类别的置信度数据。")
+            no_classes_label.setStyleSheet(f"color: {self.text_color};")
+            info_layout.addWidget(no_classes_label)
 
-        content_layout.addWidget(info_group, 1)
-        main_layout.addLayout(content_layout)
+        # 添加提示文本
+        hint_label = QLabel("点击「AI治疗建议」按钮获取详细诊疗方案")
+        hint_label.setAlignment(Qt.AlignCenter)
+        hint_label.setStyleSheet(f"color: #a0aec0; font-size:14px; margin-top: 15px;")
+        info_layout.addWidget(hint_label)
 
-        # 底部操作区
+        main_layout.addWidget(info_group)
+
+        # 按钮布局
         button_layout = QHBoxLayout()
-        button_layout.addStretch()
 
-        close_btn = QPushButton("完成阅片 (Esc)")
-        close_btn.setStyleSheet(f"background-color: transparent; border: 1px solid #4C566A; color: {self.text_color};")
+        # 关闭按钮
+        close_btn = QPushButton("关闭")
         close_btn.clicked.connect(dialog.accept)
 
-        report_btn = QPushButton("生成 DeepSeek 报告")
-        report_btn.setStyleSheet(f"background-color: {self.highlight_color}; color: white;")
-        report_btn.clicked.connect(lambda: [dialog.accept(), self.advice_button.click()])
+        # 最大化按钮
+        maximize_btn = QPushButton("最大化")
+        maximize_btn.clicked.connect(lambda: dialog.showMaximized())
 
+        button_layout.addWidget(maximize_btn)
         button_layout.addWidget(close_btn)
-        button_layout.addWidget(report_btn)
+
         main_layout.addLayout(button_layout)
 
-        QShortcut(QKeySequence("Esc"), dialog, activated=dialog.accept)
         dialog.exec_()
-    
 
     def show_results(self):
         """显示检测结果"""
@@ -4370,7 +4999,7 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("已启用DeepSeek API")
         else:
             self.use_api_checkbox.setText("禁用DeepSeek API")
-            self.status_bar.showMessage("已禁用DeepSeek API,将使用默认建议")
+            self.status_bar.showMessage("已禁用DeepSeek API，将使用默认建议")
 
     def show_ai_advice(self):
         """获取并显示AI治疗建议"""
@@ -4405,14 +5034,14 @@ class MainWindow(QMainWindow):
         </style>
         </head>
         <body>
-            <div class="loading">🤖 AI正在生成治疗建议,请稍候...</div>
+            <div class="loading">🤖 AI正在生成治疗建议，请稍候...</div>
             <div class="progress">正在分析检测结果：{self.current_disease} (置信度: {self.current_confidence:.2f})</div>
         </body>
         </html>
         """)
         
         # 更新状态栏
-        self.status_bar.showMessage("正在生成AI治疗建议,请稍候...")
+        self.status_bar.showMessage("正在生成AI治疗建议，请稍候...")
         QApplication.processEvents()
 
         try:
@@ -4440,18 +5069,18 @@ class MainWindow(QMainWindow):
             # 设置默认建议文本
             default_advice = f"""# {self.current_disease} - AI治疗建议
 
-无法连接到AI服务,请检查您的API密钥或网络连接。
+无法连接到AI服务，请检查您的API密钥或网络连接。
 
 ## 基本建议
 
 - 保持眼部清洁
 - 避免揉眼
-- 如症状加重,请及时就医
+- 如症状加重，请及时就医
 - 定期进行眼科检查
 
 ## 注意事项
 
-如果出现以下症状,请立即就医：
+如果出现以下症状，请立即就医：
 - 视力突然下降
 - 剧烈眼痛
 - 眼红持续不退
@@ -4460,60 +5089,6 @@ class MainWindow(QMainWindow):
             
             # 显示错误信息
             self.advice_text.setHtml(self.format_advice_html(default_advice))
-
-    def show_fullscreen_advice(self):
-        """全屏显示DeepSeek AI诊疗建议"""
-        dialog = QDialog(self)
-        dialog.setWindowTitle("DeepSeek AI 智能诊疗建议 - 全屏模式")
-        dialog.setStyleSheet(f"""
-            QDialog {{
-                background-color: {self.background_color};
-                color: {self.text_color};
-            }}
-        """)
-
-        layout = QVBoxLayout(dialog)
-        layout.setContentsMargins(30, 30, 30, 30)
-
-        # 复制当前的文本内容
-        fullscreen_text = QTextEdit()
-        fullscreen_text.setReadOnly(True)
-        fullscreen_text.setHtml(self.advice_text.toHtml())
-        fullscreen_text.setStyleSheet(self.advice_text.styleSheet())
-
-        layout.addWidget(fullscreen_text)
-
-        # 退出全屏按钮
-        close_btn = QPushButton("退出全屏 (Esc)")
-        close_btn.setFixedSize(140, 45)
-        close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.accent_color};
-                color: white;
-                border-radius: 6px;
-                font-weight: bold;
-                font-size: 14px;
-            }}
-            QPushButton:hover {{
-                background-color: #0097B2;
-            }}
-        """)
-        close_btn.clicked.connect(dialog.accept)
-        close_btn.setCursor(QCursor(Qt.PointingHandCursor))
-
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_layout.addWidget(close_btn)
-        btn_layout.addStretch()
-
-        layout.addLayout(btn_layout)
-
-        # 绑定 Esc 快捷键直接退出
-        QShortcut(QKeySequence("Esc"), dialog, activated=dialog.accept)
-
-        # 以最大化模式显示对话框
-        dialog.showMaximized()
-        dialog.exec_()
 
     def format_advice_html(self, markdown_text):
         """将Markdown文本转换为美观的HTML格式"""
@@ -4635,12 +5210,12 @@ class MainWindow(QMainWindow):
             }}
             .health-tip {{
                 background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(23, 162, 184, 0.1));
-                border-left: 4px solid #38A169;
+                border-left: 4px solid #28a745;
                 padding: 12px 16px;
                 margin: 16px 0;
                 border-radius: 0 8px 8px 0;
                 font-style: italic;
-                color: #38A169;
+                color: #28a745;
             }}
             hr {{
                 border: none;
@@ -4705,7 +5280,7 @@ class MainWindow(QMainWindow):
                 list_item = line.strip()[1:].strip()
                 html_content += f"<li>{list_item}</li>\n"
 
-                # 检查下一行是否还是列表项,如果不是则结束列表
+                # 检查下一行是否还是列表项，如果不是则结束列表
                 next_index = lines.index(line) + 1
                 if next_index < len(lines) and not (lines[next_index].strip().startswith('-') or
                                                     lines[next_index].strip().startswith('*')):
@@ -4720,7 +5295,7 @@ class MainWindow(QMainWindow):
                 list_item = re.sub(r'^\d+\.', '', line.strip()).strip()
                 html_content += f"<li>{list_item}</li>\n"
 
-                # 检查下一行是否还是列表项,如果不是则结束列表
+                # 检查下一行是否还是列表项，如果不是则结束列表
                 next_index = lines.index(line) + 1
                 if next_index < len(lines) and not re.match(r'^\d+\.', lines[next_index].strip()):
                     html_content += "</ol>\n"
@@ -4730,7 +5305,7 @@ class MainWindow(QMainWindow):
                 if not html_content.endswith("</p>\n"):
                     html_content += f"<p>{line.strip()}</p>\n"
                 else:
-                    # 如果上一行是段落结束,而这行不是特殊格式,那么合并为同一段落
+                    # 如果上一行是段落结束，而这行不是特殊格式，那么合并为同一段落
                     html_content = html_content[:-5] + " " + line.strip() + "</p>\n"
 
         # 确保所有区块都正确关闭
@@ -4800,7 +5375,7 @@ class MainWindow(QMainWindow):
                 print("[DEBUG] TTS引擎初始化成功")
                 
             except ImportError:
-                print("[WARNING] pyttsx3未安装,TTS功能将不可用")
+                print("[WARNING] pyttsx3未安装，TTS功能将不可用")
                 self.tts_engine = None
             
             # 后台校准麦克风
@@ -4812,7 +5387,7 @@ class MainWindow(QMainWindow):
             print(f"[ERROR] 智能语音组件初始化失败: {e}")
             if hasattr(self, 'voice_chat_enabled'):
                 self.voice_chat_enabled.setEnabled(False)
-                self.voice_chat_enabled.setToolTip("语音功能不可用,请检查网络连接和API配置")
+                self.voice_chat_enabled.setToolTip("语音功能不可用，请检查网络连接和API配置")
 
     def get_best_microphone(self):
         """获取最佳可用麦克风"""
@@ -4835,7 +5410,7 @@ class MainWindow(QMainWindow):
             # 测试麦克风是否可用
             with mic as source:
                 print("[DEBUG] 测试麦克风访问...")
-                # 简单测试,不调整噪音以节省时间
+                # 简单测试，不调整噪音以节省时间
                 pass
             
             print("[DEBUG] 默认麦克风测试成功")
@@ -4843,7 +5418,7 @@ class MainWindow(QMainWindow):
             
         except Exception as e:
             print(f"[WARNING] 麦克风测试失败: {e}")
-            # 即使测试失败,也返回默认麦克风,让用户自己尝试
+            # 即使测试失败，也返回默认麦克风，让用户自己尝试
             return sr.Microphone()
 
     def test_microphone(self):
@@ -4893,21 +5468,21 @@ class MainWindow(QMainWindow):
     def update_duration_value(self, value):
         """更新语音识别时长值显示"""
         self.duration_value_label.setText(f"{value}秒")
-        # 如果语音管理器已初始化,则更新其时长设置
+        # 如果语音管理器已初始化，则更新其时长设置
         if self.voice_manager:
             self.voice_manager.set_recognition_duration(value)
             print(f"[DEBUG] 💾 已更新SmartVoiceManager的识别时长为 {value} 秒")
         else:
-            print(f"[DEBUG] ⚠️ SmartVoiceManager尚未初始化,时长设置将在初始化后应用")
+            print(f"[DEBUG] ⚠️ SmartVoiceManager尚未初始化，时长设置将在初始化后应用")
 
     def start_voice_input(self):
         """开始智能语音输入或取消录音"""
         # 检查语音组件是否已初始化
         if self.voice_manager is None:
-            self.show_message_box("提示", "语音组件正在初始化中,请稍后再试", QMessageBox.Information)
+            self.show_message_box("提示", "语音组件正在初始化中，请稍后再试", QMessageBox.Information)
             return
             
-        # 检查是否正在录音,如果是则取消
+        # 检查是否正在录音，如果是则取消
         if self.voice_manager.is_recording:
             print("[DEBUG] 🛑 取消当前录音")
             self.voice_manager.cancel_recording()
@@ -4915,7 +5490,7 @@ class MainWindow(QMainWindow):
             
         # 获取当前设置的时长
         duration = self.duration_slider.value()
-        print(f"[DEBUG] 🎤 开始智能语音识别,时长设置: {duration}秒")
+        print(f"[DEBUG] 🎤 开始智能语音识别，时长设置: {duration}秒")
         
         # 确保语音管理器使用最新的时长设置
         self.voice_manager.set_recognition_duration(duration)
@@ -4925,7 +5500,7 @@ class MainWindow(QMainWindow):
         self.voice_manager.start_voice_recognition(duration)
 
     def perform_voice_recognition(self):
-        """执行语音识别（备用方法,与主识别器策略一致）"""
+        """执行语音识别（备用方法，与主识别器策略一致）"""
         try:
             print("[DEBUG] 🎤 开始备用语音识别...")
             
@@ -4940,12 +5515,12 @@ class MainWindow(QMainWindow):
                 
                 QApplication.postEvent(self, VoiceRecognitionEvent("completed", "__RECORDING__"))
                 
-                # 用户自定义录音时长,获取当前滑块设置的时长
+                # 用户自定义录音时长，获取当前滑块设置的时长
                 current_duration = self.duration_slider.value() if hasattr(self, 'duration_slider') else 10
                 recognition_duration = self.voice_manager.recognition_duration if self.voice_manager else current_duration
                 print(f"[DEBUG] 🕒 备用识别器使用时长: {recognition_duration}秒")
                 audio = self.recognizer.listen(source, timeout=30, phrase_time_limit=recognition_duration)
-                print(f"[DEBUG] ✅ 录音完成,音频长度: {len(audio.frame_data)} bytes")
+                print(f"[DEBUG] ✅ 录音完成，音频长度: {len(audio.frame_data)} bytes")
                 
             # 发送处理中状态
             QApplication.postEvent(self, VoiceRecognitionEvent("completed", "__PROCESSING__"))
@@ -5023,7 +5598,7 @@ class MainWindow(QMainWindow):
             return
             
         try:
-            # 清理文本,确保适合语音播放
+            # 清理文本，确保适合语音播放
             clean_text = self._clean_text_for_tts(text)
             if not clean_text.strip():
                 print("[DEBUG] 没有可播放的文本内容")
@@ -5046,7 +5621,7 @@ class MainWindow(QMainWindow):
             print(f"[DEBUG] TTS播放失败: {e}")
     
     def _clean_text_for_tts(self, text):
-        """清理文本,使其适合TTS播放"""
+        """清理文本，使其适合TTS播放"""
         import re
         
         # 去除HTML标签
@@ -5064,7 +5639,7 @@ class MainWindow(QMainWindow):
         clean_text = re.sub(r'\s+', ' ', clean_text)
         clean_text = clean_text.strip()
         
-        # 限制长度,避免过长的语音播放
+        # 限制长度，避免过长的语音播放
         if len(clean_text) > 300:
             clean_text = clean_text[:300] + "..."
             
@@ -5123,17 +5698,17 @@ class MainWindow(QMainWindow):
 
 ### 🔍 日常护理
 1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
-2. **保持良好的用眼习惯** - 适当休息,避免长时间用眼疲劳
-3. **注意眼部卫生** - 保持手部清洁,避免用手直接接触眼部
+2. **保持良好的用眼习惯** - 适当休息，避免长时间用眼疲劳
+3. **注意眼部卫生** - 保持手部清洁，避免用手直接接触眼部
 
 ### ⚠️ 重要提醒
-- 如有不适症状,请及时就医
-- 以上建议仅供参考,不能替代专业医疗诊断
+- 如有不适症状，请及时就医
+- 以上建议仅供参考，不能替代专业医疗诊断
 
 ---
 
 ## 🚀 获取更专业建议
-如需更详细的医疗建议,建议您：
+如需更详细的医疗建议，建议您：
 - 启用 **DeepSeek API** 获取AI专业分析
 - 咨询专业眼科医生进行详细检查
 
@@ -5176,7 +5751,7 @@ class MainWindow(QMainWindow):
         if event.event_type == "listening":
             self.voice_input_button.setText("🎤 正在录音...")
             self.voice_input_button.setEnabled(False)
-            self.status_bar.showMessage("正在录音,请说话（点击按钮停止）...")
+            self.status_bar.showMessage("正在录音，请说话（点击按钮停止）...")
             
         elif event.event_type == "processing":
             self.voice_input_button.setText("🔄 处理中...")
@@ -5206,14 +5781,14 @@ class MainWindow(QMainWindow):
                         background-color: #c53030;
                     }
                 """)
-                self.status_bar.showMessage("🎤 正在录音中,请清晰说话（点击按钮停止录音）...")
+                self.status_bar.showMessage("🎤 正在录音中，请清晰说话（点击按钮停止录音）...")
                 return
                 
             elif event.data == "__PROCESSING__":
                 self.voice_input_button.setText("⏳ 识别中...")
                 self.voice_input_button.setStyleSheet("""
                     QPushButton {
-                        background-color: #0097B2;
+                        background-color: #3182ce;
                         color: white;
                         border: 2px solid #2c5aa0;
                         border-radius: 6px;
@@ -5261,9 +5836,9 @@ class MainWindow(QMainWindow):
                 # 自动发送给AI进行对话
                 if self.voice_chat_enabled.isChecked() and self.use_api_checkbox.isChecked():
                     print(f"[DEBUG] 自动发送语音识别结果给AI: {event.data}")
-                    # 延迟一秒后自动发送,让用户看到识别结果
+                    # 延迟一秒后自动发送，让用户看到识别结果
                     QTimer.singleShot(1500, self.send_chat_message_with_progress)
-                    self.status_bar.showMessage(f"✅ 识别成功,1.5秒后自动发送给AI...")
+                    self.status_bar.showMessage(f"✅ 识别成功，1.5秒后自动发送给AI...")
                 else:
                     self.status_bar.showMessage(f"✅ 语音识别成功：{event.data}（点击发送按钮与AI对话）")
             
@@ -5271,7 +5846,7 @@ class MainWindow(QMainWindow):
             self.voice_input_button.setText("🎤 语音输入")
             self.voice_input_button.setEnabled(True)
             self._reset_button_style()
-            self.status_bar.showMessage("⏱️ 录音超时,请重试（或点击按钮停止录音）")
+            self.status_bar.showMessage("⏱️ 录音超时，请重试（或点击按钮停止录音）")
             # 播放超时提示音
             try:
                 import winsound
@@ -5283,7 +5858,7 @@ class MainWindow(QMainWindow):
             self.voice_input_button.setText("🎤 语音输入")
             self.voice_input_button.setEnabled(True)
             self._reset_button_style()
-            self.status_bar.showMessage("❓ 无法识别语音内容,请重试")
+            self.status_bar.showMessage("❓ 无法识别语音内容，请重试")
             # 播放失败提示音
             try:
                 import winsound
@@ -5306,7 +5881,7 @@ class MainWindow(QMainWindow):
                 except:
                     pass
             else:
-                self.status_bar.showMessage("❌ 语音识别失败,请重试")
+                self.status_bar.showMessage("❌ 语音识别失败，请重试")
                 
                 # 只有在严重错误时才显示弹窗
                 if "网络" in str(event.data) or "麦克风" in str(event.data):
@@ -5343,11 +5918,11 @@ class MainWindow(QMainWindow):
             self.chat_input.clear()
             self.status_bar.showMessage("对话完成")
             
-            # 如果启用语音对话,播放AI回复
+            # 如果启用语音对话，播放AI回复
             if self.voice_chat_enabled.isChecked():
-                print("[DEBUG] 语音对话已启用,准备播放AI回复")
+                print("[DEBUG] 语音对话已启用，准备播放AI回复")
                 self.speak_text(event.data)
-                self.status_bar.showMessage("对话完成,正在播放语音回复...")
+                self.status_bar.showMessage("对话完成，正在播放语音回复...")
                 
         elif event.event_type == "error":
             self.show_ai_progress(False)
@@ -5622,7 +6197,7 @@ class MainWindow(QMainWindow):
             source = request_data['source']
             addr = request_data['addr']
             
-            print(f"[开发板] 收到诊断请求,来源: {source}, 地址: {addr}")
+            print(f"[开发板] 收到诊断请求，来源: {source}, 地址: {addr}")
             print(f"[开发板] 图像大小: {image.shape}, 请求ID: {header.get('request_id', 'N/A')}")
             
             # 检查是否需要保存到PC端
@@ -5763,7 +6338,7 @@ class MainWindow(QMainWindow):
             print(f"[开发板] 发送诊断结果失败: {e}")
     
     def parse_detection_results(self, results):
-        """解析检测结果,返回疾病名称和置信度"""
+        """解析检测结果，返回疾病名称和置信度"""
         try:
             # 这里需要根据实际的AI模型输出格式进行解析
             # 假设results是字符串格式的结果
@@ -5778,7 +6353,7 @@ class MainWindow(QMainWindow):
                 else:
                     return "眼部异常", 0.70
             else:
-                # 如果是其他格式,返回默认值
+                # 如果是其他格式，返回默认值
                 return "眼部检查", 0.75
                 
         except Exception as e:
@@ -5789,19 +6364,19 @@ class MainWindow(QMainWindow):
         """根据疾病名称和置信度生成医疗建议"""
         try:
             if disease_name == "正常":
-                advice = "眼部检查结果正常,建议定期进行眼部健康检查,保持良好的用眼习惯。"
+                advice = "眼部检查结果正常，建议定期进行眼部健康检查，保持良好的用眼习惯。"
             elif disease_name == "白内障":
                 if confidence > 0.8:
-                    advice = "检测到白内障症状,建议及时就医进行专业检查,可能需要手术治疗。"
+                    advice = "检测到白内障症状，建议及时就医进行专业检查，可能需要手术治疗。"
                 else:
-                    advice = "可能存在白内障风险,建议到医院进行详细检查确认。"
+                    advice = "可能存在白内障风险，建议到医院进行详细检查确认。"
             elif disease_name == "青光眼":
                 if confidence > 0.8:
-                    advice = "检测到青光眼症状,这是严重的眼部疾病,建议立即就医治疗。"
+                    advice = "检测到青光眼症状，这是严重的眼部疾病，建议立即就医治疗。"
                 else:
-                    advice = "可能存在青光眼风险,建议尽快到医院进行专业检查。"
+                    advice = "可能存在青光眼风险，建议尽快到医院进行专业检查。"
             else:
-                advice = "检测到眼部异常,建议到医院进行专业检查,确定具体病情。"
+                advice = "检测到眼部异常，建议到医院进行专业检查，确定具体病情。"
             
             # 播放建议语音（根据设置选择播放设备）
             self.play_advice_audio(advice)
@@ -5812,7 +6387,7 @@ class MainWindow(QMainWindow):
             return "建议到医院进行专业检查。"
     
     def play_advice_audio(self, advice_text):
-        """播放AI建议语音,支持双端选择"""
+        """播放AI建议语音，支持双端选择"""
         try:
             # 获取音频播放设置
             audio_device = getattr(self, 'audio_output_device', 'pc')  # 默认PC端播放
@@ -5885,7 +6460,7 @@ class MainWindow(QMainWindow):
     def test_audio_output(self):
         """测试音频输出"""
         try:
-            test_text = "这是音频播放测试,如果您能听到这条消息,说明音频设备工作正常。"
+            test_text = "这是音频播放测试，如果您能听到这条消息，说明音频设备工作正常。"
             current_device = getattr(self, 'audio_output_device', 'pc')
             
             print(f"[测试] 测试音频设备: {current_device}")
@@ -6014,9 +6589,9 @@ class MainWindow(QMainWindow):
     def handle_diagnosis_request(self, command_data):
         """处理诊断请求命令"""
         try:
-            # 存储请求头信息,等待图像数据
+            # 存储请求头信息，等待图像数据
             request_id = command_data.get('request_id')
-            print(f"[开发板] 处理诊断请求,request_id: {request_id}")
+            print(f"[开发板] 处理诊断请求，request_id: {request_id}")
             print(f"[开发板] 请求数据: {command_data}")
             
             if request_id and hasattr(self, 'camera_receiver'):
@@ -6025,7 +6600,7 @@ class MainWindow(QMainWindow):
                 print(f"[开发板] 诊断请求头已存储: {request_id}")
                 print(f"[开发板] 当前存储的请求头数量: {len(self.camera_receiver.request_headers)}")
             else:
-                print(f"[开发板] 无法存储诊断请求头,request_id: {request_id}, has_camera_receiver: {hasattr(self, 'camera_receiver')}")
+                print(f"[开发板] 无法存储诊断请求头，request_id: {request_id}, has_camera_receiver: {hasattr(self, 'camera_receiver')}")
                 
         except Exception as e:
             print(f"[开发板] 处理诊断请求失败: {e}")
@@ -6039,7 +6614,7 @@ class MainWindow(QMainWindow):
             filename = command_data.get('filename', 'unknown.jpg')
             pc_save_path = command_data.get('pc_save_path', '')
             
-            print(f"[开发板] 处理图像保存请求,request_id: {request_id}")
+            print(f"[开发板] 处理图像保存请求，request_id: {request_id}")
             print(f"[开发板] 文件名: {filename}")
             print(f"[开发板] 保存路径: {pc_save_path}")
             
@@ -6049,7 +6624,7 @@ class MainWindow(QMainWindow):
                 print(f"[开发板] 图像保存请求头已存储: {request_id}")
                 print(f"[开发板] 当前存储的请求头数量: {len(self.camera_receiver.request_headers)}")
             else:
-                print(f"[开发板] 无法存储图像保存请求头,request_id: {request_id}, has_camera_receiver: {hasattr(self, 'camera_receiver')}")
+                print(f"[开发板] 无法存储图像保存请求头，request_id: {request_id}, has_camera_receiver: {hasattr(self, 'camera_receiver')}")
                 
         except Exception as e:
             print(f"[开发板] 处理图像保存请求失败: {e}")
@@ -6124,7 +6699,7 @@ class MainWindow(QMainWindow):
                         
                     except Exception as e:
                         print(f"[AI对话] AI处理失败: {e}")
-                        error_response = "抱歉,AI处理出现问题,请稍后重试。"
+                        error_response = "抱歉，AI处理出现问题，请稍后重试。"
                         self.send_ai_response_to_board(error_response, addr)
                 
                 # 在后台线程处理
@@ -6133,7 +6708,7 @@ class MainWindow(QMainWindow):
                 
             else:
                 print("[AI对话] DeepSeek API未初始化")
-                fallback_response = "AI服务暂时不可用,请稍后重试。"
+                fallback_response = "AI服务暂时不可用，请稍后重试。"
                 self.send_ai_response_to_board(fallback_response, addr)
                 
         except Exception as e:
@@ -6173,7 +6748,7 @@ class MainWindow(QMainWindow):
             # 在聊天界面显示对话
             conversation = f"[开发板用户] {user_text}\n\n[AI助手] {ai_response}"
             
-            # 如果有聊天界面,显示对话
+            # 如果有聊天界面，显示对话
             if hasattr(self, 'chat_display') and self.chat_display:
                 current_content = self.chat_display.toPlainText()
                 new_content = current_content + "\n\n" + "="*50 + "\n" + conversation + "\n" + "="*50
@@ -6291,7 +6866,7 @@ class MainWindow(QMainWindow):
             # 获取当前预览帧
             pixmap = self.camera_preview_label.pixmap()
             if pixmap is None:
-                QMessageBox.warning(self, "警告", "无法获取摄像头图像,请确保摄像头已连接")
+                QMessageBox.warning(self, "警告", "无法获取摄像头图像，请确保摄像头已连接")
                 return
             
             # 转换为numpy数组进行诊断

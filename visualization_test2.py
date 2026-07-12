@@ -2271,7 +2271,20 @@ class MainWindow(QMainWindow):
         self.advice_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.advice_text.setFont(QFont("Microsoft YaHei", 14))
         self.advice_text.setStyleSheet(f"background-color: {self.primary_color}; border: none; padding: 10px; color: {self.text_color}; font-size: 14px;")
-        self.advice_text.setHtml(f"<div style='text-align:center; margin-top:50px;'><h2 style='color:{self.highlight_color};'>DeepSeek 诊疗引擎</h2><p style='color:#616E88;'>请先进行疾病检测, 然后点击生成报告获取专业建议.</p></div>")
+        self.advice_text.setHtml(f"""
+        <div style='font-family: "Microsoft YaHei", sans-serif; text-align: center; padding: 40px 20px;'>
+            <h2 style='color: {self.highlight_color}; font-size: 22px; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
+            <div style='background-color: #21252B; border-radius: 10px; padding: 25px; border: 1px solid #2c323c;
+                text-align: left; display: inline-block;'>
+                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 15px;'>🚀 快速上手</h3>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>1.</b> 加载模型 — 选择 YOLO 权重文件 (.pt)</p>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>2.</b> 加载图像 — 选择本地照片或连接开发板</p>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>3.</b> 开始检测 — AI 自动分析并输出分类结果</p>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>4.</b> 点击🔄 生成当前报告获取诊疗建议</p>
+            </div>
+            <p style='color: #4C566A; font-size: 12px; margin-top: 20px;'>💡 请前往「系统设置」校验 API Key 状态</p>
+        </div>
+        """)
 
         advice_layout.addLayout(advice_tool_layout)
         advice_layout.addWidget(self.advice_text)
@@ -2757,10 +2770,17 @@ class MainWindow(QMainWindow):
                 """)
                 # 同时重置 AI 建议面板
                 self.advice_text.setHtml(f"""
-                <div style='text-align:center; margin-top:50px;'>
-                    <h2 style='color:{self.highlight_color};'>DeepSeek 诊疗引擎</h2>
-                    <p style='color:#616E88;'>请先进行疾病检测, 然后点击生成报告获取专业建议.</p>
-                </div>
+        <div style='font-family: "Microsoft YaHei", sans-serif; text-align: center; padding: 40px 20px;'>
+            <h2 style='color: {self.highlight_color}; font-size: 22px; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
+            <div style='background-color: #21252B; border-radius: 10px; padding: 25px; border: 1px solid #2c323c;
+                text-align: left; display: inline-block;'>
+                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 15px;'>🚀 快速上手</h3>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>1.</b> 加载模型 — 选择 YOLO 权重文件 (.pt)</p>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>2.</b> 加载图像 — 选择本地照片或连接开发板</p>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>3.</b> 开始检测 — AI 自动分析并输出分类结果</p>
+                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>4.</b> 点击🔄 生成当前报告获取诊疗建议</p>
+            </div>
+        </div>
                 """)
                 self.status_bar.showMessage("对话历史已清除")
                 

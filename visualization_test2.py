@@ -3583,14 +3583,29 @@ class MainWindow(QMainWindow):
                 border-bottom: 1px solid #3b4252;
             }}
             QTableWidget::item:selected {{
-                background-color: rgba(0, 181, 216, 0.2);
+                background-color: rgba(0, 181, 216, 0.35);
                 color: white;
+            }}
+            QTableWidget::item:selected:!active {{
+                background-color: rgba(0, 181, 216, 0.25);
+                color: #E5E9F0;
             }}
             QTableWidget::item:alternate {{
                 background-color: #262B33;
             }}
+            QTableWidget::item:alternate:selected {{
+                background-color: rgba(0, 181, 216, 0.35);
+                color: white;
+            }}
         """)
-        
+        # 整行选择样式
+        self.history_table.setStyleSheet(self.history_table.styleSheet() + f"""
+            QTableWidget {{
+                selection-background-color: rgba(0, 181, 216, 0.35);
+                selection-color: white;
+            }}
+        """)
+
         # 隐藏行号列,设置行高
         self.history_table.verticalHeader().setVisible(False)
         self.history_table.verticalHeader().setDefaultSectionSize(50)  # 设置默认行高为50像素
@@ -4405,11 +4420,19 @@ class MainWindow(QMainWindow):
                 border-bottom: 1px solid #2c323c;
             }}
             QTableWidget::item:selected {{
-                background-color: rgba(128, 90, 213, 0.2);
+                background-color: rgba(128, 90, 213, 0.35);
                 color: white;
+            }}
+            QTableWidget::item:selected:!active {{
+                background-color: rgba(128, 90, 213, 0.25);
+                color: #E5E9F0;
             }}
             QTableWidget::item:alternate {{
                 background-color: #262B33;
+            }}
+            QTableWidget::item:alternate:selected {{
+                background-color: rgba(128, 90, 213, 0.35);
+                color: white;
             }}
             QHeaderView::section {{
                 background-color: {self.primary_color};

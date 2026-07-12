@@ -5212,9 +5212,10 @@ class MainWindow(QMainWindow):
                 ], capture_output=True, check=True, timeout=30)
                 # 2. 打断上一轮播放
                 self.stop_speaking()
-                # 3. 主线程播放（用 QMediaPlayer，不弹外部窗口）
+                # 3. 主线程播放
                 self._tts_queue.append(mp3_path)
-                QTimer.singleShot(0, lambda: self._play_next_tts())
+                print(f"[DEBUG] TTS(edge-tts): 合成完成 ↓")
+                QApplication.postEvent(self, AIResponseEvent("tts_ready"))
             except Exception as e:
                 print(f"[DEBUG] TTS(edge-tts): 失败 {e}")
 
@@ -5449,7 +5450,10 @@ class MainWindow(QMainWindow):
         if isinstance(event, VoiceRecognitionEvent):
             self.handle_voice_recognition_event(event)
         elif isinstance(event, AIResponseEvent):
-            self.handle_ai_response_event(event)
+            if event.event_type == "tts_ready":
+                self._play_next_tts()
+            else:
+                self.handle_ai_response_event(event)
         else:
             super().customEvent(event)
 

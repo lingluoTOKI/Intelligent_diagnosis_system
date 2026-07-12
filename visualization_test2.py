@@ -5178,43 +5178,55 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """将文本转换为语音播放（线程安全，优先 edge-tts 自然语音）"""
-        clean_text = self._clean_text_for_tts(text)
-        if not clean_text.strip():
-            print("[DEBUG] TTS: 没有可播放的文本内容")
+        """将文本转换为语音播放（edge-tts 微软神经网络语音，离线回退 pyttsx3）"""
+        import re
+        # 预处理：去除 HTML 和 Markdown
+        clean = text
+        clean = re.sub(r'<[^>]+>', '', clean)
+        clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean)
+        clean = re.sub(r'\*([^*]+)\*', r'\1', clean)
+        clean = re.sub(r'#+\s*', '', clean)
+        clean = re.sub(r'[-*•]\s+', '，', clean)
+        clean = re.sub(r'\d+\.\s+', '', clean)
+        clean = re.sub(r'`{1,3}[^`]*`{1,3}', '', clean)
+        clean = re.sub(r'\n+', '。', clean)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        # 截断过长文本
+        if len(clean) > 800:
+            clean = clean[:800] + "。以下内容已省略。"
+        if not clean.strip():
             return
 
-        print(f"[DEBUG] TTS: 开始播放 (文本长度: {len(clean_text)})")
+        print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
 
         def safe_speak():
-            # 优先使用 edge-tts（微软神经网络语音，非常自然）
+            # 方案一：edge-tts 微软神经网络语音（需 pip install edge-tts）
             try:
-                import subprocess, tempfile, os
-                fd, tmp_path = tempfile.mkstemp(suffix='.mp3')
-                os.close(fd)
+                import subprocess, tempfile, os as _os
+                fd, mp3 = tempfile.mkstemp(suffix='.mp3')
+                _os.close(fd)
                 subprocess.run([
                     'edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural',
-                    '--rate=+10%', '--text', clean_text,
-                    '--write-media', tmp_path
+                    '--rate=+10%', '--text', clean,
+                    '--write-media', mp3
                 ], capture_output=True, check=True, timeout=30)
-                subprocess.run(['start', '', tmp_path], shell=True, timeout=5)
+                subprocess.run(['start', '', mp3], shell=True, timeout=5)
                 print("[DEBUG] TTS(edge-tts): 播放完成")
                 return
             except Exception:
-                pass  # edge-tts 不可用时回退到 pyttsx3
+                pass
 
-            # 回退：pyttsx3（Windows SAPI5）
+            # 方案二：pyttsx3 离线引擎（Windows SAPI5）
             try:
                 import pyttsx3
                 engine = pyttsx3.init()
-                voices = engine.getProperty('voices')
-                for v in voices:
+                for v in engine.getProperty('voices'):
                     if 'chinese' in v.name.lower() or 'zh' in v.id.lower():
                         engine.setProperty('voice', v.id)
                         break
                 engine.setProperty('rate', 160)
                 engine.setProperty('volume', 0.9)
-                engine.say(clean_text)
+                engine.say(clean)
                 engine.runAndWait()
                 print("[DEBUG] TTS(pyttsx3): 播放完成")
             except Exception as e:
@@ -5633,10 +5645,7 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("对话完成")
 
             if self.voice_chat_enabled.isChecked():
-                # 提取纯文本用于 TTS 播报
-                ai_clean_text = self._extract_plain_text(ai_msg)
-                print(f"[DEBUG] 语音朗读已启用,准备播放AI回复 (文本长度: {len(ai_clean_text)})")
-                self.speak_text(ai_clean_text)
+                self.speak_text(ai_msg)
 
         elif event.event_type == "error":
             self.show_ai_progress(False)

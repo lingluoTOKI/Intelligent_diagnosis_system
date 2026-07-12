@@ -2747,33 +2747,8 @@ class MainWindow(QMainWindow):
             self.chat_display.setHtml(self.format_advice_html(current_response))
 
     def format_advice_content(self, content):
-        """格式化建议内容为HTML（不包含完整HTML结构）"""
-        if not content:
-            return "<p>暂无内容</p>"
-        
-        # 转义HTML特殊字符
-        import html
-        content = html.escape(content)
-        
-        # 处理标题
-        content = re.sub(r'####\s*(.*?)(?=\n|$)', r'<h4 style="color: #00B5D8; margin: 15px 0 8px 0; font-size: 15pt; border-bottom: 1px solid #00B5D8; padding-bottom: 3px;">\1</h4>', content)
-        content = re.sub(r'###\s*(.*?)(?=\n|$)', r'<h3 style="color: #805AD5; margin: 20px 0 10px 0; font-size: 16pt; border-bottom: 2px solid #805AD5; padding-bottom: 5px;">\1</h3>', content)
-        content = re.sub(r'##\s*(.*?)(?=\n|$)', r'<h2 style="color: #00B5D8; margin: 25px 0 15px 0; font-size: 18pt; border-bottom: 2px solid #00B5D8; padding-bottom: 8px;">\1</h2>', content)
-        content = re.sub(r'#\s*(.*?)(?=\n|$)', r'<h1 style="color: #805AD5; margin: 30px 0 20px 0; font-size: 20pt; border-bottom: 3px solid #805AD5; padding-bottom: 10px;">\1</h1>', content)
-        
-        # 处理粗体和斜体
-        content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #00B5D8;">\1</strong>', content)
-        content = re.sub(r'\*(.*?)\*', r'<em style="color: #805AD5;">\1</em>', content)
-        
-        # 处理列表
-        content = re.sub(r'^- (.*?)(?=\n|$)', r'<li style="margin: 5px 0; color: #e2e8f0;">\1</li>', content, flags=re.MULTILINE)
-        content = re.sub(r'(<li.*?</li>)', r'<ul style="margin: 10px 0; padding-left: 20px;">\1</ul>', content)
-        
-        # 处理段落
-        content = re.sub(r'\n\n', '</p><p style="margin: 10px 0; color: #e2e8f0; line-height: 1.6;">', content)
-        content = f'<p style="margin: 10px 0; color: #e2e8f0; line-height: 1.6;">{content}</p>'
-        
-        return content
+        """格式化建议内容为HTML（统一使用 format_advice_html 解析器）"""
+        return self.format_advice_html(content)
 
     def clear_chat_history(self):
         """清除对话历史"""
@@ -4936,18 +4911,14 @@ class MainWindow(QMainWindow):
         """将Markdown文本转换为美观的HTML格式（返回 body 片段，不嵌套完整 HTML 文档）"""
 
         def _process_bold(text):
-            """将 **粗体** 和 *斜体* 转为 HTML 标签，兼容 DeepSeek 偶发的不规范格式"""
-            # 标准 **粗体**
+            """将 **粗体** 转为 HTML 标签"""
+            # 先保护已转换的 HTML 标签，避免二次替换
+            # 标准 **粗体** — 跨行也行（DeepSeek 喜欢在长文本用粗体标记关键词）
             text = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.accent_color};">\1</b>', text)
-            # 不规范格式：*text** 或 **text*（DeepSeek 偶发少写一个星号）
-            text = re.sub(r'(?<!\*)\*([^*\n]+?)\*\*(?!\*)', rf'<b style="color:{self.accent_color};">\1</b>', text)
-            text = re.sub(r'(?<!\*)\*\*([^*\n]+?)\*(?!\*)', rf'<b style="color:{self.accent_color};">\1</b>', text)
-            # 标准 *斜体*
-            text = re.sub(r'(?<!\*)\*([^*\n]+?)\*(?!\*)', rf'<i style="color:{self.highlight_color};">\1</i>', text)
             return text
 
         def _process_inline(text):
-            """处理行内格式：粗体、斜体"""
+            """处理行内格式"""
             return _process_bold(text)
 
         lines = markdown_text.split('\n')
@@ -5067,19 +5038,19 @@ class MainWindow(QMainWindow):
                     html_content += "<ol style='margin:10px 0; padding-left:22px;'>\n"
                     in_numbered_list = True
                 content = _process_inline(numbered_match.group(2))
-                html_content += f"<li style='margin:10px 0; font-size:14pt; line-height:1.7;'>{content}</li>\n"
+                html_content += f"<li style='color:{self.text_color}; margin:10px 0; font-size:14pt; line-height:1.7;'>{content}</li>\n"
                 i += 1
                 continue
 
-            # ── 无序列表：- 、 * 、 • ──
-            bullet_match = re.match(r'^[\-\*•]\s*(.*)', stripped)
+            # ── 无序列表：- 、 * 、 • 、 · 、 ● ──
+            bullet_match = re.match(r'^[\-\*•·●]\s*(.*)', stripped)
             if bullet_match and stripped not in ('---', '--'):
                 if not section_open:
                     html_content += f"<div style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
                     section_open = True
                     in_bullet_section = True
                 content = _process_inline(bullet_match.group(1))
-                html_content += f"<div style='margin:10px 0; padding-left:18px; font-size:14pt;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
+                html_content += f"<div style='color:{self.text_color}; margin:10px 0; padding-left:18px; font-size:14pt;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
                 i += 1
                 continue
 
@@ -5093,7 +5064,7 @@ class MainWindow(QMainWindow):
             if in_bullet_section:
                 in_bullet_section = False
 
-            html_content += f"<p style='margin:12px 0; font-size:14pt; line-height:1.8; text-align:justify;'>{_process_inline(stripped)}</p>\n"
+            html_content += f"<p style='color:{self.text_color}; margin:12px 0; font-size:14pt; line-height:1.8; text-align:justify;'>{_process_inline(stripped)}</p>\n"
             i += 1
 
         # 确保所有区块都关闭
@@ -5102,10 +5073,12 @@ class MainWindow(QMainWindow):
         if section_open or in_bullet_section:
             html_content += "</div>\n"
 
-        # 对整体再做一次粗体处理（兜底）
-        html_content = _process_bold(html_content)
-
-        return f"<div style='font-family:\"Microsoft YaHei\",\"SimHei\",sans-serif; line-height:1.8; font-size:13pt;'>{html_content}</div>"
+        return (
+            f"<div style='font-family:\"Microsoft YaHei\",\"SimHei\",sans-serif; "
+            f"color:{self.text_color}; line-height:1.8; font-size:13pt;'>"
+            f"{html_content}"
+            f"</div>"
+        )
 
 
 

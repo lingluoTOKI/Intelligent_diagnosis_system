@@ -5178,9 +5178,8 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """将文本转换为语音播放（edge-tts 微软神经网络语音，离线回退 pyttsx3）"""
+        """将文本转换为语音播放：edge-tts → pyttsx3 两级回退"""
         import re
-        # 预处理：去除 HTML 和 Markdown
         clean = text
         clean = re.sub(r'<[^>]+>', '', clean)
         clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean)
@@ -5191,7 +5190,6 @@ class MainWindow(QMainWindow):
         clean = re.sub(r'`{1,3}[^`]*`{1,3}', '', clean)
         clean = re.sub(r'\n+', '。', clean)
         clean = re.sub(r'\s+', ' ', clean).strip()
-        # 截断过长文本
         if len(clean) > 800:
             clean = clean[:800] + "。以下内容已省略。"
         if not clean.strip():
@@ -5200,7 +5198,24 @@ class MainWindow(QMainWindow):
         print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
 
         def safe_speak():
-            # 方案一：edge-tts 微软神经网络语音（需 pip install edge-tts）
+            try:
+                import subprocess, tempfile, os as _os
+                fd, mp3 = tempfile.mkstemp(suffix='.wav')
+                _os.close(fd)
+
+                # GPT-SoVITS TTS API（本地服务，洛天依声线）
+                subprocess.run([
+                    'curl', '-s', '-X', 'POST',
+                    'http://127.0.0.1:9880/tts',
+                    '-H', 'Content-Type: application/json',
+                    '-d', f'{{"text":"{clean}","text_lang":"zh","ref_audio_path":"lty_ref.wav","prompt_text":"参考音频文本","prompt_lang":"zh","text_split_method":"cut5","batch_size":1,"media_type":"wav","streaming_mode":false}}',
+                    '-o', mp3
+                ], timeout=30, check=True)
+                subprocess.run(['start', '', mp3], shell=True, timeout=5)
+                print("[DEBUG] TTS(洛天依): 播放完成")
+                return
+            except Exception:
+                pass
             try:
                 import subprocess, tempfile, os as _os
                 fd, mp3 = tempfile.mkstemp(suffix='.mp3')
@@ -5215,8 +5230,6 @@ class MainWindow(QMainWindow):
                 return
             except Exception:
                 pass
-
-            # 方案二：pyttsx3 离线引擎（Windows SAPI5）
             try:
                 import pyttsx3
                 engine = pyttsx3.init()

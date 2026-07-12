@@ -5178,7 +5178,7 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """将文本转换为语音播放（线程安全）"""
+        """将文本转换为语音播放（线程安全，优先 edge-tts 自然语音）"""
         clean_text = self._clean_text_for_tts(text)
         if not clean_text.strip():
             print("[DEBUG] TTS: 没有可播放的文本内容")
@@ -5187,20 +5187,36 @@ class MainWindow(QMainWindow):
         print(f"[DEBUG] TTS: 开始播放 (文本长度: {len(clean_text)})")
 
         def safe_speak():
+            # 优先使用 edge-tts（微软神经网络语音，非常自然）
+            try:
+                import subprocess, tempfile, os
+                fd, tmp_path = tempfile.mkstemp(suffix='.mp3')
+                os.close(fd)
+                subprocess.run([
+                    'edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural',
+                    '--rate=+10%', '--text', clean_text,
+                    '--write-media', tmp_path
+                ], capture_output=True, check=True, timeout=30)
+                subprocess.run(['start', '', tmp_path], shell=True, timeout=5)
+                print("[DEBUG] TTS(edge-tts): 播放完成")
+                return
+            except Exception:
+                pass  # edge-tts 不可用时回退到 pyttsx3
+
+            # 回退：pyttsx3（Windows SAPI5）
             try:
                 import pyttsx3
                 engine = pyttsx3.init()
-                # 尝试设置中文语音
                 voices = engine.getProperty('voices')
                 for v in voices:
                     if 'chinese' in v.name.lower() or 'zh' in v.id.lower():
                         engine.setProperty('voice', v.id)
                         break
-                engine.setProperty('rate', 180)
+                engine.setProperty('rate', 160)
                 engine.setProperty('volume', 0.9)
                 engine.say(clean_text)
                 engine.runAndWait()
-                print("[DEBUG] TTS: 播放完成")
+                print("[DEBUG] TTS(pyttsx3): 播放完成")
             except Exception as e:
                 print(f"[DEBUG] TTS: 播放失败 {e}")
 

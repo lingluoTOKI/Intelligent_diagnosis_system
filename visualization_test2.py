@@ -1120,6 +1120,16 @@ class EyeDiseaseDetector:
         self.current_model_path = None
         
         # 类别索引到疾病名称的映射
+        self.disease_name_map = {
+            0: 'A (正常)',
+            1: 'C (白内障)',
+            2: 'D (糖尿病视网膜病变)',
+            3: 'G (青光眼)',
+            4: 'H (高血压性视网膜病变)',
+            5: 'M (黄斑病变)',
+            6: 'N (视神经病变)',
+            7: 'O (其他)',
+        }
         self.class_names = {
             0: 'AMD',
             1: 'Cataract',
@@ -1130,16 +1140,27 @@ class EyeDiseaseDetector:
             6: 'Normal',
             7: 'Other'
         }
-        # 字母到疾病名称的映射（用于从模型输出文本中解析）
-        self.letter_to_disease = {
-            'A': 'AMD',
-            'N': 'Normal',
-            'D': 'Diabetic Retinopathy',
-            'G': 'Glaucoma',
-            'C': 'Cataract',
-            'H': 'Hypertensive Retinopathy',
-            'M': 'Myopia',
-            'O': 'Other'
+        # 字母到中文名称的映射（用于历史记录和检测结果显示）
+        self.letter_to_chinese = {
+            'A': '正常',
+            'C': '白内障',
+            'D': '糖尿病视网膜病变',
+            'G': '青光眼',
+            'H': '高血压性视网膜病变',
+            'M': '黄斑病变',
+            'N': '视神经病变',
+            'O': '其他',
+        }
+        # 英文疾病名到中文名映射
+        self.english_to_chinese = {
+            'AMD': '黄斑病变',
+            'Normal': '正常',
+            'Diabetic Retinopathy': '糖尿病视网膜病变',
+            'Glaucoma': '青光眼',
+            'Cataract': '白内障',
+            'Hypertensive Retinopathy': '高血压性视网膜病变',
+            'Myopia': '黄斑病变',
+            'Other': '其他',
         }
 
     def load_model(self, model_path):
@@ -1241,7 +1262,7 @@ class ResultProcessor:
             if match:
                 letter = match.group(1)
                 confidence = float(match.group(2))
-                disease_name = self.detector.letter_to_disease.get(letter, "未知")
+                disease_name = self.detector.letter_to_chinese.get(letter, "未知")
                 self.current_disease = disease_name
                 self.current_confidence = confidence
                 return True
@@ -3341,7 +3362,7 @@ class MainWindow(QMainWindow):
                         if match:
                             letter = match.group(1)
                             confidence = float(match.group(2))
-                            disease_name = self.detector.letter_to_disease.get(letter, "未知")
+                            disease_name = self.detector.letter_to_chinese.get(letter, "未知")
                         elif hasattr(current_results, 'probs') and current_results.probs is not None:
                             top_class_idx = int(current_results.probs.top1)
                             confidence = float(current_results.probs.top1conf)

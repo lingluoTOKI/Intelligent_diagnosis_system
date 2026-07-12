@@ -4226,13 +4226,15 @@ class MainWindow(QMainWindow):
         dates = sorted(date_count.keys())
         values = [date_count[d] for d in dates]
 
-        ax1.plot(dates, values, marker='o', color='#805AD5', linewidth=2, markersize=8)
-        ax1.set_title('每日检测数量趋势', color='white', pad=20)
+        ax1.plot(dates, values, marker='o', color='#00E5FF', linewidth=3.5, markersize=10,
+                 markeredgecolor='white', markeredgewidth=1.5)
+        ax1.fill_between(range(len(dates)), values, alpha=0.1, color='#00E5FF')
+        ax1.set_title('每日检测数量趋势', color='white', pad=20, fontsize=14, fontweight='bold')
         ax1.set_xlabel('日期', color='white')
         ax1.set_ylabel('检测数量', color='white')
         ax1.tick_params(axis='x', rotation=45, colors='white')
         ax1.tick_params(axis='y', colors='white')
-        ax1.grid(color='#4a5568', linestyle='--', linewidth=0.5)
+        ax1.grid(color='#4a5568', linestyle='--', linewidth=0.5, alpha=0.7)
 
         for spine in ax1.spines.values():
             spine.set_edgecolor('#4a5568')
@@ -4255,30 +4257,37 @@ class MainWindow(QMainWindow):
 
         # 饼图
         ax2.set_facecolor('#2d3748')
+        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
         wedges, texts, autotexts = ax2.pie(
             list(disease_count.values()),
             labels=list(disease_count.keys()),
             autopct='%1.1f%%',
             startangle=140,
-            colors=['#00B5D8', '#805AD5', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565', '#4cb050'],
-            textprops={'color': 'white'}
+            colors=theme_colors[:len(disease_count)],
+            textprops={'color': 'white', 'fontweight': 'bold'},
+            wedgeprops={'edgecolor': '#2d3748', 'linewidth': 1.5}
         )
-        ax2.set_title('疾病分布比例', color='white', pad=20)
+        ax2.set_title('疾病分布比例', color='white', pad=20, fontsize=14, fontweight='bold')
 
         # 设置文本颜色
         for text in texts:
             text.set_color('white')
         for autotext in autotexts:
             autotext.set_color('white')
+            autotext.set_fontweight('bold')
 
         # 柱状图
         ax3.set_facecolor('#2d3748')
-        ax3.bar(list(disease_count.keys()), list(disease_count.values()), color='#00B5D8')
-        ax3.set_title('疾病分布数量', color='white', pad=20)
+        colors_bar = theme_colors[:len(disease_count)]
+        bars = ax3.bar(list(disease_count.keys()), list(disease_count.values()), color=colors_bar)
+        for bar in bars:
+            bar.set_edgecolor('white')
+            bar.set_linewidth(0.5)
+        ax3.set_title('疾病分布数量', color='white', pad=20, fontsize=14, fontweight='bold')
         ax3.set_ylabel('数量', color='white')
         ax3.tick_params(axis='x', rotation=45, colors='white')
         ax3.tick_params(axis='y', colors='white')
-        ax3.grid(color='#4a5568', linestyle='--', linewidth=0.5, axis='y')
+        ax3.grid(color='#4a5568', linestyle='--', linewidth=0.5, axis='y', alpha=0.7)
 
         for spine in ax3.spines.values():
             spine.set_edgecolor('#4a5568')
@@ -4305,15 +4314,16 @@ class MainWindow(QMainWindow):
         dates_sorted = sorted(date_disease.keys())
 
         # 每种疾病一个线条
-        colors = ['#00B5D8', '#805AD5', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565']
+        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
 
         for i, disease in enumerate(diseases):
             values = []
             for date in dates_sorted:
                 values.append(date_disease[date].get(disease, 0))
 
-            ax4.plot(dates_sorted, values, marker='o', color=colors[i % len(colors)],
-                     label=disease, linewidth=2, markersize=6)
+            ax4.plot(dates_sorted, values, marker='o', color=theme_colors[i % len(theme_colors)],
+                     label=disease, linewidth=3.5, markersize=8,
+                     markeredgecolor='white', markeredgewidth=1.5)
 
         ax4.set_title('各疾病每日趋势', color='white', pad=20)
         ax4.set_xlabel('日期', color='white')

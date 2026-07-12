@@ -4012,36 +4012,32 @@ class MainWindow(QMainWindow):
         close_button.clicked.connect(detail_dialog.accept)
         main_layout.addWidget(close_button)
 
-        # ================= 异步加载/读取 AI 建议逻辑 =================
+        # ================= 加载 AI 建议逻辑（默认立即 + 异步升级） =================
+
+        # 0. 主线程：立即展示默认医学建议（必须在 exec_() 之前，保证弹窗即见内容）
+        default_advice = self.deepseek_api._get_default_advice(record['disease_name'])
+        if default_advice:
+            advice_text.setHtml(self.format_advice_html(default_advice))
+
+        # 1. 后台线程：尝试用缓存或 API 升级为更详细的 AI 建议
         def fetch_or_load_advice():
             try:
-                # 0. 先立即展示默认医学建议（保证用户第一时间看到有用信息）
-                default_advice = self.deepseek_api._get_default_advice(record['disease_name'])
-                if default_advice:
-                    QTimer.singleShot(0, lambda: advice_text.setHtml(
-                        self.format_advice_html(default_advice)))
-
-                # 1. 查阅数据库，看这条记录之前是否已经生成过 AI 建议
                 saved_advice = record.get('advice')
-
                 if saved_advice and str(saved_advice).strip():
-                    # ✅ 数据库里有缓存：替换为更详细的 AI 建议
+                    # 数据库有缓存 → 替换默认建议
                     formatted_html = self.format_advice_html(saved_advice)
                     QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
                 else:
-                    # ❌ 数据库里没有：调用 DeepSeek API 生成
+                    # 无缓存 → 调 API 生成
                     raw_advice = self.deepseek_api.get_treatment_advice(
                         record['disease_name'], record['confidence'])
-                    # 如果 API 返回了有效内容（非默认建议），替换并缓存
-                    if raw_advice and raw_advice != default_advice:
+                    if raw_advice and raw_advice.strip():
                         formatted_html = self.format_advice_html(raw_advice)
                         get_history_db().update_advice(record['record_id'], raw_advice)
                         QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
             except Exception as e:
-                # 静默失败——默认建议已经显示了，不需要额外错误提示
                 print(f"[INFO] AI建议加载失败，已显示默认建议: {e}")
 
-        # 启动后台线程
         threading.Thread(target=fetch_or_load_advice, daemon=True).start()
 
         # 快捷键 Esc 关闭
@@ -4604,6 +4600,29 @@ class MainWindow(QMainWindow):
         title_label.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
         title_label.setStyleSheet(f"color: {self.accent_color}; margin-bottom: 10px;")
         title_layout.addWidget(title_label, 1)
+
+        # 全屏按钮
+        result_fullscreen_btn = QPushButton("🔍 全屏")
+        result_fullscreen_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.highlight_color};
+                color: white;
+                padding: 6px 14px;
+                border-radius: 4px;
+                font-size: 12pt;
+            }}
+            QPushButton:hover {{ background-color: #d69e2e; }}
+        """)
+        def toggle_result_fullscreen():
+            if dialog.isFullScreen():
+                dialog.showNormal()
+                result_fullscreen_btn.setText("🔍 全屏")
+            else:
+                dialog.showFullScreen()
+                result_fullscreen_btn.setText("📱 退出全屏")
+        result_fullscreen_btn.clicked.connect(toggle_result_fullscreen)
+        QShortcut(QKeySequence("F11"), dialog, activated=toggle_result_fullscreen)
+        title_layout.addWidget(result_fullscreen_btn)
         main_layout.addLayout(title_layout)
 
         content_layout = QHBoxLayout()
@@ -4695,7 +4714,13 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(report_btn)
         main_layout.addLayout(button_layout)
 
-        QShortcut(QKeySequence("Esc"), dialog, activated=dialog.accept)
+        def esc_result():
+            if dialog.isFullScreen():
+                dialog.showNormal()
+                result_fullscreen_btn.setText("🔍 全屏")
+            else:
+                dialog.accept()
+        QShortcut(QKeySequence("Esc"), dialog, activated=esc_result)
         dialog.exec_()
     
 
@@ -4950,8 +4975,11 @@ class MainWindow(QMainWindow):
                 i += 1
                 continue
 
-            # ── 标题处理 ──
+            # ── 标题处理（先关闭所有已打开块，防止结构嵌套错乱）──
             if stripped.startswith('# '):
+                if in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
@@ -4960,6 +4988,9 @@ class MainWindow(QMainWindow):
                 continue
 
             if stripped.startswith('## '):
+                if in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
@@ -4968,23 +4999,47 @@ class MainWindow(QMainWindow):
                 continue
 
             if stripped.startswith('### '):
+                if in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
                 html_content += f"<h4 style='color:{self.accent_color}; font-size:15pt; margin-top:14px; margin-bottom:8px; border-left:3px solid {self.accent_color}; padding-left:10px; font-weight:bold;'>{_process_inline(stripped[4:])}</h4>\n"
                 i += 1
                 continue
 
             if stripped.startswith('#### '):
+                if in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
                 html_content += f"<h5 style='color:{self.highlight_color}; font-size:14pt; margin-top:12px; margin-bottom:6px; font-weight:bold;'>{_process_inline(stripped[5:])}</h5>\n"
                 i += 1
                 continue
 
             # ── 水平线 ──
             if stripped == '---' or stripped == '--':
+                if in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
                 html_content += "<hr style='border:none; height:2px; background:#3b4252; margin:20px 0;'>\n"
                 i += 1
                 continue
 
             # ── 引用块 ──
             if stripped.startswith('> '):
+                if in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
                 html_content += f"<blockquote style='border-left:4px solid {self.accent_color}; margin:12px 0; padding:8px 16px; color:#94A3B8; font-style:italic;'>{_process_inline(stripped[2:])}</blockquote>\n"
                 i += 1
                 continue
@@ -5050,7 +5105,7 @@ class MainWindow(QMainWindow):
         # 对整体再做一次粗体处理（兜底）
         html_content = _process_bold(html_content)
 
-        return f"<div style='font-family:Microsoft YaHei,SimHei,sans-serif; line-height:1.8;'>{html_content}</div>"
+        return f"<div style='font-family:\"Microsoft YaHei\",\"SimHei\",sans-serif; line-height:1.8; font-size:13pt;'>{html_content}</div>"
 
 
 

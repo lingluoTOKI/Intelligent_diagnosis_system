@@ -4911,10 +4911,16 @@ class MainWindow(QMainWindow):
         """将Markdown文本转换为美观的HTML格式（返回 body 片段，不嵌套完整 HTML 文档）"""
 
         def _process_bold(text):
-            """将 **粗体** 转为 HTML 标签"""
-            # 先保护已转换的 HTML 标签，避免二次替换
-            # 标准 **粗体** — 跨行也行（DeepSeek 喜欢在长文本用粗体标记关键词）
-            text = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.accent_color};">\1</b>', text)
+            """将粗体标记转为 HTML 标签，兼容 DeepSeek 的不规范格式"""
+            # 标准 **粗体**
+            text = re.sub(r'\*\*(.+?)\*\*',
+                         rf'<b style="color:{self.accent_color};">\1</b>', text)
+            # DeepSeek 偶发少写星号：*text** → 当作粗体
+            text = re.sub(r'(?<!\*)\*([^*\n]+?)\*\*(?!\*)',
+                         rf'<b style="color:{self.accent_color};">\1</b>', text)
+            # DeepSeek 偶发少写星号：**text* → 当作粗体
+            text = re.sub(r'(?<!\*)\*\*([^*\n]+?)\*(?!\*)',
+                         rf'<b style="color:{self.accent_color};">\1</b>', text)
             return text
 
         def _process_inline(text):

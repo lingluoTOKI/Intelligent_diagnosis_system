@@ -4708,8 +4708,13 @@ class MainWindow(QMainWindow):
         """将Markdown文本转换为美观的HTML格式（返回 body 片段，不嵌套完整 HTML 文档）"""
 
         def _process_bold(text):
-            """将 **粗体** 和 *斜体* 转为 HTML 标签"""
+            """将 **粗体** 和 *斜体* 转为 HTML 标签，兼容 DeepSeek 偶发的不规范格式"""
+            # 标准 **粗体**
             text = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.accent_color};">\1</b>', text)
+            # 不规范格式：*text** 或 **text*（DeepSeek 偶发少写一个星号）
+            text = re.sub(r'(?<!\*)\*([^*\n]+?)\*\*(?!\*)', rf'<b style="color:{self.accent_color};">\1</b>', text)
+            text = re.sub(r'(?<!\*)\*\*([^*\n]+?)\*(?!\*)', rf'<b style="color:{self.accent_color};">\1</b>', text)
+            # 标准 *斜体*
             text = re.sub(r'(?<!\*)\*([^*\n]+?)\*(?!\*)', rf'<i style="color:{self.highlight_color};">\1</i>', text)
             return text
 

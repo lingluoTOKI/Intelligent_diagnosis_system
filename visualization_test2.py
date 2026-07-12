@@ -1272,7 +1272,7 @@ class ResultProcessor:
         self.current_confidence = 0.98
         return self.current_disease, self.current_confidence
 
-    def show_disease_result_dialog(self, parent, background_color, text_color, highlight_color):
+    def show_disease_result_dialog(self, dialog, background_color, text_color, highlight_color):
         """
         在对话框中展示检测结果
         """
@@ -1286,7 +1286,7 @@ class ResultProcessor:
             <p style='margin-top:25px; color:#a0aec0; font-size:14px;'>可点击「AI治疗建议」获取详细方案</p>
         </div>
         """
-        msg_box = QMessageBox(parent)
+        msg_box = QMessageBox(dialog)
         msg_box.setWindowTitle("分类结果")
         msg_box.setText(result_text)
         msg_box.setIcon(QMessageBox.Information)

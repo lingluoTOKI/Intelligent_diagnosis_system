@@ -81,6 +81,13 @@ class HistoryDB:
                     confidence REAL NOT NULL
                 )
             """)
+
+            # 向后兼容：为旧数据库添加 advice 字段
+            try:
+                conn.execute("ALTER TABLE records ADD COLUMN advice TEXT")
+            except sqlite3.OperationalError:
+                pass  # 字段已存在，忽略
+
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON records(timestamp DESC)")
             conn.commit()
 
@@ -108,6 +115,12 @@ class HistoryDB:
     def delete_all(self):
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("DELETE FROM records")
+            conn.commit()
+
+    def update_advice(self, record_id, advice):
+        """将 AI 建议存入数据库，实现本地缓存"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("UPDATE records SET advice = ? WHERE record_id = ?", (advice, record_id))
             conn.commit()
 
     def count(self):
@@ -3924,23 +3937,26 @@ class MainWindow(QMainWindow):
             label.setWordWrap(True)
             info_layout_inner.addWidget(label)
 
-        # 添加AI建议按钮
-        advice_button = QPushButton("查看AI治疗建议")
-        advice_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.highlight_color};
-                color: white;
-                padding: 8px 16px;
+        # AI 建议显示区域（内联，带缓存）
+        advice_text = QTextEdit()
+        advice_text.setReadOnly(True)
+        advice_text.setMinimumHeight(180)
+        advice_text.setFont(QFont("Microsoft YaHei", 11))
+        advice_text.setStyleSheet(f"""
+            QTextEdit {{
+                background-color: {self.secondary_bg};
+                color: {self.text_color};
+                border: 1px solid #3b4252;
                 border-radius: 6px;
-                margin-top: 15px;
-            }}
-            QPushButton:hover {{
-                background-color: #d69e2e;
+                padding: 12px;
             }}
         """)
-        advice_button.clicked.connect(
-            lambda checked, d=record['disease_name'], c=record['confidence']: self.show_history_advice(d, c))
-        info_layout_inner.addWidget(advice_button)
+        advice_text.setHtml(
+            f"<div style='text-align:center; padding:20px; color:#81A1C1;'>"
+            f"<div style='font-size:24pt; margin-bottom:8px;'>🤖</div>"
+            f"<div>正在查询本地缓存…</div></div>"
+        )
+        info_layout_inner.addWidget(advice_text)
         info_group.setLayout(info_layout_inner)
 
         info_layout.addWidget(image_group, 1)
@@ -3953,7 +3969,7 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: {self.accent_color};
                 color: white;
-                padding: 8px 16px;
+                padding: 10px 20px;
                 border-radius: 6px;
             }}
             QPushButton:hover {{
@@ -3961,10 +3977,38 @@ class MainWindow(QMainWindow):
             }}
         """)
         close_button.clicked.connect(detail_dialog.accept)
-
         main_layout.addWidget(close_button)
 
-        # 显示对话框
+        # ================= 异步加载/读取 AI 建议逻辑 =================
+        def fetch_or_load_advice():
+            try:
+                # 1. 查阅数据库，看这条记录之前是否已经生成过建议
+                saved_advice = record.get('advice')
+
+                if saved_advice and str(saved_advice).strip():
+                    # ✅ 数据库里有：直接使用本地记录，0 延迟秒开
+                    formatted_html = self.format_advice_html(saved_advice)
+                    QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
+                else:
+                    # ❌ 数据库里没有（老数据或首次点开）：调用 DeepSeek API 生成
+                    raw_advice = self.deepseek_api.get_treatment_advice(record['disease_name'], record['confidence'])
+                    formatted_html = self.format_advice_html(raw_advice)
+
+                    # 💡 核心：把生成的结果立刻存入数据库，下次看就不用再调 API 了！
+                    get_history_db().update_advice(record['record_id'], raw_advice)
+
+                    QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
+            except Exception as e:
+                QTimer.singleShot(0, lambda: advice_text.setHtml(
+                    f"<div style='padding:20px;'><h3 style='color:#FF5252;'>❌ 获取建议失败</h3><p>{e}</p></div>"
+                ))
+
+        # 启动后台线程
+        threading.Thread(target=fetch_or_load_advice, daemon=True).start()
+
+        # 快捷键 Esc 关闭
+        QShortcut(QKeySequence("Esc"), detail_dialog, activated=detail_dialog.accept)
+
         detail_dialog.exec_()
 
     def show_history_advice(self, disease_name, confidence):

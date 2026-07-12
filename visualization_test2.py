@@ -5198,7 +5198,7 @@ class MainWindow(QMainWindow):
         print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
 
         def safe_speak():
-            # 方案1: edge-tts 在线语音
+            # 方案1: edge-tts 在线语音（用 vlc 或 ffplay 播放，不受 mp3 文件关联影响）
             try:
                 import subprocess, tempfile
                 fd, mp3 = tempfile.mkstemp(suffix='.mp3')
@@ -5206,7 +5206,10 @@ class MainWindow(QMainWindow):
                 subprocess.run(['edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural', '--rate=+10%',
                     '--text', clean, '--write-media', mp3],
                     capture_output=True, check=True, timeout=20)
-                import os as _os2; _os2.startfile(mp3)
+                # 直接用 wmplayer.exe 绝对路径播放（不弹第三方播放器）
+                subprocess.Popen(
+                    ['C:/Program Files/Windows Media Player/wmplayer.exe', '/play', '/close', mp3],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 print("[DEBUG] TTS(edge-tts): 播放完成")
                 return
             except Exception:

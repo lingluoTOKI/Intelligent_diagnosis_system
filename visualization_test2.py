@@ -3651,60 +3651,7 @@ class MainWindow(QMainWindow):
         self.history_table.setHorizontalHeaderLabels(columns)
 
         # 加载历史记录并填充表格
-        history = self.load_history_records()
-        self.history_table.setRowCount(len(history))
-
-        for row, record in enumerate(reversed(history)):  # 逆序显示,最新的在前
-            timestamp_item = QTableWidgetItem(record["timestamp"])
-            path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
-            disease_item = QTableWidgetItem(record["disease_name"])
-            confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
-
-            # 将 record_id 存入第一列，删除时直接取出，避免索引映射错误
-            timestamp_item.setData(Qt.UserRole, record["record_id"])
-
-            # 设置项目不可编辑
-            for item in [timestamp_item, path_item, disease_item, confidence_item]:
-                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-
-            # 添加查看按钮
-            view_button = QPushButton("查看详情")
-            view_button.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {self.accent_color};
-                    color: white;
-                    padding: 8px 12px;
-                    border-radius: 6px;
-                    font-size: 13pt;
-                    font-weight: bold;
-                    min-height: 20px;
-                }}
-                QPushButton:hover {{
-                    background-color: #0097B2;
-                }}
-            """)
-            # 使用functools.partial来正确传递参数
-            view_button.clicked.connect(functools.partial(self.view_history_record, record))
-
-            # 添加到表格
-            self.history_table.setItem(row, 0, timestamp_item)
-            self.history_table.setItem(row, 1, path_item)
-            self.history_table.setItem(row, 2, disease_item)
-            self.history_table.setItem(row, 3, confidence_item)
-            self.history_table.setCellWidget(row, 4, view_button)
-
-        # 设置列宽
-        self.history_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)  # 时间戳固定宽度
-        self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)  # 图像名称自适应
-        self.history_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)  # 检测结果固定宽度
-        self.history_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)  # 置信度固定宽度
-        self.history_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)  # 操作固定宽度
-        
-        # 设置具体列宽
-        self.history_table.setColumnWidth(0, 180)  # 时间戳
-        self.history_table.setColumnWidth(2, 200)  # 检测结果
-        self.history_table.setColumnWidth(3, 100)  # 置信度
-        self.history_table.setColumnWidth(4, 120)  # 操作按钮
+        self._populate_history_table()
 
         main_layout.addWidget(self.history_table)
         
@@ -4102,6 +4049,53 @@ class MainWindow(QMainWindow):
         advice_dialog.exec_()
         self.status_bar.showMessage("就绪")
 
+    def _populate_history_table(self):
+        """刷新历史记录表格数据（不重建弹窗）"""
+        history = self.load_history_records()
+        self.history_table.setRowCount(len(history))
+
+        for row, record in enumerate(reversed(history)):
+            timestamp_item = QTableWidgetItem(record["timestamp"])
+            path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
+            disease_item = QTableWidgetItem(record["disease_name"])
+            confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
+
+            timestamp_item.setData(Qt.UserRole, record["record_id"])
+
+            for item in [timestamp_item, path_item, disease_item, confidence_item]:
+                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+
+            view_button = QPushButton("查看详情")
+            view_button.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {self.accent_color};
+                    color: white;
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-size: 13pt;
+                    font-weight: bold;
+                    min-height: 20px;
+                }}
+                QPushButton:hover {{ background-color: #0097B2; }}
+            """)
+            view_button.clicked.connect(functools.partial(self.view_history_record, record))
+
+            self.history_table.setItem(row, 0, timestamp_item)
+            self.history_table.setItem(row, 1, path_item)
+            self.history_table.setItem(row, 2, disease_item)
+            self.history_table.setItem(row, 3, confidence_item)
+            self.history_table.setCellWidget(row, 4, view_button)
+
+        self.history_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.history_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.history_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)
+        self.history_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)
+        self.history_table.setColumnWidth(0, 180)
+        self.history_table.setColumnWidth(2, 200)
+        self.history_table.setColumnWidth(3, 100)
+        self.history_table.setColumnWidth(4, 120)
+
     def delete_selected_history(self):
         """删除选中的历史记录 (SQLite)"""
         # 直接从表格行中取出 record_id，避免索引映射错误
@@ -4131,7 +4125,7 @@ class MainWindow(QMainWindow):
                         deleted_count += 1
                     except Exception as e:
                         print(f"[ERROR] 删除记录失败 (id={record_id}): {e}")
-                self.show_history()
+                self._populate_history_table()
                 self.show_message_box("成功", f"已成功删除 {deleted_count} 条记录！")
             except Exception as e:
                 self.show_message_box("错误", f"删除记录失败: {str(e)}")
@@ -4148,7 +4142,7 @@ class MainWindow(QMainWindow):
             try:
                 db = get_history_db()
                 db.delete_all()
-                self.show_history()
+                self._populate_history_table()
                 self.show_message_box("成功", "所有历史记录已清空！")
             except Exception as e:
                 self.show_message_box("错误", f"清空历史记录失败: {str(e)}")

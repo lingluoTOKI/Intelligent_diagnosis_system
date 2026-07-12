@@ -2271,30 +2271,7 @@ class MainWindow(QMainWindow):
         self.advice_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.advice_text.setFont(QFont("Microsoft YaHei", 14))
         self.advice_text.setStyleSheet(f"background-color: {self.primary_color}; border: none; padding: 10px; color: {self.text_color}; font-size: 14px;")
-        self.advice_text.setHtml(self._welcome_html())
-
-    def _welcome_html(self):
-        """初始引导页面 / 清除对话后的欢迎恢复"""
-        return f"""
-        <div style='font-family: "Microsoft YaHei", sans-serif; padding: 10px 30px;'>
-            <div style='text-align: center; margin-bottom: 25px; margin-top: 30px;'>
-                <h2 style='color: {self.highlight_color}; font-size: 26px; letter-spacing: 2px; margin-bottom: 5px;'>DeepSeek AI 诊疗引擎</h2>
-                <p style='color: #81A1C1; font-size: 14px; margin-top: 0;'>系统已就绪，请按照以下步骤开启智能诊断</p>
-            </div>
-            <div style='background-color: #21252B; border-radius: 12px; padding: 25px 30px; border: 1px solid #2c323c; margin: 0 auto;'>
-                <h3 style='color: {self.accent_color}; border-bottom: 1px solid #3b4252; padding-bottom: 12px; margin-top: 0; font-size: 16px;'>🚀 标准操作流程 (SOP)</h3>
-                <table style='margin-top: 15px; width: 100%; border-collapse: separate; border-spacing: 0 15px;'>
-                    <tr><td style='width: 30px; vertical-align: top;'><b style='color: {self.accent_color}; font-size: 16px;'>1.</b></td><td><b style='color: #E5E9F0; font-size: 15px;'>加载模型</b><br><span style='color: #81A1C1; font-size: 13px;'>点击左下角「1. 加载模型」按钮，选择训练好的 YOLO 权重文件 (.pt)</span></td></tr>
-                    <tr><td style='vertical-align: top;'><b style='color: {self.accent_color}; font-size: 16px;'>2.</b></td><td><b style='color: #E5E9F0; font-size: 15px;'>加载图像获取数据</b><br><span style='color: #81A1C1; font-size: 13px;'>点击「2. 加载图像」选择本地照片，或切换至「硬件视窗」连接开发板获取实时流</span></td></tr>
-                    <tr><td style='vertical-align: top;'><b style='color: {self.accent_color}; font-size: 16px;'>3.</b></td><td><b style='color: #E5E9F0; font-size: 15px;'>开始 AI 检测</b><br><span style='color: #81A1C1; font-size: 13px;'>点击「3. 开始检测」，视觉模型将自动提取病灶特征并输出分类置信度</span></td></tr>
-                    <tr><td style='vertical-align: top;'><b style='color: {self.accent_color}; font-size: 16px;'>4.</b></td><td><b style='color: #E5E9F0; font-size: 15px;'>生成诊断报告</b><br><span style='color: #81A1C1; font-size: 13px;'>系统将自动调用 DeepSeek 大模型，结合检测结果为您生成专业的医疗护理建议</span></td></tr>
-                </table>
-            </div>
-            <div style='text-align: center; margin-top: 30px;'>
-                <p style='color: #4C566A; font-size: 12px;'>💡 提示：若需更精准的问答，请前往「系统设置」校验 API Key 状态</p>
-            </div>
-        </div>
-        """
+        self.advice_text.setHtml(f"<div style='text-align:center; margin-top:50px;'><h2 style='color:{self.highlight_color};'>DeepSeek 诊疗引擎</h2><p style='color:#616E88;'>请先进行疾病检测, 然后点击生成报告获取专业建议.</p></div>")
 
         advice_layout.addLayout(advice_tool_layout)
         advice_layout.addWidget(self.advice_text)
@@ -2779,7 +2756,12 @@ class MainWindow(QMainWindow):
                 </body></html>
                 """)
                 # 同时重置 AI 建议面板
-                self.advice_text.setHtml(self._welcome_html())
+                self.advice_text.setHtml(f"""
+                <div style='text-align:center; margin-top:50px;'>
+                    <h2 style='color:{self.highlight_color};'>DeepSeek 诊疗引擎</h2>
+                    <p style='color:#616E88;'>请先进行疾病检测, 然后点击生成报告获取专业建议.</p>
+                </div>
+                """)
                 self.status_bar.showMessage("对话历史已清除")
                 
         except Exception as e:

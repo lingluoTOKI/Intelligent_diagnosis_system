@@ -5178,7 +5178,7 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """edge-tts 语音合成（排队播放，下一轮打断上一轮）"""
+        """TTS 语音播放：edge-tts 在线 → pyttsx3 离线回退"""
         import re
         clean = text
         clean = re.sub(r'<[^>]+>', '', clean)
@@ -5190,67 +5190,41 @@ class MainWindow(QMainWindow):
         clean = re.sub(r'`{1,3}[^`]*`{1,3}', '', clean)
         clean = re.sub(r'\n+', '。', clean)
         clean = re.sub(r'\s+', ' ', clean).strip()
-        if len(clean) > 800:
-            clean = clean[:800] + "。以下内容已省略。"
+        if len(clean) > 300:
+            clean = clean[:300] + "。以下内容已省略。"
         if not clean.strip():
             return
 
-        cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'temp')
-        os.makedirs(cache_dir, exist_ok=True)
-        mp3_path = os.path.join(cache_dir, f'tts_{datetime.now().strftime("%H%M%S%f")}.mp3')
-
-        print(f"[DEBUG] TTS(edge-tts): 合成中 ({len(clean)}字)")
+        print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
 
         def safe_speak():
+            # 方案1: edge-tts 在线语音
             try:
-                import subprocess
-                # 1. 合成
-                subprocess.run([
-                    'edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural',
-                    '--rate=+10%', '--text', clean,
-                    '--write-media', mp3_path
-                ], capture_output=True, check=True, timeout=30)
-                # 2. 打断上一轮播放
-                self.stop_speaking()
-                # 3. 主线程播放
-                self._tts_queue.append(mp3_path)
-                print(f"[DEBUG] TTS(edge-tts): 合成完成 ↓")
-                QApplication.postEvent(self, AIResponseEvent("tts_ready"))
+                import subprocess, tempfile
+                fd, mp3 = tempfile.mkstemp(suffix='.mp3')
+                import os as _os; _os.close(fd)
+                subprocess.run(['edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural', '--rate=+10%',
+                    '--text', clean, '--write-media', mp3],
+                    capture_output=True, check=True, timeout=20)
+                import os as _os2; _os2.startfile(mp3)
+                print("[DEBUG] TTS(edge-tts): 播放完成")
+                return
+            except Exception:
+                pass
+            # 方案2: pyttsx3 离线引擎（无需网络）
+            try:
+                import pyttsx3
+                engine = pyttsx3.init()
+                for v in engine.getProperty('voices'):
+                    if 'chinese' in v.name.lower() or 'zh' in v.id.lower():
+                        engine.setProperty('voice', v.id); break
+                engine.setProperty('rate', 160); engine.setProperty('volume', 0.9)
+                engine.say(clean); engine.runAndWait()
+                print("[DEBUG] TTS(pyttsx3): 播放完成")
             except Exception as e:
-                print(f"[DEBUG] TTS(edge-tts): 失败 {e}")
+                print(f"[DEBUG] TTS: 所有方案失败 {e}")
 
         threading.Thread(target=safe_speak, daemon=True).start()
-
-    def _play_tts_mp3(self, path):
-        """在 UI 线程播放 MP3（QMediaPlayer 内置，不弹外部窗口）"""
-        from PyQt5.QtCore import QUrl
-        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-        if not hasattr(self, '_tts_player'):
-            self._tts_player = QMediaPlayer()
-            self._tts_player.mediaStatusChanged.connect(self._on_tts_status)
-        self._tts_player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
-        self._tts_player.setVolume(80)
-        self._tts_player.play()
-
-    def _play_next_tts(self):
-        """播放队列中的下一个 TTS 文件"""
-        if not hasattr(self, '_tts_queue'):
-            self._tts_queue = []
-        if self._tts_queue:
-            self._play_tts_mp3(self._tts_queue.pop(0))
-
-    def _on_tts_status(self, status):
-        """TTS 播放结束 → 播放下一个"""
-        from PyQt5.QtMultimedia import QMediaPlayer
-        if status == QMediaPlayer.EndOfMedia:
-            self._play_next_tts()
-
-    def stop_speaking(self):
-        """打断当前 TTS 播放并清空队列"""
-        if hasattr(self, '_tts_queue'):
-            self._tts_queue.clear()
-        if hasattr(self, '_tts_player') and self._tts_player:
-            self._tts_player.stop()
     
     def _extract_plain_text(self, markdown_text):
         """从 Markdown/HTML 中提取纯文本（用于 TTS 播报）"""

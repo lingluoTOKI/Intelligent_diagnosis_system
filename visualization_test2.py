@@ -4960,7 +4960,7 @@ class MainWindow(QMainWindow):
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
-                html_content += f"<h2 style='color:{self.accent_color}; font-size:18pt; margin-top:22px; margin-bottom:12px; border-left:5px solid {self.accent_color}; padding-left:14px; font-weight:bold;'>{_process_inline(stripped[2:])}</h2>\n"
+                html_content += f"<h2 style='color:{self.accent_color}; font-size:18pt; margin-top:22px; margin-bottom:12px; border-left:5px solid {self.accent_color}; padding:10px 14px; font-weight:bold; background-color:rgba(0,181,216,0.08); border-radius:4px;'>{_process_inline(stripped[2:])}</h2>\n"
                 i += 1
                 continue
 
@@ -4971,7 +4971,7 @@ class MainWindow(QMainWindow):
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
-                html_content += f"<h3 style='color:{self.highlight_color}; font-size:16pt; margin-top:18px; margin-bottom:10px; border-bottom:2px solid {self.highlight_color}; padding-bottom:6px; font-weight:bold;'>{_process_inline(stripped[3:])}</h3>\n"
+                html_content += f"<h3 style='color:{self.highlight_color}; font-size:16pt; margin-top:18px; margin-bottom:10px; border-bottom:2px solid {self.highlight_color}; padding:8px 6px; font-weight:bold; background-color:rgba(128,90,213,0.08); border-radius:4px 4px 0 0;'>{_process_inline(stripped[3:])}</h3>\n"
                 i += 1
                 continue
 
@@ -5038,7 +5038,7 @@ class MainWindow(QMainWindow):
             numbered_match = re.match(r'^(\d+)\.\s+(.*)', stripped)
             if numbered_match:
                 if not section_open:
-                    html_content += f"<div style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
+                    html_content += f"<div style='border-left:4px solid {self.accent_color}; border-radius:4px; padding:12px 18px; margin:12px 0;'>\n"
                     section_open = True
                 if not in_numbered_list:
                     html_content += "<ol style='margin:10px 0; padding-left:22px;'>\n"
@@ -5052,7 +5052,7 @@ class MainWindow(QMainWindow):
             bullet_match = re.match(r'^[\-\*•·●]\s*(.*)', stripped)
             if bullet_match and stripped not in ('---', '--'):
                 if not section_open:
-                    html_content += f"<div style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
+                    html_content += f"<div style='border-left:4px solid {self.accent_color}; border-radius:4px; padding:12px 18px; margin:12px 0;'>\n"
                     section_open = True
                     in_bullet_section = True
                 content = _process_inline(bullet_match.group(1))

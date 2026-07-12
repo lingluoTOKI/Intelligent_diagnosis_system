@@ -1793,8 +1793,8 @@ class MainWindow(QMainWindow):
         self.command_listener.start_listening(5004)  # 启动命令监听
         print("✅ PC端命令监听器已自动启动 (端口5004)")
         
-        self.setMinimumSize(1200, 700)  # 降低最小尺寸要求,提高适应性
-        
+        self.setMinimumSize(900, 600)
+
         # 启动时自动全屏显示
         self.showMaximized()
         
@@ -2012,28 +2012,39 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(main_splitter)
         main_splitter.setStretchFactor(0, 6)  # 左侧视觉区占比 6
         main_splitter.setStretchFactor(1, 4)  # 右侧分析区占比 4
-        main_splitter.setMinimumSize(1000, 600)
+        main_splitter.setChildrenCollapsible(False)  # 防止一侧完全折叠
+        main_splitter.setHandleWidth(3)  # 拖拽手柄宽度
+        main_splitter.setStyleSheet(f"""
+            QSplitter::handle {{
+                background-color: #3b4252;
+            }}
+            QSplitter::handle:hover {{
+                background-color: {self.accent_color};
+            }}
+        """)
 
         # ========================================================
         # 左侧容器 - 视觉与操作区
         # ========================================================
         left_widget = QWidget()
+        left_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         left_layout = QVBoxLayout(left_widget)
-        left_layout.setSpacing(15)
-        left_layout.setContentsMargins(20, 20, 10, 20)
+        left_layout.setSpacing(12)
+        left_layout.setContentsMargins(15, 15, 10, 15)
 
         # 标题
         title_label = QLabel("AI 眼科疾病智诊系统")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Microsoft YaHei", 22, QFont.Bold))
-        title_label.setStyleSheet(f"color: {self.accent_color}; letter-spacing: 3px; margin-bottom: 10px;")
+        title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        title_label.setStyleSheet(f"color: {self.accent_color}; letter-spacing: 2px; margin-bottom: 6px;")
         left_layout.addWidget(title_label)
 
-        # --- 1. 图像展示区 (采用 QTabWidget 节省空间) ---
+        # 图像展示区 (采用 QTabWidget 节省空间)
         self.image_tab_widget = QTabWidget()
+        self.image_tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.image_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 16px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 13px; margin-right: 2px; min-width: 100px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 6px 12px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 12px; margin-right: 2px; min-width: 90px; }}
             QTabBar::tab:selected {{ background-color: {self.accent_color}; color: white; }}
         """)
         self.image_tab_widget.tabBar().setElideMode(Qt.ElideNone)
@@ -2046,8 +2057,8 @@ class MainWindow(QMainWindow):
         # 原始图像卡片
         self.original_image_label = QLabel("等待加载图像...")
         self.original_image_label.setAlignment(Qt.AlignCenter)
-        self.original_image_label.setMinimumSize(300, 300)
-        self.original_image_label.setMaximumSize(600, 600)
+        self.original_image_label.setMinimumSize(200, 200)
+        self.original_image_label.setMaximumSize(500, 500)
         self.original_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.original_image_label.setScaledContents(False)
         self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 6px; border: 1px solid #2c323c;")
@@ -2056,8 +2067,8 @@ class MainWindow(QMainWindow):
         # 检测结果卡片
         self.detected_image_label = QLabel("等待检测结果...")
         self.detected_image_label.setAlignment(Qt.AlignCenter)
-        self.detected_image_label.setMinimumSize(300, 300)
-        self.detected_image_label.setMaximumSize(600, 600)
+        self.detected_image_label.setMinimumSize(200, 200)
+        self.detected_image_label.setMaximumSize(500, 500)
         self.detected_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.detected_image_label.setScaledContents(False)
         self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 6px; border: 1px solid {self.highlight_color};")
@@ -2072,7 +2083,7 @@ class MainWindow(QMainWindow):
         # 摄像头预览区 — 不再限制最大尺寸，自适应空间
         self.camera_preview_label = QLabel("📱 摄像头未连接\n\n点击下方「连接开发板」开始实时预览")
         self.camera_preview_label.setAlignment(Qt.AlignCenter)
-        self.camera_preview_label.setMinimumSize(280, 200)
+        self.camera_preview_label.setMinimumSize(200, 150)
         self.camera_preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.camera_preview_label.setScaledContents(False)
         self.camera_preview_label.setStyleSheet(f"""
@@ -2157,7 +2168,7 @@ class MainWindow(QMainWindow):
         self.detect_button = QPushButton("3. 🔍 开始检测")
         self.results_button = QPushButton("4. 📊 查看报告")
 
-        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 12px; border-radius: 6px; font-weight: bold; font-size: 13px; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
+        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 10px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
         for btn in [self.model_button, self.image_button, self.detect_button, self.results_button]:
             btn.setStyleSheet(main_btn_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -2185,9 +2196,10 @@ class MainWindow(QMainWindow):
                 background-color: #3B4252;
                 border: 1px solid #4C566A;
                 color: {self.text_color};
-                padding: 10px;
+                padding: 8px 12px;
                 border-radius: 6px;
                 font-weight: bold;
+                font-size: 12px;
             }}
             QPushButton:hover {{
                 background-color: #4C566A;
@@ -2214,17 +2226,17 @@ class MainWindow(QMainWindow):
         btn_layout_v.addLayout(tools_layout)
         left_layout.addWidget(btn_panel, stretch=0)  # 保持按钮区原始高度
 
-        # ========================================================
         # 右侧容器 - AI 分析与设置区 (同样采用 Tab 化)
         # ========================================================
         right_widget = QWidget()
+        right_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         right_layout = QVBoxLayout(right_widget)
-        right_layout.setContentsMargins(10, 20, 20, 20)
+        right_layout.setContentsMargins(10, 15, 15, 15)
 
         self.right_tab_widget = QTabWidget()
         self.right_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 18px; font-weight: bold; font-size: 13px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-width: 90px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 6px 14px; font-weight: bold; font-size: 12px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-width: 80px; }}
             QTabBar::tab:selected {{ background-color: {self.highlight_color}; color: white; }}
         """)
         self.right_tab_widget.tabBar().setElideMode(Qt.ElideNone)
@@ -2253,7 +2265,7 @@ class MainWindow(QMainWindow):
         # 建议展示文本框
         self.advice_text = QTextEdit()
         self.advice_text.setReadOnly(True)
-        self.advice_text.setMinimumHeight(300)
+        self.advice_text.setMinimumHeight(150)
         self.advice_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.advice_text.setFont(QFont("Microsoft YaHei", 14))
         self.advice_text.setStyleSheet(f"background-color: {self.primary_color}; border: none; padding: 10px; color: {self.text_color}; font-size: 14px;")
@@ -2286,7 +2298,7 @@ class MainWindow(QMainWindow):
 
         self.chat_input = QTextEdit()
         self.chat_input.setPlaceholderText("在此描述其他症状或向AI提问...")
-        self.chat_input.setMaximumHeight(100)
+        self.chat_input.setMaximumHeight(70)
         self.chat_input.setStyleSheet(f"""
             QTextEdit {{
                 background-color: #1a202c;

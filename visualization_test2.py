@@ -4015,26 +4015,31 @@ class MainWindow(QMainWindow):
         # ================= 异步加载/读取 AI 建议逻辑 =================
         def fetch_or_load_advice():
             try:
-                # 1. 查阅数据库，看这条记录之前是否已经生成过建议
+                # 0. 先立即展示默认医学建议（保证用户第一时间看到有用信息）
+                default_advice = self.deepseek_api._get_default_advice(record['disease_name'])
+                if default_advice:
+                    QTimer.singleShot(0, lambda: advice_text.setHtml(
+                        self.format_advice_html(default_advice)))
+
+                # 1. 查阅数据库，看这条记录之前是否已经生成过 AI 建议
                 saved_advice = record.get('advice')
 
                 if saved_advice and str(saved_advice).strip():
-                    # ✅ 数据库里有：直接使用本地记录，0 延迟秒开
+                    # ✅ 数据库里有缓存：替换为更详细的 AI 建议
                     formatted_html = self.format_advice_html(saved_advice)
                     QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
                 else:
-                    # ❌ 数据库里没有（老数据或首次点开）：调用 DeepSeek API 生成
-                    raw_advice = self.deepseek_api.get_treatment_advice(record['disease_name'], record['confidence'])
-                    formatted_html = self.format_advice_html(raw_advice)
-
-                    # 💡 核心：把生成的结果立刻存入数据库，下次看就不用再调 API 了！
-                    get_history_db().update_advice(record['record_id'], raw_advice)
-
-                    QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
+                    # ❌ 数据库里没有：调用 DeepSeek API 生成
+                    raw_advice = self.deepseek_api.get_treatment_advice(
+                        record['disease_name'], record['confidence'])
+                    # 如果 API 返回了有效内容（非默认建议），替换并缓存
+                    if raw_advice and raw_advice != default_advice:
+                        formatted_html = self.format_advice_html(raw_advice)
+                        get_history_db().update_advice(record['record_id'], raw_advice)
+                        QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
             except Exception as e:
-                QTimer.singleShot(0, lambda: advice_text.setHtml(
-                    f"<div style='padding:20px;'><h3 style='color:#FF5252;'>❌ 获取建议失败</h3><p>{e}</p></div>"
-                ))
+                # 静默失败——默认建议已经显示了，不需要额外错误提示
+                print(f"[INFO] AI建议加载失败，已显示默认建议: {e}")
 
         # 启动后台线程
         threading.Thread(target=fetch_or_load_advice, daemon=True).start()
@@ -6625,6 +6630,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     font = QFont("Microsoft YaHei", 11)
     app.setFont(font)
+    # 全局统一字体：QSS 中未指定 font-family 时回退到微软雅黑
+    app.setStyleSheet("* { font-family: 'Microsoft YaHei', 'SimHei', sans-serif; }")
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

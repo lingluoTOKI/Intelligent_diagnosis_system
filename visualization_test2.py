@@ -3291,9 +3291,23 @@ class MainWindow(QMainWindow):
         if not image_paths:
             return
 
-        progress_dialog = QProgressDialog("批量处理图像...", "取消", 0, len(image_paths), self)
-        progress_dialog.setWindowTitle("批量处理")
+        progress_dialog = QProgressDialog("正在准备批量处理...", "⏹ 取消处理", 0, len(image_paths), self)
+        progress_dialog.setWindowTitle("🚀 批量智能分析中")
         progress_dialog.setWindowModality(Qt.WindowModal)
+        progress_dialog.setMinimumWidth(450)
+        progress_dialog.setMinimumHeight(150)
+
+        progress_dialog.setStyleSheet(f"""
+            QProgressDialog {{ background-color: {self.secondary_bg}; border: 1px solid {self.accent_color}; }}
+            QLabel {{ font-size: 13px; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
+            QProgressBar {{ border: 1px solid #3b4252; border-radius: 8px; background-color: #1a1e24;
+                text-align: center; color: white; font-weight: bold; font-size: 12px; height: 24px; }}
+            QProgressBar::chunk {{ background-color: {self.accent_color}; border-radius: 7px; width: 20px; }}
+            QPushButton {{ background-color: transparent; color: #FF5252; border: 1px solid #FF5252;
+                padding: 6px 20px; border-radius: 6px; font-weight: bold; margin-top: 10px; }}
+            QPushButton:hover {{ background-color: rgba(255, 82, 82, 0.15); }}
+        """)
+        progress_dialog.setWindowFlags(progress_dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
         progress_dialog.setAutoClose(True)
         progress_dialog.setAutoReset(True)
         progress_dialog.show()

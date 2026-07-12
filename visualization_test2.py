@@ -1120,16 +1120,6 @@ class EyeDiseaseDetector:
         self.current_model_path = None
         
         # 类别索引到疾病名称的映射
-        self.disease_name_map = {
-            0: 'A (正常)',
-            1: 'C (白内障)',
-            2: 'D (糖尿病视网膜病变)',
-            3: 'G (青光眼)',
-            4: 'H (高血压性视网膜病变)',
-            5: 'M (黄斑病变)',
-            6: 'N (视神经病变)',
-            7: 'O (其他)',
-        }
         self.class_names = {
             0: 'AMD',
             1: 'Cataract',
@@ -1140,27 +1130,16 @@ class EyeDiseaseDetector:
             6: 'Normal',
             7: 'Other'
         }
-        # 字母到中文名称的映射（用于历史记录和检测结果显示）
-        self.letter_to_chinese = {
-            'A': '正常',
-            'C': '白内障',
-            'D': '糖尿病视网膜病变',
-            'G': '青光眼',
-            'H': '高血压性视网膜病变',
-            'M': '黄斑病变',
-            'N': '视神经病变',
-            'O': '其他',
-        }
-        # 英文疾病名到中文名映射
-        self.english_to_chinese = {
-            'AMD': '黄斑病变',
-            'Normal': '正常',
-            'Diabetic Retinopathy': '糖尿病视网膜病变',
-            'Glaucoma': '青光眼',
-            'Cataract': '白内障',
-            'Hypertensive Retinopathy': '高血压性视网膜病变',
-            'Myopia': '黄斑病变',
-            'Other': '其他',
+        # 字母到疾病名称的映射（用于从模型输出文本中解析）
+        self.letter_to_disease = {
+            'A': 'AMD',
+            'N': 'Normal',
+            'D': 'Diabetic Retinopathy',
+            'G': 'Glaucoma',
+            'C': 'Cataract',
+            'H': 'Hypertensive Retinopathy',
+            'M': 'Myopia',
+            'O': 'Other'
         }
 
     def load_model(self, model_path):
@@ -1262,7 +1241,7 @@ class ResultProcessor:
             if match:
                 letter = match.group(1)
                 confidence = float(match.group(2))
-                disease_name = self.detector.letter_to_chinese.get(letter, "未知")
+                disease_name = self.detector.letter_to_disease.get(letter, "未知")
                 self.current_disease = disease_name
                 self.current_confidence = confidence
                 return True
@@ -1293,7 +1272,7 @@ class ResultProcessor:
         self.current_confidence = 0.98
         return self.current_disease, self.current_confidence
 
-    def show_disease_result_dialog(self, dialog, background_color, text_color, highlight_color):
+    def show_disease_result_dialog(self, parent, background_color, text_color, highlight_color):
         """
         在对话框中展示检测结果
         """
@@ -1307,7 +1286,7 @@ class ResultProcessor:
             <p style='margin-top:25px; color:#a0aec0; font-size:14px;'>可点击「AI治疗建议」获取详细方案</p>
         </div>
         """
-        msg_box = QMessageBox(dialog)
+        msg_box = QMessageBox(parent)
         msg_box.setWindowTitle("分类结果")
         msg_box.setText(result_text)
         msg_box.setIcon(QMessageBox.Information)
@@ -1913,16 +1892,15 @@ class MainWindow(QMainWindow):
         
         # 延迟加载保存的API密钥
         QTimer.singleShot(100, self.load_saved_api_key)
-
+        
         # 延迟初始化重量级组件,提高启动速度
         QTimer.singleShot(300, self.lazy_load_components)
-
+        
         # 显示加载状态
         self.status_bar.showMessage("正在初始化系统组件...")
-
-        # 异步加载历史记录并自动启动摄像头接收器
+        
+        # 异步加载历史记录
         QTimer.singleShot(500, self.load_history_records)
-        QTimer.singleShot(800, self.auto_start_camera_receiver)
 
         # 启动时清理过期临时图像 (7天前)
         QTimer.singleShot(1000, self._cleanup_temp_images)
@@ -2194,29 +2172,22 @@ class MainWindow(QMainWindow):
         self.results_button.clicked.connect(self.show_results)
         self.results_button.setEnabled(False)
 
-        # 布局工具按钮
-        tools_widget = QWidget()
-        tools_widget.setStyleSheet(f"background-color: {self.secondary_bg}; border-radius: 8px; border-top: 3px solid {self.accent_color}; padding: 8px;")
-        tools_layout = QGridLayout(tools_widget)
-        tools_layout.setSpacing(8)
-        tools_layout.setContentsMargins(8, 8, 8, 8)
-
+        # 扩展工具按钮
+        tools_layout = QHBoxLayout()
+        tools_layout.setSpacing(10)
         self.batch_button = QPushButton("📁 批量处理")
         self.history_button = QPushButton("📜 历史记录")
         self.board_interaction_button = QPushButton("📱 开发板交互")
         self.voice_server_button = QPushButton("🎤 语音服务")
-        self.connection_test_button = QPushButton("🔗 连接测试")
 
         tool_style = f"""
             QPushButton {{
                 background-color: #3B4252;
                 border: 1px solid #4C566A;
                 color: {self.text_color};
-                padding: 8px;
+                padding: 10px;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 12px;
-                min-height: 32px;
             }}
             QPushButton:hover {{
                 background-color: #4C566A;
@@ -2228,32 +2199,19 @@ class MainWindow(QMainWindow):
                 border: 1px solid #3b4252;
             }}
         """
-        for btn in [self.batch_button, self.history_button, self.board_interaction_button,
-                     self.voice_server_button, self.connection_test_button]:
+        for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.voice_server_button]:
             btn.setStyleSheet(tool_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
-            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-
-        # 按两行排列：第一行3个，第二行2个靠左
-        tools_layout.addWidget(self.history_button, 0, 0)
-        tools_layout.addWidget(self.board_interaction_button, 0, 1)
-        tools_layout.addWidget(self.voice_server_button, 0, 2)
-        tools_layout.addWidget(self.connection_test_button, 1, 0)
-        tools_layout.addWidget(self.batch_button, 1, 1)
-
-        # 设置列等宽
-        for col in range(3):
-            tools_layout.setColumnStretch(col, 1)
+            tools_layout.addWidget(btn)
 
         self.batch_button.clicked.connect(self.batch_process)
         self.batch_button.setEnabled(False)
         self.history_button.clicked.connect(self.show_history)
         self.board_interaction_button.clicked.connect(self.show_board_interaction)
         self.voice_server_button.clicked.connect(self.toggle_voice_server)
-        self.connection_test_button.clicked.connect(self.test_board_connection)
 
         btn_layout_v.addLayout(main_flow_layout)
-        btn_layout_v.addWidget(tools_widget)  # 工具按钮面板
+        btn_layout_v.addLayout(tools_layout)
         left_layout.addWidget(btn_panel, stretch=0)  # 保持按钮区原始高度
 
         # ========================================================
@@ -2377,16 +2335,15 @@ class MainWindow(QMainWindow):
         self.ai_progress_bar = QProgressBar()
         self.ai_progress_bar.setVisible(False)
         self.ai_progress_bar.setTextVisible(True)
-        self.ai_progress_bar.setMaximumHeight(20)
         self.ai_progress_bar.setStyleSheet(f"""
             QProgressBar {{
-                border: 1px solid #3b4252;
+                border: none;
                 background-color: #1E222A;
-                height: 18px;
-                border-radius: 4px;
+                height: 6px;
+                border-radius: 3px;
                 text-align: center;
                 font-size: 11px;
-                color: {self.text_color};
+                color: {self.accent_color};
             }}
             QProgressBar::chunk {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -2394,7 +2351,6 @@ class MainWindow(QMainWindow):
                 border-radius: 3px;
             }}
         """)
-        self.ai_progress_bar.setFormat("就绪")
 
         chat_layout.addWidget(self.chat_input)
         chat_layout.addLayout(voice_ctrl_layout)
@@ -3362,7 +3318,7 @@ class MainWindow(QMainWindow):
                         if match:
                             letter = match.group(1)
                             confidence = float(match.group(2))
-                            disease_name = self.detector.letter_to_chinese.get(letter, "未知")
+                            disease_name = self.detector.letter_to_disease.get(letter, "未知")
                         elif hasattr(current_results, 'probs') and current_results.probs is not None:
                             top_class_idx = int(current_results.probs.top1)
                             confidence = float(current_results.probs.top1conf)
@@ -3669,31 +3625,6 @@ class MainWindow(QMainWindow):
             path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
             disease_item = QTableWidgetItem(record["disease_name"])
             confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
-
-            # 根据疾病名称给检测结果列着色
-            disease_colors = {
-                'AMD': '#E53E3E', 'Cataract': '#DD6B20', 'Diabetic Retinopathy': '#38A169',
-                'Glaucoma': '#805AD5', 'Hypertensive Retinopathy': '#E53E3E',
-                'Myopia': '#3182CE', 'Normal': '#38A169', 'Other': '#718096', 'Unknown': '#718096'
-            }
-            color = disease_colors.get(record["disease_name"], '#718096')
-            disease_item.setForeground(QBrush(QColor(color)))
-            disease_item.setData(Qt.UserRole, record)
-            font = disease_item.font()
-            font.setBold(True)
-            disease_item.setFont(font)
-
-            # 置信度按级别着色
-            conf_val = record["confidence"]
-            if conf_val >= 0.9:
-                conf_color = '#38A169'
-            elif conf_val >= 0.7:
-                conf_color = '#D69E2E'
-            elif conf_val >= 0.5:
-                conf_color = '#DD6B20'
-            else:
-                conf_color = '#E53E3E'
-            confidence_item.setForeground(QBrush(QColor(conf_color)))
 
             # 设置项目不可编辑
             for item in [timestamp_item, path_item, disease_item, confidence_item]:
@@ -4591,8 +4522,7 @@ class MainWindow(QMainWindow):
                 classes_table.setItem(row, 1, conf_item)
 
             classes_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-            classes_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-            classes_table.setColumnWidth(1, 100)
+            classes_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
             info_layout.addWidget(classes_table)
 
         content_layout.addWidget(info_group, 1)
@@ -4603,11 +4533,11 @@ class MainWindow(QMainWindow):
         button_layout.addStretch()
 
         close_btn = QPushButton("完成阅片 (Esc)")
-        close_btn.setStyleSheet(f"background-color: transparent; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px 16px; font-size: 13px;")
+        close_btn.setStyleSheet(f"background-color: transparent; border: 1px solid #4C566A; color: {self.text_color};")
         close_btn.clicked.connect(dialog.accept)
 
         report_btn = QPushButton("生成 DeepSeek 报告")
-        report_btn.setStyleSheet(f"background-color: {self.highlight_color}; color: white; padding: 8px 16px; font-size: 13px; font-weight: bold;")
+        report_btn.setStyleSheet(f"background-color: {self.highlight_color}; color: white;")
         report_btn.clicked.connect(lambda: [dialog.accept(), self.advice_button.click()])
 
         button_layout.addWidget(close_btn)
@@ -4622,8 +4552,6 @@ class MainWindow(QMainWindow):
         """显示检测结果"""
         if hasattr(self, 'current_results') and self.current_results:
             self.parse_and_show_results(self.current_results)
-        elif hasattr(self, 'current_disease') and self.current_disease:
-            self.show_disease_result(self.current_disease, self.current_confidence)
         else:
             self.show_message_box("提示", "请先完成检测")
 
@@ -5640,93 +5568,40 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("AI回复失败")
             self.show_message_box("错误", f"AI回复失败：{event.data}", QMessageBox.Critical)
 
-    def auto_start_camera_receiver(self):
-        """系统启动时自动开始监听开发板摄像头端口，无需手动点击连接"""
-        try:
-            if hasattr(self, 'camera_receiver') and self.camera_receiver is not None:
-                if not self.camera_receiver.is_receiving:
-                    self.camera_receiver.start_receiving()
-                    print("[开发板] 摄像头接收器已自动启动，等待开发板连接...")
-        except Exception as e:
-            print(f"[开发板] 自动启动摄像头接收器失败: {e}")
-        """显示开发板交互界面——引导用户连接或展示已连接状态"""
-        is_connected = (hasattr(self, 'camera_receiver') and
-                        self.camera_receiver is not None and
-                        self.camera_receiver.is_receiving = False)
-
-        if is_connected:
-            msg = (
-                "✅ 开发板已连接\n\n"
-                "📸 摄像头数据通道：已建立\n"
-                "🖥️ 屏幕共享：请在「硬件视窗」标签页查看\n\n"
-                "操作指南：\n"
-                "  • 点击「截取并诊断」从开发板获取图像并诊断\n"
-                "  • 点击「语音服务」启动语音对话通道\n"
-                "  • 在「硬件视窗」标签页可实时查看摄像头画面"
-            )
-        else:
-            msg = (
-                "📱 开发板未连接\n\n"
-                "请按以下步骤连接开发板：\n\n"
-                "1. 确保开发板与 PC 在同一局域网\n"
-                "   PC IP: 172.20.10.3\n"
-                "   开发板 IP: 172.20.10.8\n\n"
-                "2. 在开发板上启动摄像头服务：\n"
-                "   python src/board/board_camera_integration.py\n\n"
-                "3. 返回本系统，点击「硬件视窗」标签页中的「连接开发板」按钮\n\n"
-                "4. 如需屏幕共享，在开发板上运行：\n"
-                "   python src/network/wifi_pc_receiver_2.0.py\n\n"
-                "💡 也可点击「连接测试」按钮检测网络连通性"
-            )
-        self.show_message_box("开发板交互", msg, QMessageBox.Information)
+    def show_board_interaction(self):
+        """开发板交互——自动切换到硬件视窗并连接开发板摄像头"""
+        # 切换到左侧「硬件视窗」Tab
+        if hasattr(self, 'image_tab_widget'):
+            for i in range(self.image_tab_widget.count()):
+                if "硬件" in self.image_tab_widget.tabText(i):
+                    self.image_tab_widget.setCurrentIndex(i)
+                    break
+        # 自动尝试连接摄像头
+        self.toggle_camera_connection()
+        self.status_bar.showMessage("已切换到硬件实时视窗，正在连接开发板...")
 
     def toggle_voice_server(self):
-        """启动/停止语音服务器"""
+        """语音输入开关（内置 SmartVoiceManager，不启动外部进程）"""
         try:
-            if not hasattr(self, 'voice_server_process'):
-                self.voice_server_process = None
+            if self.voice_manager is None:
+                self.voice_manager = SmartVoiceManager()
+                self.connect_smart_voice_signals()
 
-            if not self.voice_server_process:
-                import subprocess
-                import sys
-
-                voice_server_path = os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)),
-                    "src", "pc", "pc_voice_server.py"
-                )
-                if not os.path.exists(voice_server_path):
-                    self.show_message_box("错误",
-                        f"找不到语音服务程序：\n{voice_server_path}\n\n请确认 src/pc/pc_voice_server.py 存在。",
-                        QMessageBox.Critical)
-                    return
-
-                self.voice_server_process = subprocess.Popen(
-                    [sys.executable, voice_server_path],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True
-                )
-
-                self.voice_server_button.setText("🔊 语音服务运行中")
+            if self.voice_manager.is_recording:
+                self.voice_manager.cancel_recording()
+                self.voice_server_button.setText("🎤 语音输入")
                 self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet().replace(
-                    "background-color: #3B4252;", "background-color: #38A169;"))
-                self.status_bar.showMessage("语音服务器已启动")
-
+                    "background-color: #E53E3E", ""))
+                self.status_bar.showMessage("语音识别已停止")
             else:
-                try:
-                    self.voice_server_process.terminate()
-                    self.voice_server_process.wait(timeout=3)
-                except:
-                    pass
-
-                self.voice_server_process = None
-                self.voice_server_button.setText("🎤 语音服务")
-                self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet().replace(
-                    "background-color: #38A169;", "background-color: #3B4252;"))
-                self.status_bar.showMessage("语音服务器已停止")
+                self.voice_manager.start_voice_recognition()
+                self.voice_server_button.setText("🛑 停止录音")
+                self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet() +
+                    "QPushButton { background-color: #E53E3E; }")
+                self.status_bar.showMessage("🎤 正在录音，请说话...")
 
         except Exception as e:
-            self.show_message_box("错误", f"语音服务器操作失败: {e}", QMessageBox.Critical)
+            self.show_message_box("错误", f"语音服务操作失败: {e}", QMessageBox.Critical)
     
     def start_board_camera(self):
         """启动开发板摄像头功能"""

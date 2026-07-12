@@ -2316,17 +2316,8 @@ class MainWindow(QMainWindow):
         """)
 
         voice_ctrl_layout = QHBoxLayout()
-        self.voice_chat_enabled = QCheckBox("启用语音回复")
-        self.voice_chat_enabled.setStyleSheet(f"color: {self.text_color};")
-        self.voice_chat_enabled.stateChanged.connect(self.toggle_voice_chat)
-
-        self.voice_input_button = QPushButton("🎤 按住说话")
-        self.voice_input_button.setStyleSheet(f"background-color: {self.accent_color}; color: white; padding: 6px 15px; border-radius: 15px;")
-        self.voice_input_button.clicked.connect(self.start_voice_input)
-        self.voice_input_button.setEnabled(False)
-        self.voice_input_button.setCursor(QCursor(Qt.PointingHandCursor))
-
         voice_ctrl_layout.addWidget(self.voice_chat_enabled)
+
         voice_ctrl_layout.addWidget(self.voice_input_button)
         voice_ctrl_layout.addStretch()
 
@@ -5044,14 +5035,12 @@ class MainWindow(QMainWindow):
             print(f"麦克风校准失败: {e}")
 
     def toggle_voice_chat(self, state):
-        """切换语音对话开关状态"""
+        """切换语音播报开关：仅控制是否朗读AI回复，不影响麦克风输入"""
         enabled = state == Qt.Checked
-        self.voice_input_button.setEnabled(enabled)
-        
         if enabled:
-            self.status_bar.showMessage("语音对话已启用")
+            self.status_bar.showMessage("🔊 AI 语音朗读已开启（不影响麦克风输入）")
         else:
-            self.status_bar.showMessage("语音对话已禁用")
+            self.status_bar.showMessage("🔇 AI 语音朗读已关闭（仍可使用麦克风提问）")
 
     def update_duration_value(self, value):
         """更新语音识别时长值显示"""
@@ -5591,38 +5580,68 @@ class MainWindow(QMainWindow):
             self.show_message_box("错误", f"AI回复失败：{event.data}", QMessageBox.Critical)
 
     def show_board_interaction(self):
-        """开发板交互——自动切换到硬件视窗并连接开发板摄像头"""
-        # 切换到左侧「硬件视窗」Tab
+        """开发板交互：自动切换到硬件视窗，仅在未连接时发起连接（避免误触断开）"""
+        # 1. 自动切换到硬件视窗 Tab
         if hasattr(self, 'image_tab_widget'):
             for i in range(self.image_tab_widget.count()):
                 if "硬件" in self.image_tab_widget.tabText(i):
                     self.image_tab_widget.setCurrentIndex(i)
                     break
-        # 自动尝试连接摄像头
+
+        # 2. 如果已经连接，不再重复连接（防止误触断开）
+        if hasattr(self, 'camera_receiver') and self.camera_receiver.is_receiving:
+            self.status_bar.showMessage("✅ 已切换到硬件视窗，开发板摄像头已连接")
+            return
+
+        # 3. 发起连接
         self.toggle_camera_connection()
-        self.status_bar.showMessage("已切换到硬件实时视窗，正在连接开发板...")
+        self.status_bar.showMessage("🔄 已切换到硬件实时视窗，正在连接开发板...")
 
     def toggle_voice_server(self):
-        """语音输入开关（内置 SmartVoiceManager，不启动外部进程）"""
+        """语音输入开关：独立样式管理，异常时自动恢复"""
         try:
-            if self.voice_manager is None:
+            # 1. 确保语音管理器初始化
+            if getattr(self, 'voice_manager', None) is None:
+                self.status_bar.showMessage("⏳ 正在初始化语音组件，请稍候...")
                 self.voice_manager = SmartVoiceManager()
                 self.connect_smart_voice_signals()
 
+            # 2. 独立定义基础样式（避免 TOOL_BTN_STYLE 作用域丢失）
+            base_style = f"""
+                QPushButton {{
+                    background-color: #3B4252;
+                    border: 1px solid #4C566A;
+                    color: {self.text_color};
+                    padding: 8px 12px;
+                    border-radius: 6px;
+                    font-weight: bold;
+                    font-size: 12px;
+                }}
+                QPushButton:hover {{
+                    background-color: #4C566A;
+                    border: 1px solid {self.accent_color};
+                }}
+            """
+
+            # 3. 录音状态切换
             if self.voice_manager.is_recording:
                 self.voice_manager.cancel_recording()
                 self.voice_server_button.setText("🎤 语音服务")
-                self.voice_server_button.setStyleSheet(TOOL_BTN_STYLE)
-                self.status_bar.showMessage("语音识别已停止")
+                self.voice_server_button.setStyleSheet(base_style)
+                self.status_bar.showMessage("⏹️ 语音识别已停止")
             else:
                 self.voice_manager.start_voice_recognition()
                 self.voice_server_button.setText("🛑 停止录音")
                 self.voice_server_button.setStyleSheet(
-                    TOOL_BTN_STYLE + "QPushButton { background-color: #E53E3E; border-color: #C53030; }")
+                    base_style + "QPushButton { background-color: #E53E3E; border: 1px solid #C53030; color: white; }"
+                )
                 self.status_bar.showMessage("🎤 正在录音，请说话...")
 
         except Exception as e:
             self.show_message_box("错误", f"语音服务操作失败: {e}", QMessageBox.Critical)
+            # 异常时强制恢复安全状态
+            if hasattr(self, 'voice_server_button'):
+                self.voice_server_button.setText("🎤 语音服务")
     
     def start_board_camera(self):
         """启动开发板摄像头功能"""

@@ -1808,7 +1808,7 @@ class MainWindow(QMainWindow):
         self.command_listener.start_listening(5004)  # 启动命令监听
         print("✅ PC端命令监听器已自动启动 (端口5004)")
         
-        self.setMinimumSize(900, 600)
+        self.setMinimumSize(1100, 750)
 
         # 启动时自动全屏显示
         self.showMaximized()
@@ -2072,8 +2072,7 @@ class MainWindow(QMainWindow):
         # 原始图像卡片
         self.original_image_label = QLabel("等待加载图像...")
         self.original_image_label.setAlignment(Qt.AlignCenter)
-        self.original_image_label.setMinimumSize(200, 200)
-        self.original_image_label.setMaximumSize(500, 500)
+        self.original_image_label.setMinimumSize(250, 250)
         self.original_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.original_image_label.setScaledContents(False)
         self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
@@ -2089,8 +2088,7 @@ class MainWindow(QMainWindow):
         # 检测结果卡片
         self.detected_image_label = QLabel()
         self.detected_image_label.setAlignment(Qt.AlignCenter)
-        self.detected_image_label.setMinimumSize(200, 200)
-        self.detected_image_label.setMaximumSize(500, 500)
+        self.detected_image_label.setMinimumSize(250, 250)
         self.detected_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.detected_image_label.setScaledContents(False)
         self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")

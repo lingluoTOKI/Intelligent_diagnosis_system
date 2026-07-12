@@ -1309,7 +1309,7 @@ class ResultProcessor:
             QMessageBox {{
                 background-color: {background_color};
                 color: {text_color};
-                min-width: 450px;
+                min-width: 520px;
             }}
             QPushButton {{
                 background-color: #00B5D8;
@@ -2341,7 +2341,7 @@ class MainWindow(QMainWindow):
 
         self.chat_input = QTextEdit()
         self.chat_input.setPlaceholderText("在此描述其他症状或向AI提问...")
-        self.chat_input.setMaximumHeight(70)
+        self.chat_input.setMaximumHeight(100)
         self.chat_input.setStyleSheet(f"""
             QTextEdit {{
                 background-color: #1a202c;
@@ -2437,7 +2437,7 @@ class MainWindow(QMainWindow):
         self.api_key_input.setStyleSheet(f"background-color: {self.primary_color}; border: 1px solid #4C566A; padding: 8px; border-radius: 4px; color: {self.text_color};")
 
         self.toggle_password_button = QPushButton("👁")
-        self.toggle_password_button.setFixedSize(35, 35)
+        self.toggle_password_button.setMinimumSize(42, 42)
         self.toggle_password_button.setStyleSheet("background: transparent; border: none; font-size: 15pt;")
         self.toggle_password_button.setCursor(QCursor(Qt.PointingHandCursor))
         self.toggle_password_button.clicked.connect(self.toggle_password_visibility)
@@ -2534,10 +2534,9 @@ class MainWindow(QMainWindow):
                         color: white;
                         border: none;
                         border-radius: 8px;
-                        padding: 8px 16px;
+                        padding: 10px 20px;
                         font-size: 13pt;
                         font-weight: bold;
-                        min-width: 100px;
                     }}
                     QPushButton:hover {{
                         background-color: #2c5aa0;
@@ -3519,7 +3518,7 @@ class MainWindow(QMainWindow):
         # ===== 4. 按钮区 =====
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 13pt; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
+        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 10px 24px; border-radius: 6px; font-weight: bold; font-size: 13pt; }} QPushButton:hover {{ background-color: #0097B2; }}"
 
         fullscreen_btn = QPushButton("🖥️ 全屏")
         fullscreen_btn.setStyleSheet(f"""
@@ -3663,7 +3662,7 @@ class MainWindow(QMainWindow):
 
         # 隐藏行号列,设置行高
         self.history_table.verticalHeader().setVisible(False)
-        self.history_table.verticalHeader().setDefaultSectionSize(50)  # 设置默认行高为50像素
+        self.history_table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)  # 根据字体自动调整行高
         self.history_table.verticalHeader().setMinimumSectionSize(45)  # 设置最小行高
 
         # 设置表格列
@@ -3741,9 +3740,8 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: #e53e3e;
                 color: white;
-                padding: 8px 20px;
+                padding: 10px 22px;
                 border-radius: 6px;
-                min-width: 130px;
             }}
             QPushButton:hover {{
                 background-color: #c53030;
@@ -3761,9 +3759,8 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: #ed8936;
                 color: white;
-                padding: 8px 20px;
+                padding: 10px 22px;
                 border-radius: 6px;
-                min-width: 130px;
             }}
             QPushButton:hover {{
                 background-color: #dd6b20;
@@ -3781,9 +3778,8 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: {self.accent_color};
                 color: white;
-                padding: 8px 20px;
+                padding: 10px 22px;
                 border-radius: 6px;
-                min-width: 130px;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -3798,9 +3794,8 @@ class MainWindow(QMainWindow):
                 background-color: {self.accent_color};
                 color: white;
                 font-weight: bold;
-                padding: 8px 20px;
+                padding: 10px 22px;
                 border-radius: 6px;
-                min-width: 130px;
             }}
             QPushButton:hover {{ background-color: #0097B2; }}
         """)

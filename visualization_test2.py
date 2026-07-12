@@ -4032,12 +4032,21 @@ class MainWindow(QMainWindow):
             try:
                 db = get_history_db()
                 history = db.get_all()
-                rows_to_delete = sorted(selected_rows, reverse=True)
-                for row in rows_to_delete:
+                # 先收集要删除的record_id（按时间戳排序避免刷新后索引错位）
+                records_to_delete = []
+                for row in sorted(selected_rows, reverse=True):
                     if 0 <= row < len(history):
-                        db.delete_by_record_id(history[row]["record_id"])
+                        records_to_delete.append(history[row]["record_id"])
+                # 执行删除
+                deleted_count = 0
+                for record_id in records_to_delete:
+                    try:
+                        db.delete_by_record_id(record_id)
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"[ERROR] 删除记录失败 (id={record_id}): {e}")
                 self.show_history()
-                self.show_message_box("成功", f"已删除{len(selected_rows)}条记录！")
+                self.show_message_box("成功", f"已成功删除 {deleted_count} 条记录！")
             except Exception as e:
                 self.show_message_box("错误", f"删除记录失败: {str(e)}")
 

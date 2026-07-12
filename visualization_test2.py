@@ -2057,12 +2057,14 @@ class MainWindow(QMainWindow):
         # 图像展示区 (采用 QTabWidget 节省空间)
         self.image_tab_widget = QTabWidget()
         self.image_tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.image_tab_widget.tabBar().setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
         self.image_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 12px 22px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 13pt; margin-right: 2px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 10px 20px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 12pt; margin-right: 2px; min-height: 34px; }}
             QTabBar::tab:selected {{ background-color: {self.accent_color}; color: white; }}
         """)
         self.image_tab_widget.tabBar().setElideMode(Qt.ElideNone)
+        self.image_tab_widget.tabBar().setUsesScrollButtons(True)  # 标签过多时可滚动
 
         # 标签页 A：本地图像分析
         local_tab = QWidget()
@@ -2074,6 +2076,7 @@ class MainWindow(QMainWindow):
         self.original_image_label.setAlignment(Qt.AlignCenter)
         self.original_image_label.setMinimumSize(250, 250)
         self.original_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.original_image_label.setWordWrap(True)
         self.original_image_label.setScaledContents(False)
         self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
         self.original_image_label.setText(
@@ -2090,6 +2093,7 @@ class MainWindow(QMainWindow):
         self.detected_image_label.setAlignment(Qt.AlignCenter)
         self.detected_image_label.setMinimumSize(250, 250)
         self.detected_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.detected_image_label.setWordWrap(True)
         self.detected_image_label.setScaledContents(False)
         self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
         self.detected_image_label.setText(
@@ -2112,6 +2116,7 @@ class MainWindow(QMainWindow):
         self.camera_preview_label.setAlignment(Qt.AlignCenter)
         self.camera_preview_label.setMinimumSize(200, 150)
         self.camera_preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.camera_preview_label.setWordWrap(True)
         self.camera_preview_label.setScaledContents(False)
         self.camera_preview_label.setStyleSheet(f"""
             background-color: #1a1e24;
@@ -2262,12 +2267,14 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(10, 15, 15, 15)
 
         self.right_tab_widget = QTabWidget()
+        self.right_tab_widget.tabBar().setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
         self.right_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 12px 22px; font-weight: bold; font-size: 13pt; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 10px 20px; font-weight: bold; font-size: 12pt; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-height: 34px; }}
             QTabBar::tab:selected {{ background-color: {self.highlight_color}; color: white; }}
         """)
         self.right_tab_widget.tabBar().setElideMode(Qt.ElideNone)
+        self.right_tab_widget.tabBar().setUsesScrollButtons(True)  # 标签过多时可滚动
 
         # --- Tab 1: AI 诊疗建议 (主视图) ---
         advice_tab = QWidget()
@@ -3678,6 +3685,9 @@ class MainWindow(QMainWindow):
             disease_item = QTableWidgetItem(record["disease_name"])
             confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
 
+            # 将 record_id 存入第一列，删除时直接取出，避免索引映射错误
+            timestamp_item.setData(Qt.UserRole, record["record_id"])
+
             # 设置项目不可编辑
             for item in [timestamp_item, path_item, disease_item, confidence_item]:
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
@@ -3836,6 +3846,36 @@ class MainWindow(QMainWindow):
 
         # 创建布局
         main_layout = QVBoxLayout(detail_dialog)
+
+        # 顶部栏：全屏切换按钮
+        top_bar = QHBoxLayout()
+        top_bar.addStretch()
+        detail_fullscreen_btn = QPushButton("🔍 全屏")
+        detail_fullscreen_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.highlight_color};
+                color: white;
+                padding: 6px 14px;
+                border-radius: 4px;
+                font-size: 12pt;
+            }}
+            QPushButton:hover {{
+                background-color: #d69e2e;
+            }}
+        """)
+
+        def toggle_detail_fullscreen():
+            if detail_dialog.isFullScreen():
+                detail_dialog.showNormal()
+                detail_fullscreen_btn.setText("🔍 全屏")
+            else:
+                detail_dialog.showFullScreen()
+                detail_fullscreen_btn.setText("📱 退出全屏")
+
+        detail_fullscreen_btn.clicked.connect(toggle_detail_fullscreen)
+        QShortcut(QKeySequence("F11"), detail_dialog, activated=toggle_detail_fullscreen)
+        top_bar.addWidget(detail_fullscreen_btn)
+        main_layout.addLayout(top_bar)
 
         # 创建信息区域
         info_layout = QHBoxLayout()
@@ -4000,7 +4040,14 @@ class MainWindow(QMainWindow):
         threading.Thread(target=fetch_or_load_advice, daemon=True).start()
 
         # 快捷键 Esc 关闭
-        QShortcut(QKeySequence("Esc"), detail_dialog, activated=detail_dialog.accept)
+        # Esc: 全屏状态先退出全屏，非全屏状态关闭对话框
+        def esc_detail():
+            if detail_dialog.isFullScreen():
+                detail_dialog.showNormal()
+                detail_fullscreen_btn.setText("🔍 全屏")
+            else:
+                detail_dialog.accept()
+        QShortcut(QKeySequence("Esc"), detail_dialog, activated=esc_detail)
 
         detail_dialog.exec_()
 
@@ -4081,31 +4128,28 @@ class MainWindow(QMainWindow):
 
     def delete_selected_history(self):
         """删除选中的历史记录 (SQLite)"""
-        selected_rows = set()
+        # 直接从表格行中取出 record_id，避免索引映射错误
+        record_ids_to_delete = set()
         for item in self.history_table.selectedItems():
-            selected_rows.add(item.row())
+            if item.column() == 0:  # 只处理第一列（时间戳列，存了 record_id）
+                rid = item.data(Qt.UserRole)
+                if rid:
+                    record_ids_to_delete.add(rid)
 
-        if not selected_rows:
+        if not record_ids_to_delete:
             self.show_message_box("提示", "请先选择要删除的记录！")
             return
 
         reply = QMessageBox.question(
-            self, "确认删除", f"确定要删除选中的{len(selected_rows)}条记录吗？",
+            self, "确认删除", f"确定要删除选中的{len(record_ids_to_delete)}条记录吗？",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
 
         if reply == QMessageBox.Yes:
             try:
                 db = get_history_db()
-                history = db.get_all()
-                # 先收集要删除的record_id（按时间戳排序避免刷新后索引错位）
-                records_to_delete = []
-                for row in sorted(selected_rows, reverse=True):
-                    if 0 <= row < len(history):
-                        records_to_delete.append(history[row]["record_id"])
-                # 执行删除
                 deleted_count = 0
-                for record_id in records_to_delete:
+                for record_id in record_ids_to_delete:
                     try:
                         db.delete_by_record_id(record_id)
                         deleted_count += 1

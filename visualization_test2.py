@@ -2339,15 +2339,16 @@ class MainWindow(QMainWindow):
         self.ai_progress_bar = QProgressBar()
         self.ai_progress_bar.setVisible(False)
         self.ai_progress_bar.setTextVisible(True)
+        self.ai_progress_bar.setMaximumHeight(20)
         self.ai_progress_bar.setStyleSheet(f"""
             QProgressBar {{
-                border: none;
+                border: 1px solid #3b4252;
                 background-color: #1E222A;
-                height: 6px;
-                border-radius: 3px;
+                height: 18px;
+                border-radius: 4px;
                 text-align: center;
                 font-size: 11px;
-                color: {self.accent_color};
+                color: {self.text_color};
             }}
             QProgressBar::chunk {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
@@ -2355,6 +2356,7 @@ class MainWindow(QMainWindow):
                 border-radius: 3px;
             }}
         """)
+        self.ai_progress_bar.setFormat("就绪")
 
         chat_layout.addWidget(self.chat_input)
         chat_layout.addLayout(voice_ctrl_layout)

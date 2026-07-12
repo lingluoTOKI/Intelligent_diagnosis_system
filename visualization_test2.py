@@ -5212,28 +5212,44 @@ class MainWindow(QMainWindow):
                 ], capture_output=True, check=True, timeout=30)
                 # 2. 打断上一轮播放
                 self.stop_speaking()
-                # 3. 播放（强制 Windows Media Player 播放，避免弹出网易云）
-                _tts_proc = subprocess.Popen(
-                    ['wmplayer.exe', '/play', '/close', mp3_path],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-                print(f"[DEBUG] TTS(edge-tts): 播放完成 → {mp3_path}")
+                # 3. 主线程播放（用 QMediaPlayer，不弹外部窗口）
+                self._tts_queue.append(mp3_path)
+                QTimer.singleShot(0, lambda: self._play_next_tts())
             except Exception as e:
                 print(f"[DEBUG] TTS(edge-tts): 失败 {e}")
 
         threading.Thread(target=safe_speak, daemon=True).start()
 
+    def _play_tts_mp3(self, path):
+        """在 UI 线程播放 MP3（QMediaPlayer 内置，不弹外部窗口）"""
+        from PyQt5.QtCore import QUrl
+        from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
+        if not hasattr(self, '_tts_player'):
+            self._tts_player = QMediaPlayer()
+            self._tts_player.mediaStatusChanged.connect(self._on_tts_status)
+        self._tts_player.setMedia(QMediaContent(QUrl.fromLocalFile(path)))
+        self._tts_player.setVolume(80)
+        self._tts_player.play()
+
+    def _play_next_tts(self):
+        """播放队列中的下一个 TTS 文件"""
+        if not hasattr(self, '_tts_queue'):
+            self._tts_queue = []
+        if self._tts_queue:
+            self._play_tts_mp3(self._tts_queue.pop(0))
+
+    def _on_tts_status(self, status):
+        """TTS 播放结束 → 播放下一个"""
+        from PyQt5.QtMultimedia import QMediaPlayer
+        if status == QMediaPlayer.EndOfMedia:
+            self._play_next_tts()
+
     def stop_speaking(self):
-        """打断当前 TTS 播放"""
-        try:
-            import subprocess
-            subprocess.run(['taskkill', '/F', '/IM', 'wmplayer.exe'], capture_output=True)
-            subprocess.run(['taskkill', '/F', '/IM', 'Microsoft.Media.Player.exe'], capture_output=True)
-            if hasattr(self, '_tts_proc') and self._tts_proc:
-                self._tts_proc.terminate()
-                self._tts_proc = None
-        except Exception:
-            pass
+        """打断当前 TTS 播放并清空队列"""
+        if hasattr(self, '_tts_queue'):
+            self._tts_queue.clear()
+        if hasattr(self, '_tts_player') and self._tts_player:
+            self._tts_player.stop()
     
     def _extract_plain_text(self, markdown_text):
         """从 Markdown/HTML 中提取纯文本（用于 TTS 播报）"""

@@ -5350,7 +5350,7 @@ class MainWindow(QMainWindow):
     def process_ai_response(self):
         """在后台处理AI回复"""
         try:
-            message = self.chat_input.toPlainText().strip()
+            message = getattr(self, '_last_user_question', '')
             if not message:
                 QApplication.postEvent(self, AIResponseEvent("error", "请输入您的问题或症状描述。"))
                 return

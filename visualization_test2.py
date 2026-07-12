@@ -2062,17 +2062,31 @@ class MainWindow(QMainWindow):
         self.original_image_label.setMaximumSize(500, 500)
         self.original_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.original_image_label.setScaledContents(False)
-        self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 6px; border: 1px solid #2c323c;")
+        self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
+        self.original_image_label.setText(
+            f"<div style='text-align: center; color: #616E88;'>"
+            f"<div style='font-size: 48px; margin-bottom: 15px;'>📸</div>"
+            f"<div style='font-size: 16px; font-weight: bold; color: #E5E9F0;'>等待加载原片影像</div>"
+            f"<div style='font-size: 14px; margin-top: 8px;'>请点击下方「加载图像」按钮导入照片</div>"
+            f"</div>"
+        )
         local_layout.addWidget(self.original_image_label)
 
         # 检测结果卡片
-        self.detected_image_label = QLabel("等待检测结果...")
+        self.detected_image_label = QLabel()
         self.detected_image_label.setAlignment(Qt.AlignCenter)
         self.detected_image_label.setMinimumSize(200, 200)
         self.detected_image_label.setMaximumSize(500, 500)
         self.detected_image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.detected_image_label.setScaledContents(False)
-        self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 6px; border: 1px solid {self.highlight_color};")
+        self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
+        self.detected_image_label.setText(
+            f"<div style='text-align: center; color: #616E88;'>"
+            f"<div style='font-size: 48px; margin-bottom: 15px;'>🧠</div>"
+            f"<div style='font-size: 16px; font-weight: bold; color: #E5E9F0;'>等待 AI 模型诊断</div>"
+            f"<div style='font-size: 14px; margin-top: 8px;'>图像就绪后，点击「开始检测」进行特征分析</div>"
+            f"</div>"
+        )
         local_layout.addWidget(self.detected_image_label)
         self.image_tab_widget.addTab(local_tab, "🖼️ 本地图像分析")
 

@@ -2045,7 +2045,7 @@ class MainWindow(QMainWindow):
         self.image_tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.image_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 6px 12px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 12px; margin-right: 2px; min-width: 90px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 14px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 14px; margin-right: 2px; min-width: 90px; }}
             QTabBar::tab:selected {{ background-color: {self.accent_color}; color: white; }}
         """)
         self.image_tab_widget.tabBar().setElideMode(Qt.ElideNone)
@@ -2105,7 +2105,7 @@ class MainWindow(QMainWindow):
         self.board_camera_status.setStyleSheet(f"""
             font-weight: bold;
             color: #E53E3E;
-            font-size: 13px;
+            font-size: 14px;
             padding: 6px 12px;
             background-color: {self.secondary_bg};
             border-radius: 4px;
@@ -2129,7 +2129,7 @@ class MainWindow(QMainWindow):
         self.capture_from_camera_button = QPushButton("📸 截取并诊断")
         self.capture_from_camera_button.setEnabled(False)
 
-        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 13px; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
+        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 14px; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
         for btn in [self.connect_camera_button, self.capture_from_camera_button]:
             btn.setStyleSheet(cam_btn_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -2169,7 +2169,7 @@ class MainWindow(QMainWindow):
         self.detect_button = QPushButton("3. 🔍 开始检测")
         self.results_button = QPushButton("4. 📊 查看报告")
 
-        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 10px 8px; border-radius: 6px; font-weight: bold; font-size: 12px; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
+        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 12px 10px; border-radius: 6px; font-weight: bold; font-size: 14px; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
         for btn in [self.model_button, self.image_button, self.detect_button, self.results_button]:
             btn.setStyleSheet(main_btn_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -2200,7 +2200,7 @@ class MainWindow(QMainWindow):
                 padding: 8px 12px;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
             }}
             QPushButton:hover {{
                 background-color: #4C566A;
@@ -2238,7 +2238,7 @@ class MainWindow(QMainWindow):
         self.right_tab_widget = QTabWidget()
         self.right_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 6px 14px; font-weight: bold; font-size: 12px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-width: 80px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 16px; font-weight: bold; font-size: 14px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-width: 80px; }}
             QTabBar::tab:selected {{ background-color: {self.highlight_color}; color: white; }}
         """)
         self.right_tab_widget.tabBar().setElideMode(Qt.ElideNone)
@@ -2608,7 +2608,7 @@ class MainWindow(QMainWindow):
                 color: {self.text_color};
                 border-top: 1px solid #3b4252;
                 padding: 8px 15px;
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: bold;
             }}
         """)
@@ -2659,7 +2659,7 @@ class MainWindow(QMainWindow):
                         <div style='color: #00B5D8; font-weight: bold; margin-bottom: 5px;'>
                             🩺 医生回复:
                         </div>
-                        <div style='color: #e2e8f0; padding-left: 15px; font-size: 13px;'>
+                        <div style='color: #e2e8f0; padding-left: 15px; font-size: 14px;'>
                             {chat['answer'][:300]}{'...' if len(chat['answer']) > 300 else ''}
                         </div>
                     </div>
@@ -2941,7 +2941,7 @@ class MainWindow(QMainWindow):
                 color: white;
                 padding: 6px 12px;
                 border-radius: 4px;
-                font-size: 12px;
+                font-size: 14px;
             }}
             QPushButton:hover {{
                 background-color: #d53f8c;
@@ -3043,7 +3043,7 @@ class MainWindow(QMainWindow):
                 color: {self.text_color};
                 border: none;
                 padding: 15px;
-                font-size: 12px;
+                font-size: 14px;
                 line-height: 1.5;
                 border-radius: 6px;
             }}
@@ -3078,7 +3078,7 @@ class MainWindow(QMainWindow):
                 padding: 10px 20px;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 14px;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -3319,7 +3319,7 @@ class MainWindow(QMainWindow):
 
         progress_dialog.setStyleSheet(f"""
             QProgressDialog {{ background-color: {self.secondary_bg}; border: 1px solid {self.accent_color}; }}
-            QLabel {{ font-size: 13px; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
+            QLabel {{ font-size: 14px; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
             QProgressBar {{ border: 1px solid #3b4252; border-radius: 8px; background-color: #1a1e24;
                 text-align: center; color: white; font-weight: bold; font-size: 12px; height: 24px; }}
             QProgressBar::chunk {{ background-color: {self.accent_color}; border-radius: 7px; width: 20px; }}
@@ -3467,7 +3467,7 @@ class MainWindow(QMainWindow):
         log_layout.setSpacing(5)
 
         log_label = QLabel("📋 详细检测日志")
-        log_label.setStyleSheet("color: #81A1C1; font-weight: bold; font-size: 13px;")
+        log_label.setStyleSheet("color: #81A1C1; font-weight: bold; font-size: 14px;")
         log_layout.addWidget(log_label)
 
         result_box = QTextEdit()
@@ -3481,7 +3481,7 @@ class MainWindow(QMainWindow):
         result_box.setStyleSheet(f"""
             QTextEdit {{ background-color: #11151c; color: #A0AEC0; border: 1px solid #2c323c;
                 border-radius: 6px; padding: 12px; font-family: Consolas, "Courier New", monospace;
-                font-size: 12px; line-height: 1.5; }}
+                font-size: 14px; line-height: 1.5; }}
             QScrollBar:vertical {{ background-color: #11151c; width: 10px; }}
             QScrollBar::handle:vertical {{ background-color: #4C566A; border-radius: 5px; }}
         """)
@@ -3491,13 +3491,13 @@ class MainWindow(QMainWindow):
         # ===== 4. 按钮区 =====
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 13px; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
+        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 14px; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
 
         fullscreen_btn = QPushButton("🖥️ 全屏")
         fullscreen_btn.setStyleSheet(f"""
             QPushButton {{ background-color: transparent; color: {self.accent_color};
                 border: 1px solid {self.accent_color}; padding: 8px 30px; border-radius: 6px;
-                font-weight: bold; font-size: 13px; }}
+                font-weight: bold; font-size: 14px; }}
             QPushButton:hover {{ background-color: rgba(0, 181, 216, 0.1); }}
         """)
         fullscreen_btn.clicked.connect(lambda: self.toggle_batch_report_fullscreen(dialog))
@@ -3505,7 +3505,7 @@ class MainWindow(QMainWindow):
         close_btn = QPushButton("❌ 关闭")
         close_btn.setStyleSheet(f"""
             QPushButton {{ background-color: #3b4252; color: #E5E9F0; border: none;
-                padding: 8px 30px; border-radius: 6px; font-weight: bold; font-size: 13px; }}
+                padding: 8px 30px; border-radius: 6px; font-weight: bold; font-size: 14px; }}
             QPushButton:hover {{ background-color: #4C566A; }}
         """)
         close_btn.clicked.connect(dialog.accept)
@@ -3665,7 +3665,7 @@ class MainWindow(QMainWindow):
                     color: white;
                     padding: 8px 12px;
                     border-radius: 6px;
-                    font-size: 12px;
+                    font-size: 14px;
                     font-weight: bold;
                     min-height: 20px;
                 }}
@@ -4148,7 +4148,7 @@ class MainWindow(QMainWindow):
                 color: white;
                 padding: 8px 16px;
                 border-radius: 6px;
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: bold;
                 margin-right: 10px;
             }}
@@ -4167,7 +4167,7 @@ class MainWindow(QMainWindow):
                         color: white;
                         padding: 8px 16px;
                         border-radius: 6px;
-                        font-size: 13px;
+                        font-size: 14px;
                         font-weight: bold;
                         margin-right: 10px;
                     }}
@@ -4184,7 +4184,7 @@ class MainWindow(QMainWindow):
                         color: white;
                         padding: 8px 16px;
                         border-radius: 6px;
-                        font-size: 13px;
+                        font-size: 14px;
                         font-weight: bold;
                         margin-right: 10px;
                     }}
@@ -4449,7 +4449,7 @@ class MainWindow(QMainWindow):
                 padding: 8px 20px;
                 border-radius: 4px;
                 font-weight: bold;
-                font-size: 13px;
+                font-size: 14px;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -5768,7 +5768,7 @@ class MainWindow(QMainWindow):
                     padding: 8px 12px;
                     border-radius: 6px;
                     font-weight: bold;
-                    font-size: 12px;
+                    font-size: 14px;
                 }}
             """)
             self.board_voice_button.setText("📡 监听中...")
@@ -6524,7 +6524,11 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
+    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
+    QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
     app = QApplication(sys.argv)
+    font = QFont("Microsoft YaHei", 11)
+    app.setFont(font)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())

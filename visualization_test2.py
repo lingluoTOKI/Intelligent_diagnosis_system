@@ -4591,7 +4591,8 @@ class MainWindow(QMainWindow):
                 classes_table.setItem(row, 1, conf_item)
 
             classes_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-            classes_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+            classes_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+            classes_table.setColumnWidth(1, 100)
             info_layout.addWidget(classes_table)
 
         content_layout.addWidget(info_group, 1)
@@ -5651,7 +5652,7 @@ class MainWindow(QMainWindow):
         """显示开发板交互界面——引导用户连接或展示已连接状态"""
         is_connected = (hasattr(self, 'camera_receiver') and
                         self.camera_receiver is not None and
-                        self.camera_receiver.is_receiving)
+                        self.camera_receiver.is_receiving = False)
 
         if is_connected:
             msg = (

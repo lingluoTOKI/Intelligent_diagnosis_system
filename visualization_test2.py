@@ -5475,13 +5475,8 @@ class MainWindow(QMainWindow):
                     pass
                 
                 # 自动发送给AI进行对话
-                if self.voice_chat_enabled.isChecked() and self.use_api_checkbox.isChecked():
-                    print(f"[DEBUG] 自动发送语音识别结果给AI: {event.data}")
-                    # 延迟一秒后自动发送,让用户看到识别结果
-                    QTimer.singleShot(1500, self.send_chat_message_with_progress)
-                    self.status_bar.showMessage(f"✅ 识别成功,1.5秒后自动发送给AI...")
-                else:
-                    self.status_bar.showMessage(f"✅ 语音识别成功：{event.data}（点击发送按钮与AI对话）")
+                QTimer.singleShot(800, self.send_chat_message_with_progress)
+                self.status_bar.showMessage(f"✅ 识别成功,即将自动发送给AI: {event.data}")
             
         elif event.event_type == "timeout":
             self.voice_input_button.setText("🎤 语音输入")

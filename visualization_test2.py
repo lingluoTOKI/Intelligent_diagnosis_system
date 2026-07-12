@@ -5569,46 +5569,82 @@ class MainWindow(QMainWindow):
             self.show_message_box("错误", f"AI回复失败：{event.data}", QMessageBox.Critical)
 
     def show_board_interaction(self):
-        """显示开发板交互界面——单机模式提示"""
-        self.show_message_box(
-            "开发板交互功能",
-            "此功能需要连接开发板硬件。\\n\\n当前为 PC 单机模式，支持：\\n- 本地图像检测\\n- DeepSeek AI 医疗问诊\\n- 语音交互\\n\\n如需使用完整功能，请连接开发板后在「硬件实时视窗」中操作。",
-            QMessageBox.Information
-        )
+        """显示开发板交互界面——引导用户连接或展示已连接状态"""
+        is_connected = (hasattr(self, 'camera_receiver') and
+                        self.camera_receiver is not None and
+                        self.camera_receiver.is_receiving)
+
+        if is_connected:
+            msg = (
+                "✅ 开发板已连接\n\n"
+                "📸 摄像头数据通道：已建立\n"
+                "🖥️ 屏幕共享：请在「硬件视窗」标签页查看\n\n"
+                "操作指南：\n"
+                "  • 点击「截取并诊断」从开发板获取图像并诊断\n"
+                "  • 点击「语音服务」启动语音对话通道\n"
+                "  • 在「硬件视窗」标签页可实时查看摄像头画面"
+            )
+        else:
+            msg = (
+                "📱 开发板未连接\n\n"
+                "请按以下步骤连接开发板：\n\n"
+                "1. 确保开发板与 PC 在同一局域网\n"
+                "   PC IP: 172.20.10.3\n"
+                "   开发板 IP: 172.20.10.8\n\n"
+                "2. 在开发板上启动摄像头服务：\n"
+                "   python src/board/board_camera_integration.py\n\n"
+                "3. 返回本系统，点击「硬件视窗」标签页中的「连接开发板」按钮\n\n"
+                "4. 如需屏幕共享，在开发板上运行：\n"
+                "   python src/network/wifi_pc_receiver_2.0.py\n\n"
+                "💡 也可点击「连接测试」按钮检测网络连通性"
+            )
+        self.show_message_box("开发板交互", msg, QMessageBox.Information)
 
     def toggle_voice_server(self):
         """启动/停止语音服务器"""
         try:
             if not hasattr(self, 'voice_server_process'):
                 self.voice_server_process = None
-                
+
             if not self.voice_server_process:
-                # 启动语音服务器
                 import subprocess
                 import sys
-                
+
+                voice_server_path = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "src", "pc", "pc_voice_server.py"
+                )
+                if not os.path.exists(voice_server_path):
+                    self.show_message_box("错误",
+                        f"找不到语音服务程序：\n{voice_server_path}\n\n请确认 src/pc/pc_voice_server.py 存在。",
+                        QMessageBox.Critical)
+                    return
+
                 self.voice_server_process = subprocess.Popen(
-                    [sys.executable, "pc_voice_server.py"],
+                    [sys.executable, voice_server_path],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     text=True
                 )
-                
-                self.voice_server_button.setText("[停止] 语音服务")
+
+                self.voice_server_button.setText("🔊 语音服务运行中")
+                self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet().replace(
+                    "background-color: #3B4252;", "background-color: #38A169;"))
                 self.status_bar.showMessage("语音服务器已启动")
-                
+
             else:
-                # 停止语音服务器
                 try:
                     self.voice_server_process.terminate()
                     self.voice_server_process.wait(timeout=3)
                 except:
                     pass
-                
+
                 self.voice_server_process = None
-                self.voice_server_button.setText("[语音] 语音服务")
+                self.voice_server_button.setText("🎤 语音服务")
+                self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet().replace(
+                    "background-color: #38A169;", "background-color: #3B4252;"))
                 self.status_bar.showMessage("语音服务器已停止")
-                
+
         except Exception as e:
             self.show_message_box("错误", f"语音服务器操作失败: {e}", QMessageBox.Critical)
     

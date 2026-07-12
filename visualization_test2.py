@@ -3347,154 +3347,130 @@ class MainWindow(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle("批量检测统计报告")
         dialog.resize(800, 600)
+    def show_batch_report(self, disease_counter, results_summary):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("批量检测统计报告")
+        dialog.resize(1150, 850)
         dialog.setStyleSheet(f"""
-            QDialog {{
-                background-color: {self.background_color};
-                color: {self.text_color};
-            }}
+            QDialog {{ background-color: {self.background_color}; color: {self.text_color}; }}
         """)
 
-        layout = QVBoxLayout(dialog)
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
 
-        # 统计文本
-        stat_text = QLabel(
-            "<b>各疾病检测数量统计：</b><br>" + "<br>".join([f"{k}: {v}" for k, v in disease_counter.items()]))
-        stat_text.setWordWrap(True)
-        stat_text.setStyleSheet(f"color: {self.text_color};")
-        layout.addWidget(stat_text)
+        # ===== 1. KPI 数据卡片 =====
+        summary_group = QGroupBox("📊 总体检测数据")
+        summary_group.setStyleSheet(f"""
+            QGroupBox {{ border: 1px solid #3b4252; border-top: 3px solid {self.accent_color};
+                border-radius: 8px; padding-top: 25px; font-weight: bold; color: white; }}
+            QGroupBox::title {{ color: {self.accent_color}; top: -10px; left: 15px; font-size: 14px; }}
+        """)
+        cards_layout = QHBoxLayout(summary_group)
+        cards_layout.setSpacing(15)
 
-        # matplotlib饼图
+        total = sum(disease_counter.values())
+        total_card = QLabel(f"<div style='text-align:center;'><div style='font-size:13px;color:#81A1C1;margin-bottom:5px;'>总处理数</div><div style='font-size:26px;color:#00E5FF;font-weight:bold;'>{total}</div></div>")
+        total_card.setStyleSheet("background-color: #21252B; border-radius: 8px; padding: 15px; border: 1px solid #2c323c;")
+        cards_layout.addWidget(total_card)
+
+        for disease, count in disease_counter.items():
+            if count > 0:
+                card = QLabel(f"<div style='text-align:center;'><div style='font-size:13px;color:#81A1C1;margin-bottom:5px;'>{disease}</div><div style='font-size:22px;color:white;font-weight:bold;'>{count}</div></div>")
+                card.setStyleSheet("background-color: #21252B; border-radius: 8px; padding: 15px; border: 1px solid #2c323c;")
+                cards_layout.addWidget(card)
+
+        cards_layout.addStretch()
+        main_layout.addWidget(summary_group, stretch=0)
+
+        # ===== 2. 图表区 =====
         if disease_counter:
-            # 过滤掉数量为0的疾病
-            filtered_disease_counter = {k: v for k, v in disease_counter.items() if v > 0}
+            filtered = {k: v for k, v in disease_counter.items() if v > 0}
+            theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
 
-            # 定义颜色列表,确保每种疾病有固定颜色
-            colors = ['#00B5D8', '#805AD5', '#d69e2e', '#805ad5', '#38a169', '#9f7aea', '#f56565', '#4cb050']
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
             fig.set_facecolor('#2d3748')
 
-            # 饼图
             wedges, texts, autotexts = ax1.pie(
-                list(filtered_disease_counter.values()),
-                labels=list(filtered_disease_counter.keys()),
-                autopct='%1.1f%%',
-                startangle=140,
-                colors=colors[:len(filtered_disease_counter)],
-                textprops={'color': 'white'}
-            )
-            ax1.set_title('疾病分布比例', color='white', pad=20)
+                list(filtered.values()), labels=list(filtered.keys()), autopct='%1.1f%%',
+                startangle=140, colors=theme_colors[:len(filtered)],
+                textprops={'color': 'white', 'fontweight': 'bold'},
+                wedgeprops={'edgecolor': '#2d3748', 'linewidth': 1.5})
+            ax1.set_title('疾病分布比例', color='white', pad=20, fontsize=14)
+            for t in texts: t.set_color('white')
+            for t in autotexts: t.set_color('white')
 
-            # 设置饼图文本颜色
-            for text in texts:
-                text.set_color('white')
-            for autotext in autotexts:
-                autotext.set_color('white')
-
-            # 柱状图
-            bars = ax2.bar(
-                list(filtered_disease_counter.keys()),
-                list(filtered_disease_counter.values()),
-                color=colors[:len(filtered_disease_counter)]
-            )
+            bars = ax2.bar(list(filtered.keys()), list(filtered.values()),
+                           color=theme_colors[:len(filtered)])
             ax2.set_ylabel('数量', color='white')
-            ax2.set_title('疾病分布柱状图', color='white', pad=20)
+            ax2.set_title('疾病分布柱状图', color='white', pad=20, fontsize=14)
             ax2.tick_params(axis='x', rotation=45, colors='white')
             ax2.tick_params(axis='y', colors='white')
             ax2.set_facecolor('#2d3748')
             ax2.grid(color='#4a5568', linestyle='--', linewidth=0.5, axis='y')
-
-            # 在柱状图上添加数值标签
             for bar in bars:
-                height = bar.get_height()
-                ax2.annotate(f'{int(height)}',
-                             xy=(bar.get_x() + bar.get_width() / 2, height),
-                             xytext=(0, 3),  # 3 points vertical offset
-                             textcoords="offset points",
-                             ha='center', va='bottom',
-                             color='white')
-
-            # 设置图表背景色和边框颜色
+                h = bar.get_height()
+                ax2.annotate(f'{int(h)}', xy=(bar.get_x() + bar.get_width() / 2, h),
+                             xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', color='white')
             for ax in [ax1, ax2]:
                 ax.set_facecolor('#2d3748')
-                for spine in ax.spines.values():
-                    spine.set_edgecolor('#4a5568')
+                for spine in ax.spines.values(): spine.set_edgecolor('#4a5568')
 
+            fig.tight_layout()
             canvas = FigureCanvas(fig)
-            layout.addWidget(canvas)
+            chart_container = QWidget()
+            chart_container.setStyleSheet("background-color: #2d3748; border-radius: 8px;")
+            chart_layout = QVBoxLayout(chart_container)
+            chart_layout.setContentsMargins(5, 5, 5, 5)
+            chart_layout.addWidget(canvas)
+            main_layout.addWidget(chart_container, stretch=4)
 
-        # 结果摘要
+        # ===== 3. 暗黑终端日志 =====
+        log_group = QWidget()
+        log_layout = QVBoxLayout(log_group)
+        log_layout.setContentsMargins(0, 0, 0, 0)
+        log_layout.setSpacing(5)
+
+        log_label = QLabel("📋 详细检测日志")
+        log_label.setStyleSheet("color: #81A1C1; font-weight: bold; font-size: 13px;")
+        log_layout.addWidget(log_label)
+
         result_box = QTextEdit()
         result_box.setReadOnly(True)
-        result_box.setText("\n".join(results_summary))
+        formatted_logs = []
+        for line in results_summary:
+            if "✅" in line: formatted_logs.append(f"<span style='color: #00E676;'>{line}</span>")
+            elif "❌" in line: formatted_logs.append(f"<span style='color: #FF5252;'>{line}</span>")
+            else: formatted_logs.append(f"<span style='color: #A0AEC0;'>{line}</span>")
+        result_box.setHtml("<br>".join(formatted_logs))
         result_box.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {self.secondary_bg};
-                color: {self.text_color};
-                border: 1px solid {self.accent_color};
-                border-radius: 4px;
-            }}
+            QTextEdit {{ background-color: #11151c; color: #A0AEC0; border: 1px solid #2c323c;
+                border-radius: 6px; padding: 12px; font-family: Consolas, "Courier New", monospace;
+                font-size: 12px; line-height: 1.5; }}
+            QScrollBar:vertical {{ background-color: #11151c; width: 10px; }}
+            QScrollBar::handle:vertical {{ background-color: #4C566A; border-radius: 5px; }}
         """)
-        layout.addWidget(result_box)
+        log_layout.addWidget(result_box)
+        main_layout.addWidget(log_group, stretch=2)
 
-        # 按钮布局
+        # ===== 4. 按钮区 =====
         button_layout = QHBoxLayout()
-        
-        # 全屏按钮
+        button_layout.addStretch()
+        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 13px; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
+
         fullscreen_btn = QPushButton("🖥️ 全屏")
-        fullscreen_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.accent_color};
-                color: white;
-                padding: 8px 16px;
-                border-radius: 6px;
-                margin-top: 10px;
-                margin-right: 10px;
-            }}
-            QPushButton:hover {{
-                background-color: #0097B2;
-            }}
-        """)
+        fullscreen_btn.setStyleSheet(btn_style)
         fullscreen_btn.clicked.connect(lambda: self.toggle_batch_report_fullscreen(dialog))
-        button_layout.addWidget(fullscreen_btn)
-        
-        # 关闭按钮
+
         close_btn = QPushButton("❌ 关闭")
-        close_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.accent_color};
-                color: white;
-                padding: 8px 16px;
-                border-radius: 6px;
-                margin-top: 10px;
-                margin-right: 10px;
-            }}
-            QPushButton:hover {{
-                background-color: #0097B2;
-            }}
-        """)
+        close_btn.setStyleSheet(btn_style)
         close_btn.clicked.connect(dialog.accept)
+
+        button_layout.addWidget(fullscreen_btn)
+        button_layout.addSpacing(15)
         button_layout.addWidget(close_btn)
-        
-        # 退出按钮
-        exit_btn = QPushButton("🚪 退出")
-        exit_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: #e53e3e;
-                color: white;
-                padding: 8px 16px;
-                border-radius: 6px;
-                margin-top: 10px;
-            }}
-            QPushButton:hover {{
-                background-color: #c53030;
-            }}
-        """)
-        exit_btn.clicked.connect(dialog.reject)
-        button_layout.addWidget(exit_btn)
-        
-        # 添加按钮布局
-        layout.addLayout(button_layout)
+        button_layout.addStretch()
+        main_layout.addLayout(button_layout)
 
         dialog.exec_()
 

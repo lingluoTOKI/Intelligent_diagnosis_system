@@ -6417,19 +6417,7 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    import traceback, signal
-    signal.signal(signal.SIGINT, signal.SIG_DFL)
-
-    print("=" * 60)
-    print("  AI眼科疾病智诊系统")
-    print("  12 类 / 164 方法 / 约 6,400 行 / SQLite + Markdown")
-    print("=" * 60)
     app = QApplication(sys.argv)
-    try:
-        window = MainWindow()
-        window.show()
-        sys.exit(app.exec_())
-    except Exception as e:
-        print(f"\n[FATAL] 启动异常: {e}")
-        traceback.print_exc()
-        input("按 Enter 退出...")
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())

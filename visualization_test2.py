@@ -5178,7 +5178,7 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """将文本转换为语音播放：edge-tts → pyttsx3 两级回退"""
+        """edge-tts 语音合成，音频缓存到 data/temp/，支持停止播放"""
         import re
         clean = text
         clean = re.sub(r'<[^>]+>', '', clean)
@@ -5195,71 +5195,43 @@ class MainWindow(QMainWindow):
         if not clean.strip():
             return
 
-        print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
+        # 音频缓存目录
+        cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'temp')
+        os.makedirs(cache_dir, exist_ok=True)
+        mp3_path = os.path.join(cache_dir, f'tts_{datetime.now().strftime("%H%M%S%f")}.mp3')
+
+        print(f"[DEBUG] TTS(edge-tts): 合成中 ({len(clean)}字)")
 
         def safe_speak():
-            # 优先级1: 洛天依 GPT-SoVITS API（本地 http://127.0.0.1:9880/tts）
             try:
-                import subprocess, tempfile, os as _os
-                fd, wav = tempfile.mkstemp(suffix='.wav')
-                _os.close(fd)
-                payload = json.dumps({
-                    "text": clean,
-                    "text_lang": "zh",
-                    "ref_audio_path": "lty_ref.wav",
-                    "prompt_text": "参考音频的原文内容",
-                    "prompt_lang": "zh",
-                    "text_split_method": "cut5",
-                    "batch_size": 1,
-                    "media_type": "wav",
-                    "streaming_mode": False
-                }, ensure_ascii=False)
-                import urllib.request
-                req = urllib.request.Request(
-                    'http://127.0.0.1:9880/tts',
-                    data=payload.encode('utf-8'),
-                    headers={'Content-Type': 'application/json'}
-                )
-                with urllib.request.urlopen(req, timeout=60) as resp:
-                    with open(wav, 'wb') as f:
-                        f.write(resp.read())
-                subprocess.run(['start', '', wav], shell=True, timeout=5)
-                print("[DEBUG] TTS(洛天依): 播放完成")
-                return
-            except Exception:
-                pass
-            # 优先级2: edge-tts 微软神经网络语音
-            try:
-                import subprocess, tempfile, os as _os
-                fd, mp3 = tempfile.mkstemp(suffix='.mp3')
-                _os.close(fd)
+                import subprocess
                 subprocess.run([
                     'edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural',
                     '--rate=+10%', '--text', clean,
-                    '--write-media', mp3
+                    '--write-media', mp3_path
                 ], capture_output=True, check=True, timeout=30)
-                subprocess.run(['start', '', mp3], shell=True, timeout=5)
-                print("[DEBUG] TTS(edge-tts): 播放完成")
-                return
-            except Exception:
-                pass
-            # 优先级3: pyttsx3 离线引擎
-            try:
-                import pyttsx3
-                engine = pyttsx3.init()
-                for v in engine.getProperty('voices'):
-                    if 'chinese' in v.name.lower() or 'zh' in v.id.lower():
-                        engine.setProperty('voice', v.id)
-                        break
-                engine.setProperty('rate', 160)
-                engine.setProperty('volume', 0.9)
-                engine.say(clean)
-                engine.runAndWait()
-                print("[DEBUG] TTS(pyttsx3): 播放完成")
+                # 停止之前可能正在播放的音频
+                subprocess.run(['taskkill', '/F', '/IM', 'wmplayer.exe'], capture_output=True)
+                subprocess.run(['taskkill', '/F', '/IM', 'Microsoft.Media.Player.exe'], capture_output=True)
+                self._current_tts_proc = subprocess.Popen(['start', '/WAIT', '', mp3_path], shell=True)
+                print(f"[DEBUG] TTS(edge-tts): 播放完成 → {mp3_path}")
             except Exception as e:
-                print(f"[DEBUG] TTS: 播放失败 {e}")
+                print(f"[DEBUG] TTS(edge-tts): 失败 {e}")
 
         threading.Thread(target=safe_speak, daemon=True).start()
+
+    def stop_speaking(self):
+        """停止当前 TTS 播放"""
+        try:
+            import subprocess
+            subprocess.run(['taskkill', '/F', '/IM', 'wmplayer.exe'], capture_output=True)
+            subprocess.run(['taskkill', '/F', '/IM', 'Microsoft.Media.Player.exe'], capture_output=True)
+            if hasattr(self, '_current_tts_proc') and self._current_tts_proc:
+                self._current_tts_proc.terminate()
+                self._current_tts_proc = None
+            self.status_bar.showMessage("🔇 语音播放已停止")
+        except Exception:
+            pass
     
     def _extract_plain_text(self, markdown_text):
         """从 Markdown/HTML 中提取纯文本（用于 TTS 播报）"""
@@ -5673,6 +5645,9 @@ class MainWindow(QMainWindow):
 
             if self.voice_chat_enabled.isChecked():
                 self.speak_text(ai_msg)
+            else:
+                # 用户取消勾选 → 停止正在播放的 TTS
+                self.stop_speaking()
 
         elif event.event_type == "error":
             self.show_ai_progress(False)

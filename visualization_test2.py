@@ -2189,7 +2189,7 @@ class MainWindow(QMainWindow):
         self.batch_button = QPushButton("📁 批量处理")
         self.history_button = QPushButton("📜 历史记录")
         self.board_interaction_button = QPushButton("📱 开发板交互")
-        self.voice_server_button = QPushButton("🎤 语音服务")
+        self.board_voice_button = QPushButton("📱 唤醒板端语音")
 
         tool_style = f"""
             QPushButton {{
@@ -2212,7 +2212,7 @@ class MainWindow(QMainWindow):
             }}
         """
         TOOL_BTN_STYLE = tool_style  # 保存一份引用供 toggle_voice_server 恢复样式
-        for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.voice_server_button]:
+        for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.board_voice_button]:
             btn.setStyleSheet(tool_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
             tools_layout.addWidget(btn)
@@ -2221,7 +2221,7 @@ class MainWindow(QMainWindow):
         self.batch_button.setEnabled(False)
         self.history_button.clicked.connect(self.show_history)
         self.board_interaction_button.clicked.connect(self.show_board_interaction)
-        self.voice_server_button.clicked.connect(self.toggle_voice_server)
+        self.board_voice_button.clicked.connect(self.trigger_board_voice)
 
         btn_layout_v.addLayout(main_flow_layout)
         btn_layout_v.addLayout(tools_layout)
@@ -5314,6 +5314,13 @@ class MainWindow(QMainWindow):
 
             api_key = self.api_key_input.text().strip()
             if not api_key:
+                # 尝试从保存的文件加载
+                try:
+                    if self.deepseek_api and self.deepseek_api.api_key:
+                        api_key = self.deepseek_api.api_key
+                except Exception:
+                    pass
+            if not api_key:
                 QApplication.postEvent(self, AIResponseEvent("progress", "生成默认建议...", 60))
                 time.sleep(0.3)
                 response = """# 🩺 AI医疗咨询建议
@@ -5346,6 +5353,22 @@ class MainWindow(QMainWindow):
             ai_service = MedicalAIService(api_key)
             response = ai_service.get_custom_advice(message)
 
+            if not response or "请先设置有效的API密钥" in response:
+                QApplication.postEvent(self, AIResponseEvent("progress", "生成默认建议...", 85))
+                time.sleep(0.2)
+                response = """# 🩺 AI医疗咨询建议
+
+## 💡 一般建议
+1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
+2. **保持良好的用眼习惯** - 适当休息, 避免长时间用眼疲劳
+3. **注意眼部卫生** - 保持手部清洁, 避免用手直接接触眼部
+
+### ⚠️ 重要提醒
+- 如有不适症状, 请及时就医
+- 以上建议仅供参考, 不能替代专业医疗诊断
+
+---
+💡 **提示：** 可以在DeepSeek官网查看密钥状态和余额"""
             QApplication.postEvent(self, AIResponseEvent("progress", "正在组织回复...", 85))
             time.sleep(0.3)
 
@@ -5606,51 +5629,52 @@ class MainWindow(QMainWindow):
         self.toggle_camera_connection()
         self.status_bar.showMessage("🔄 已切换到硬件实时视窗，正在连接开发板...")
 
-    def toggle_voice_server(self):
-        """语音输入开关：独立样式管理，异常时自动恢复"""
+    def trigger_board_voice(self):
+        """远程唤醒开发板语音服务，并自动重定向 AI 音频输出"""
         try:
-            # 1. 确保语音管理器初始化
-            if getattr(self, 'voice_manager', None) is None:
-                self.status_bar.showMessage("⏳ 正在初始化语音组件，请稍候...")
-                self.voice_manager = SmartVoiceManager()
-                self.connect_smart_voice_signals()
+            # 1. 智能路由：自动将 AI 语音回复输出设置为开发板
+            if hasattr(self, 'set_audio_device'):
+                self.set_audio_device('board')
 
-            # 2. 独立定义基础样式（避免 TOOL_BTN_STYLE 作用域丢失）
-            base_style = f"""
+            # 2. 向开发板发送 UDP 唤醒指令
+            board_ip = "172.20.10.8"
+            target_port = 5006
+
+            command = {
+                "type": "pc_control",
+                "command": "start_recording",
+                "timestamp": datetime.now().isoformat()
+            }
+
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(json.dumps(command).encode('utf-8'), (board_ip, target_port))
+            sock.close()
+
+            # 3. UI 反馈
+            self.status_bar.showMessage(f"📡 已向开发板 ({board_ip}) 发送语音唤醒指令")
+            self.board_voice_button.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: #3B4252;
-                    border: 1px solid #4C566A;
-                    color: {self.text_color};
+                    background-color: #38A169;
+                    border: 1px solid #2F855A;
+                    color: white;
                     padding: 8px 12px;
                     border-radius: 6px;
                     font-weight: bold;
                     font-size: 12px;
                 }}
-                QPushButton:hover {{
-                    background-color: #4C566A;
-                    border: 1px solid {self.accent_color};
-                }}
-            """
+            """)
+            self.board_voice_button.setText("📡 监听中...")
 
-            # 3. 录音状态切换
-            if self.voice_manager.is_recording:
-                self.voice_manager.cancel_recording()
-                self.voice_server_button.setText("🎤 语音服务")
-                self.voice_server_button.setStyleSheet(base_style)
-                self.status_bar.showMessage("⏹️ 语音识别已停止")
-            else:
-                self.voice_manager.start_voice_recognition()
-                self.voice_server_button.setText("🛑 停止录音")
-                self.voice_server_button.setStyleSheet(
-                    base_style + "QPushButton { background-color: #E53E3E; border: 1px solid #C53030; color: white; }"
-                )
-                self.status_bar.showMessage("🎤 正在录音，请说话...")
+            # 3秒后恢复按钮样式
+            QTimer.singleShot(3000, lambda: (
+                self.board_voice_button.setText("📱 唤醒板端语音"),
+                self.board_voice_button.setStyleSheet(self.history_button.styleSheet())
+            ))
 
         except Exception as e:
-            self.show_message_box("错误", f"语音服务操作失败: {e}", QMessageBox.Critical)
-            # 异常时强制恢复安全状态
-            if hasattr(self, 'voice_server_button'):
-                self.voice_server_button.setText("🎤 语音服务")
+            self.show_message_box("网络错误",
+                f"无法连接到开发板语音服务: {e}\n\n请检查开发板 IP 和局域网连接。",
+                QMessageBox.Critical)
     
     def start_board_camera(self):
         """启动开发板摄像头功能"""

@@ -29,6 +29,7 @@ matplotlib.use('Qt5Agg')  # 确保使用Qt5后端
 import matplotlib.pyplot as plt
 plt.rcParams['figure.dpi'] = 120  # 提高DPI,提高清晰度
 plt.rcParams['savefig.dpi'] = 120
+plt.rcParams['font.size'] = 12    # 统一调大图表中的基础字号
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import uuid
 import functools
@@ -1282,9 +1283,9 @@ class ResultProcessor:
         result_text = f"""
         <div style='text-align:center; padding:15px;'>
             <h2 style='color:{highlight_color}; margin-bottom:20px;'>疾病分类结果</h2>
-            <p style='font-size:18px; margin:15px 0;'>检测到的疾病: <b style='color:{highlight_color};'>{self.current_disease}</b></p>
-            <p style='font-size:18px; margin:15px 0;'>置信度: <b style='color:{highlight_color};'>{self.current_confidence:.2f}</b></p>
-            <p style='margin-top:25px; color:#a0aec0; font-size:14px;'>可点击「AI治疗建议」获取详细方案</p>
+            <p style='font-size:16pt; margin:15px 0;'>检测到的疾病: <b style='color:{highlight_color};'>{self.current_disease}</b></p>
+            <p style='font-size:16pt; margin:15px 0;'>置信度: <b style='color:{highlight_color};'>{self.current_confidence:.2f}</b></p>
+            <p style='margin-top:25px; color:#a0aec0; font-size:13pt;'>可点击「AI治疗建议」获取详细方案</p>
         </div>
         """
         msg_box = QMessageBox(parent)
@@ -1833,7 +1834,7 @@ class MainWindow(QMainWindow):
                 border: none;
                 border-radius: 5px;
                 padding: 10px;
-                font-size: 14px;
+                font-size: 13pt;
                 selection-background-color: {self.accent_color};
                 font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
             }}
@@ -2045,7 +2046,7 @@ class MainWindow(QMainWindow):
         self.image_tab_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.image_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 14px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 14px; margin-right: 2px; min-width: 90px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 12px 22px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 13pt; margin-right: 2px; }}
             QTabBar::tab:selected {{ background-color: {self.accent_color}; color: white; }}
         """)
         self.image_tab_widget.tabBar().setElideMode(Qt.ElideNone)
@@ -2065,9 +2066,9 @@ class MainWindow(QMainWindow):
         self.original_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
         self.original_image_label.setText(
             f"<div style='text-align: center; color: #616E88;'>"
-            f"<div style='font-size: 48px; margin-bottom: 15px;'>📸</div>"
-            f"<div style='font-size: 16px; font-weight: bold; color: #E5E9F0;'>等待加载原片影像</div>"
-            f"<div style='font-size: 14px; margin-top: 8px;'>请点击下方「加载图像」按钮导入照片</div>"
+            f"<div style='font-size: 32pt; margin-bottom: 15px;'>📸</div>"
+            f"<div style='font-size: 15pt; font-weight: bold; color: #E5E9F0;'>等待加载原片影像</div>"
+            f"<div style='font-size: 13pt; margin-top: 8px;'>请点击下方「加载图像」按钮导入照片</div>"
             f"</div>"
         )
         local_layout.addWidget(self.original_image_label)
@@ -2082,9 +2083,9 @@ class MainWindow(QMainWindow):
         self.detected_image_label.setStyleSheet(f"background-color: #1a1e24; border-radius: 8px; border: 2px dashed #3b4252;")
         self.detected_image_label.setText(
             f"<div style='text-align: center; color: #616E88;'>"
-            f"<div style='font-size: 48px; margin-bottom: 15px;'>🧠</div>"
-            f"<div style='font-size: 16px; font-weight: bold; color: #E5E9F0;'>等待 AI 模型诊断</div>"
-            f"<div style='font-size: 14px; margin-top: 8px;'>图像就绪后，点击「开始检测」进行特征分析</div>"
+            f"<div style='font-size: 32pt; margin-bottom: 15px;'>🧠</div>"
+            f"<div style='font-size: 15pt; font-weight: bold; color: #E5E9F0;'>等待 AI 模型诊断</div>"
+            f"<div style='font-size: 13pt; margin-top: 8px;'>图像就绪后，点击「开始检测」进行特征分析</div>"
             f"</div>"
         )
         local_layout.addWidget(self.detected_image_label)
@@ -2106,7 +2107,7 @@ class MainWindow(QMainWindow):
             border-radius: 8px;
             border: 2px dashed #3b4252;
             color: #616E88;
-            font-size: 14px;
+            font-size: 13pt;
             font-family: 'Microsoft YaHei', sans-serif;
         """)
         board_layout.addWidget(self.camera_preview_label, stretch=1)
@@ -2119,17 +2120,17 @@ class MainWindow(QMainWindow):
         self.board_camera_status.setStyleSheet(f"""
             font-weight: bold;
             color: #E53E3E;
-            font-size: 14px;
+            font-size: 13pt;
             padding: 6px 12px;
             background-color: {self.secondary_bg};
             border-radius: 4px;
         """)
 
         self.board_resolution_label = QLabel("分辨率: --")
-        self.board_resolution_label.setStyleSheet(f"color: #81A1C1; font-size: 12px;")
+        self.board_resolution_label.setStyleSheet(f"color: #81A1C1; font-size: 11pt;")
 
         self.board_fps_label = QLabel("帧率: --")
-        self.board_fps_label.setStyleSheet(f"color: #81A1C1; font-size: 12px;")
+        self.board_fps_label.setStyleSheet(f"color: #81A1C1; font-size: 11pt;")
 
         info_layout.addWidget(self.board_camera_status)
         info_layout.addWidget(self.board_resolution_label)
@@ -2143,7 +2144,7 @@ class MainWindow(QMainWindow):
         self.capture_from_camera_button = QPushButton("📸 截取并诊断")
         self.capture_from_camera_button.setEnabled(False)
 
-        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 14px; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
+        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; font-size: 13pt; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
         for btn in [self.connect_camera_button, self.capture_from_camera_button]:
             btn.setStyleSheet(cam_btn_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -2160,7 +2161,7 @@ class MainWindow(QMainWindow):
         # 提示标签
         hint_label = QLabel("💡 提示：请确保 PC 与开发板在同一局域网，并已启动开发板端摄像头服务")
         hint_label.setAlignment(Qt.AlignCenter)
-        hint_label.setStyleSheet(f"color: #616E88; font-size: 11px; padding: 4px;")
+        hint_label.setStyleSheet(f"color: #616E88; font-size: 10pt; padding: 4px;")
         hint_label.setWordWrap(True)
         board_layout.addWidget(hint_label)
 
@@ -2183,11 +2184,11 @@ class MainWindow(QMainWindow):
         self.detect_button = QPushButton("3. 🔍 开始检测")
         self.results_button = QPushButton("4. 📊 查看报告")
 
-        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 12px 10px; border-radius: 6px; font-weight: bold; font-size: 14px; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
+        main_btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 14px 20px; border-radius: 6px; font-weight: bold; font-size: 13pt; }} QPushButton:hover {{ background-color: #0097B2; }} QPushButton:disabled {{ background-color: #3b4252; color: #7b88a1; }}"
         for btn in [self.model_button, self.image_button, self.detect_button, self.results_button]:
             btn.setStyleSheet(main_btn_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
-            btn.setMinimumHeight(45)
+            btn.setMinimumHeight(55)
             main_flow_layout.addWidget(btn)
 
         self.model_button.clicked.connect(lambda: self.load_model(None))
@@ -2211,10 +2212,10 @@ class MainWindow(QMainWindow):
                 background-color: #3B4252;
                 border: 1px solid #4C566A;
                 color: {self.text_color};
-                padding: 8px 12px;
+                padding: 12px 18px;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QPushButton:hover {{
                 background-color: #4C566A;
@@ -2252,7 +2253,7 @@ class MainWindow(QMainWindow):
         self.right_tab_widget = QTabWidget()
         self.right_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 16px; font-weight: bold; font-size: 14px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-width: 80px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 12px 22px; font-weight: bold; font-size: 13pt; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; }}
             QTabBar::tab:selected {{ background-color: {self.highlight_color}; color: white; }}
         """)
         self.right_tab_widget.tabBar().setElideMode(Qt.ElideNone)
@@ -2284,19 +2285,19 @@ class MainWindow(QMainWindow):
         self.advice_text.setMinimumHeight(150)
         self.advice_text.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.advice_text.setFont(QFont("Microsoft YaHei", 14))
-        self.advice_text.setStyleSheet(f"background-color: {self.primary_color}; border: none; padding: 10px; color: {self.text_color}; font-size: 14px;")
+        self.advice_text.setStyleSheet(f"background-color: {self.primary_color}; border: none; padding: 10px; color: {self.text_color}; font-size: 13pt;")
         self.advice_text.setHtml(f"""
         <div style='font-family: "Microsoft YaHei", sans-serif; text-align: center; padding: 40px 20px;'>
-            <h2 style='color: {self.highlight_color}; font-size: 22px; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
+            <h2 style='color: {self.highlight_color}; font-size: 19pt; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
             <div style='background-color: #21252B; border-radius: 10px; padding: 25px; border: 1px solid #2c323c;
                 text-align: left; display: inline-block;'>
-                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 15px;'>🚀 快速上手</h3>
+                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 14pt;'>🚀 快速上手</h3>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>1.</b> 加载模型 — 选择 YOLO 权重文件 (.pt)</p>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>2.</b> 加载图像 — 选择本地照片或连接开发板</p>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>3.</b> 开始检测 — AI 自动分析并输出分类结果</p>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>4.</b> 点击🔄 生成当前报告获取诊疗建议</p>
             </div>
-            <p style='color: #4C566A; font-size: 12px; margin-top: 20px;'>💡 请前往「系统设置」校验 API Key 状态</p>
+            <p style='color: #4C566A; font-size: 11pt; margin-top: 20px;'>💡 请前往「系统设置」校验 API Key 状态</p>
         </div>
         """)
 
@@ -2319,7 +2320,7 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
                 padding: 15px;
                 color: {self.text_color};
-                font-size: 14px;
+                font-size: 13pt;
                 line-height: 1.6;
             }}
         """)
@@ -2335,7 +2336,7 @@ class MainWindow(QMainWindow):
                 border-radius: 8px;
                 padding: 12px;
                 color: {self.text_color};
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QTextEdit:focus {{
                 border: 2px solid {self.highlight_color};
@@ -2383,7 +2384,7 @@ class MainWindow(QMainWindow):
                 height: 6px;
                 border-radius: 3px;
                 text-align: center;
-                font-size: 11px;
+                font-size: 10pt;
                 color: {self.accent_color};
             }}
             QProgressBar::chunk {{
@@ -2424,7 +2425,7 @@ class MainWindow(QMainWindow):
 
         self.toggle_password_button = QPushButton("👁")
         self.toggle_password_button.setFixedSize(35, 35)
-        self.toggle_password_button.setStyleSheet("background: transparent; border: none; font-size: 16px;")
+        self.toggle_password_button.setStyleSheet("background: transparent; border: none; font-size: 15pt;")
         self.toggle_password_button.setCursor(QCursor(Qt.PointingHandCursor))
         self.toggle_password_button.clicked.connect(self.toggle_password_visibility)
 
@@ -2521,7 +2522,7 @@ class MainWindow(QMainWindow):
                         border: none;
                         border-radius: 8px;
                         padding: 8px 16px;
-                        font-size: 14px;
+                        font-size: 13pt;
                         font-weight: bold;
                         min-width: 100px;
                     }}
@@ -2622,7 +2623,7 @@ class MainWindow(QMainWindow):
                 color: {self.text_color};
                 border-top: 1px solid #3b4252;
                 padding: 8px 15px;
-                font-size: 14px;
+                font-size: 13pt;
                 font-weight: bold;
             }}
         """)
@@ -2673,7 +2674,7 @@ class MainWindow(QMainWindow):
                         <div style='color: #00B5D8; font-weight: bold; margin-bottom: 5px;'>
                             🩺 医生回复:
                         </div>
-                        <div style='color: #e2e8f0; padding-left: 15px; font-size: 14px;'>
+                        <div style='color: #e2e8f0; padding-left: 15px; font-size: 13pt;'>
                             {chat['answer'][:300]}{'...' if len(chat['answer']) > 300 else ''}
                         </div>
                     </div>
@@ -2712,7 +2713,7 @@ class MainWindow(QMainWindow):
             if len(self.chat_history) > 3:
                 chat_html += """
                 <div style='text-align: center; margin-top: 20px; padding: 10px; background-color: #2a3441; border-radius: 6px;'>
-                    <p style='color: #00B5D8; margin: 0; font-size: 12px;'>
+                    <p style='color: #00B5D8; margin: 0; font-size: 11pt;'>
                         💡 提示: 对话历史已保留,AI会根据上下文提供更准确的建议
                     </p>
                 </div>
@@ -2738,10 +2739,10 @@ class MainWindow(QMainWindow):
         content = html.escape(content)
         
         # 处理标题
-        content = re.sub(r'####\s*(.*?)(?=\n|$)', r'<h4 style="color: #00B5D8; margin: 15px 0 8px 0; font-size: 16px; border-bottom: 1px solid #00B5D8; padding-bottom: 3px;">\1</h4>', content)
-        content = re.sub(r'###\s*(.*?)(?=\n|$)', r'<h3 style="color: #805AD5; margin: 20px 0 10px 0; font-size: 18px; border-bottom: 2px solid #805AD5; padding-bottom: 5px;">\1</h3>', content)
-        content = re.sub(r'##\s*(.*?)(?=\n|$)', r'<h2 style="color: #00B5D8; margin: 25px 0 15px 0; font-size: 20px; border-bottom: 2px solid #00B5D8; padding-bottom: 8px;">\1</h2>', content)
-        content = re.sub(r'#\s*(.*?)(?=\n|$)', r'<h1 style="color: #805AD5; margin: 30px 0 20px 0; font-size: 24px; border-bottom: 3px solid #805AD5; padding-bottom: 10px;">\1</h1>', content)
+        content = re.sub(r'####\s*(.*?)(?=\n|$)', r'<h4 style="color: #00B5D8; margin: 15px 0 8px 0; font-size: 15pt; border-bottom: 1px solid #00B5D8; padding-bottom: 3px;">\1</h4>', content)
+        content = re.sub(r'###\s*(.*?)(?=\n|$)', r'<h3 style="color: #805AD5; margin: 20px 0 10px 0; font-size: 16pt; border-bottom: 2px solid #805AD5; padding-bottom: 5px;">\1</h3>', content)
+        content = re.sub(r'##\s*(.*?)(?=\n|$)', r'<h2 style="color: #00B5D8; margin: 25px 0 15px 0; font-size: 18pt; border-bottom: 2px solid #00B5D8; padding-bottom: 8px;">\1</h2>', content)
+        content = re.sub(r'#\s*(.*?)(?=\n|$)', r'<h1 style="color: #805AD5; margin: 30px 0 20px 0; font-size: 20pt; border-bottom: 3px solid #805AD5; padding-bottom: 10px;">\1</h1>', content)
         
         # 处理粗体和斜体
         content = re.sub(r'\*\*(.*?)\*\*', r'<strong style="color: #00B5D8;">\1</strong>', content)
@@ -2778,17 +2779,17 @@ class MainWindow(QMainWindow):
                 <html><body style='color:{self.text_color}; background:{self.primary_color}; font-family:Microsoft YaHei;'>
                 <div style='text-align: center; padding: 50px;'>
                     <h2 style='color: #00B5D8; margin-bottom: 20px;'>🗑️ 对话历史已清除</h2>
-                    <p style='color: #e2e8f0; font-size: 16px;'>您可以开始新的医疗咨询对话</p>
+                    <p style='color: #e2e8f0; font-size: 15pt;'>您可以开始新的医疗咨询对话</p>
                 </div>
                 </body></html>
                 """)
                 # 同时重置 AI 建议面板
                 self.advice_text.setHtml(f"""
         <div style='font-family: "Microsoft YaHei", sans-serif; text-align: center; padding: 40px 20px;'>
-            <h2 style='color: {self.highlight_color}; font-size: 22px; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
+            <h2 style='color: {self.highlight_color}; font-size: 19pt; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
             <div style='background-color: #21252B; border-radius: 10px; padding: 25px; border: 1px solid #2c323c;
                 text-align: left; display: inline-block;'>
-                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 15px;'>🚀 快速上手</h3>
+                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 14pt;'>🚀 快速上手</h3>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>1.</b> 加载模型 — 选择 YOLO 权重文件 (.pt)</p>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>2.</b> 加载图像 — 选择本地照片或连接开发板</p>
                 <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>3.</b> 开始检测 — AI 自动分析并输出分类结果</p>
@@ -2809,11 +2810,11 @@ class MainWindow(QMainWindow):
             <h2 style='color: #f56565; margin-bottom: 20px;'>❌ {title}</h2>
             <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
                 <h3 style='color: #00B5D8; margin-top: 0;'>错误信息</h3>
-                <p style='color: #f56565; margin: 10px 0; font-size: 14px;'>{error_message}</p>
+                <p style='color: #f56565; margin: 10px 0; font-size: 13pt;'>{error_message}</p>
             </div>
             <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
                 <h4 style='color: #805AD5; margin-top: 0;'>解决方案:</h4>
-                <ul style='color: #e2e8f0; text-align: left; font-size: 14px;'>
+                <ul style='color: #e2e8f0; text-align: left; font-size: 13pt;'>
                     <li>请检查网络连接是否正常</li>
                     <li>确认API密钥是否正确设置</li>
                     <li>稍后重试或联系技术支持</li>
@@ -2831,7 +2832,7 @@ class MainWindow(QMainWindow):
             self.advice_text.setHtml("""
             <div style='text-align: center; padding: 50px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
                 <h2 style='color: #38a169; margin-bottom: 20px;'>🌐 正在测试网络连接...</h2>
-                <p style='color: #e2e8f0; font-size: 16px;'>请稍候,正在检测网络状态</p>
+                <p style='color: #e2e8f0; font-size: 15pt;'>请稍候,正在检测网络状态</p>
             </div>
             """)
             self.status_bar.showMessage("正在测试网络连接...")
@@ -2865,7 +2866,7 @@ class MainWindow(QMainWindow):
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ HTTPS连接：正常</p>
                             <p style='color: #e2e8f0; margin: 10px 0;'>✅ DeepSeek API连接：正常</p>
                         </div>
-                        <p style='color: #38a169; font-size: 16px; font-weight: bold;'>您可以正常使用AI医疗咨询功能！</p>
+                        <p style='color: #38a169; font-size: 15pt; font-weight: bold;'>您可以正常使用AI医疗咨询功能！</p>
                     </div>
                     """
                     self.status_bar.showMessage("网络连接测试通过")
@@ -2881,7 +2882,7 @@ class MainWindow(QMainWindow):
                         </div>
                         <div style='background-color: #1a202c; padding: 15px; border-radius: 6px; text-align: left;'>
                             <h4 style='color: #805AD5; margin-top: 0;'>API响应:</h4>
-                            <p style='color: #e2e8f0; font-size: 14px;'>{api_result[:300]}...</p>
+                            <p style='color: #e2e8f0; font-size: 13pt;'>{api_result[:300]}...</p>
                         </div>
                         <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
                             <h4 style='color: #00B5D8; margin-top: 0;'>解决建议:</h4>
@@ -2922,7 +2923,7 @@ class MainWindow(QMainWindow):
                 <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
                     <p style='color: #f56565; margin: 10px 0;'>错误信息: {str(e)}</p>
                 </div>
-                <p style='color: #e2e8f0; font-size: 16px;'>请稍后重试或联系技术支持</p>
+                <p style='color: #e2e8f0; font-size: 15pt;'>请稍后重试或联系技术支持</p>
             </div>
             """
             self.advice_text.setHtml(error_html)
@@ -2955,7 +2956,7 @@ class MainWindow(QMainWindow):
                 color: white;
                 padding: 6px 12px;
                 border-radius: 4px;
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QPushButton:hover {{
                 background-color: #d53f8c;
@@ -3019,13 +3020,13 @@ class MainWindow(QMainWindow):
             QGroupBox::title {{
                 color: {self.accent_color};
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
         """)
         question_layout = QVBoxLayout()
         question_label = QLabel(question)
         question_label.setWordWrap(True)
-        question_label.setStyleSheet(f"padding: 10px; font-size: 12px; line-height: 1.4;")
+        question_label.setStyleSheet(f"padding: 10px; font-size: 11pt; line-height: 1.4;")
         question_layout.addWidget(question_label)
         question_group.setLayout(question_layout)
         
@@ -3041,7 +3042,7 @@ class MainWindow(QMainWindow):
             QGroupBox::title {{
                 color: {self.highlight_color};
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
         """)
         answer_layout = QVBoxLayout()
@@ -3057,7 +3058,7 @@ class MainWindow(QMainWindow):
                 color: {self.text_color};
                 border: none;
                 padding: 15px;
-                font-size: 14px;
+                font-size: 13pt;
                 line-height: 1.5;
                 border-radius: 6px;
             }}
@@ -3092,7 +3093,7 @@ class MainWindow(QMainWindow):
                 padding: 10px 20px;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -3333,9 +3334,9 @@ class MainWindow(QMainWindow):
 
         progress_dialog.setStyleSheet(f"""
             QProgressDialog {{ background-color: {self.secondary_bg}; border: 1px solid {self.accent_color}; }}
-            QLabel {{ font-size: 14px; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
+            QLabel {{ font-size: 13pt; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
             QProgressBar {{ border: 1px solid #3b4252; border-radius: 8px; background-color: #1a1e24;
-                text-align: center; color: white; font-weight: bold; font-size: 12px; height: 24px; }}
+                text-align: center; color: white; font-weight: bold; font-size: 11pt; height: 24px; }}
             QProgressBar::chunk {{ background-color: {self.accent_color}; border-radius: 7px; width: 20px; }}
             QPushButton {{ background-color: transparent; color: #FF5252; border: 1px solid #FF5252;
                 padding: 6px 20px; border-radius: 6px; font-weight: bold; margin-top: 10px; }}
@@ -3412,19 +3413,19 @@ class MainWindow(QMainWindow):
         summary_group.setStyleSheet(f"""
             QGroupBox {{ border: 1px solid #3b4252; border-top: 3px solid {self.accent_color};
                 border-radius: 8px; padding-top: 25px; font-weight: bold; color: white; }}
-            QGroupBox::title {{ color: {self.accent_color}; top: -10px; left: 15px; font-size: 14px; }}
+            QGroupBox::title {{ color: {self.accent_color}; top: -10px; left: 15px; font-size: 13pt; }}
         """)
         cards_layout = QHBoxLayout(summary_group)
         cards_layout.setSpacing(15)
 
         total = sum(disease_counter.values())
-        total_card = QLabel(f"<div style='text-align:center;'><div style='font-size:13px;color:#81A1C1;margin-bottom:5px;'>总处理数</div><div style='font-size:26px;color:#00E5FF;font-weight:bold;'>{total}</div></div>")
+        total_card = QLabel(f"<div style='text-align:center;'><div style='font-size:12pt;color:#81A1C1;margin-bottom:5px;'>总处理数</div><div style='font-size:21pt;color:#00E5FF;font-weight:bold;'>{total}</div></div>")
         total_card.setStyleSheet("background-color: #21252B; border-radius: 8px; padding: 15px; border: 1px solid #2c323c;")
         cards_layout.addWidget(total_card)
 
         for disease, count in disease_counter.items():
             if count > 0:
-                card = QLabel(f"<div style='text-align:center;'><div style='font-size:13px;color:#81A1C1;margin-bottom:5px;'>{disease}</div><div style='font-size:22px;color:white;font-weight:bold;'>{count}</div></div>")
+                card = QLabel(f"<div style='text-align:center;'><div style='font-size:12pt;color:#81A1C1;margin-bottom:5px;'>{disease}</div><div style='font-size:19pt;color:white;font-weight:bold;'>{count}</div></div>")
                 card.setStyleSheet("background-color: #21252B; border-radius: 8px; padding: 15px; border: 1px solid #2c323c;")
                 cards_layout.addWidget(card)
 
@@ -3481,7 +3482,7 @@ class MainWindow(QMainWindow):
         log_layout.setSpacing(5)
 
         log_label = QLabel("📋 详细检测日志")
-        log_label.setStyleSheet("color: #81A1C1; font-weight: bold; font-size: 14px;")
+        log_label.setStyleSheet("color: #81A1C1; font-weight: bold; font-size: 13pt;")
         log_layout.addWidget(log_label)
 
         result_box = QTextEdit()
@@ -3495,7 +3496,7 @@ class MainWindow(QMainWindow):
         result_box.setStyleSheet(f"""
             QTextEdit {{ background-color: #11151c; color: #A0AEC0; border: 1px solid #2c323c;
                 border-radius: 6px; padding: 12px; font-family: Consolas, "Courier New", monospace;
-                font-size: 14px; line-height: 1.5; }}
+                font-size: 13pt; line-height: 1.5; }}
             QScrollBar:vertical {{ background-color: #11151c; width: 10px; }}
             QScrollBar::handle:vertical {{ background-color: #4C566A; border-radius: 5px; }}
         """)
@@ -3505,13 +3506,13 @@ class MainWindow(QMainWindow):
         # ===== 4. 按钮区 =====
         button_layout = QHBoxLayout()
         button_layout.addStretch()
-        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 14px; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
+        btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 13pt; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
 
         fullscreen_btn = QPushButton("🖥️ 全屏")
         fullscreen_btn.setStyleSheet(f"""
             QPushButton {{ background-color: transparent; color: {self.accent_color};
                 border: 1px solid {self.accent_color}; padding: 8px 30px; border-radius: 6px;
-                font-weight: bold; font-size: 14px; }}
+                font-weight: bold; font-size: 13pt; }}
             QPushButton:hover {{ background-color: rgba(0, 181, 216, 0.1); }}
         """)
         fullscreen_btn.clicked.connect(lambda: self.toggle_batch_report_fullscreen(dialog))
@@ -3519,7 +3520,7 @@ class MainWindow(QMainWindow):
         close_btn = QPushButton("❌ 关闭")
         close_btn.setStyleSheet(f"""
             QPushButton {{ background-color: #3b4252; color: #E5E9F0; border: none;
-                padding: 8px 30px; border-radius: 6px; font-weight: bold; font-size: 14px; }}
+                padding: 8px 30px; border-radius: 6px; font-weight: bold; font-size: 13pt; }}
             QPushButton:hover {{ background-color: #4C566A; }}
         """)
         close_btn.clicked.connect(dialog.accept)
@@ -3617,7 +3618,7 @@ class MainWindow(QMainWindow):
                 border-bottom: 2px solid {self.accent_color};
                 border-right: 1px solid #3b4252;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QTableWidget::item {{
                 padding: 8px;
@@ -3679,7 +3680,7 @@ class MainWindow(QMainWindow):
                     color: white;
                     padding: 8px 12px;
                     border-radius: 6px;
-                    font-size: 14px;
+                    font-size: 13pt;
                     font-weight: bold;
                     min-height: 20px;
                 }}
@@ -3883,7 +3884,7 @@ class MainWindow(QMainWindow):
             image_label.setAlignment(Qt.AlignCenter)
             image_label.setStyleSheet(f"""
                 color: {self.text_color};
-                font-size: 14px;
+                font-size: 13pt;
             """)
 
         image_layout.addWidget(image_label)
@@ -4162,7 +4163,7 @@ class MainWindow(QMainWindow):
                 color: white;
                 padding: 8px 16px;
                 border-radius: 6px;
-                font-size: 14px;
+                font-size: 13pt;
                 font-weight: bold;
                 margin-right: 10px;
             }}
@@ -4181,7 +4182,7 @@ class MainWindow(QMainWindow):
                         color: white;
                         padding: 8px 16px;
                         border-radius: 6px;
-                        font-size: 14px;
+                        font-size: 13pt;
                         font-weight: bold;
                         margin-right: 10px;
                     }}
@@ -4198,7 +4199,7 @@ class MainWindow(QMainWindow):
                         color: white;
                         padding: 8px 16px;
                         border-radius: 6px;
-                        font-size: 14px;
+                        font-size: 13pt;
                         font-weight: bold;
                         margin-right: 10px;
                     }}
@@ -4463,7 +4464,7 @@ class MainWindow(QMainWindow):
                 padding: 8px 20px;
                 border-radius: 4px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -4552,9 +4553,9 @@ class MainWindow(QMainWindow):
 
         result_text = f"""
         <div style='text-align:center; padding:10px;'>
-            <p style='font-size:16px; color:#A0AEC0; margin-bottom:5px;'>首选诊断 (Top-1)</p>
-            <p style='font-size:26px; font-weight:bold; color:{self.highlight_color}; margin:0;'>{disease_name}</p>
-            <p style='font-size:14px; margin-top:10px;'>模型置信度: <span style='color:{self.highlight_color}; font-weight:bold;'>{confidence:.2%}</span></p>
+            <p style='font-size:15pt; color:#A0AEC0; margin-bottom:5px;'>首选诊断 (Top-1)</p>
+            <p style='font-size:21pt; font-weight:bold; color:{self.highlight_color}; margin:0;'>{disease_name}</p>
+            <p style='font-size:13pt; margin-top:10px;'>模型置信度: <span style='color:{self.highlight_color}; font-weight:bold;'>{confidence:.2%}</span></p>
         </div>
         """
         text_label = QLabel(result_text)
@@ -4698,13 +4699,13 @@ class MainWindow(QMainWindow):
             }}
             .loading {{
                 color: {self.highlight_color};
-                font-size: 18px;
+                font-size: 16pt;
                 font-weight: bold;
                 margin: 40px 0;
             }}
             .progress {{
                 color: {self.text_color};
-                font-size: 14px;
+                font-size: 13pt;
                 margin: 20px 0;
             }}
         </style>
@@ -4790,14 +4791,14 @@ class MainWindow(QMainWindow):
 
         # 退出全屏按钮
         close_btn = QPushButton("退出全屏 (Esc)")
-        close_btn.setFixedSize(140, 45)
+        close_btn.setMinimumSize(160, 50)
         close_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {self.accent_color};
                 color: white;
                 border-radius: 6px;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 13pt;
             }}
             QPushButton:hover {{
                 background-color: #0097B2;
@@ -4868,7 +4869,7 @@ class MainWindow(QMainWindow):
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
-                html_content += f"<h2 style='color:{self.accent_color}; font-size:20px; margin-top:22px; margin-bottom:12px; border-left:5px solid {self.accent_color}; padding-left:14px; font-weight:bold;'>{_process_inline(stripped[2:])}</h2>\n"
+                html_content += f"<h2 style='color:{self.accent_color}; font-size:18pt; margin-top:22px; margin-bottom:12px; border-left:5px solid {self.accent_color}; padding-left:14px; font-weight:bold;'>{_process_inline(stripped[2:])}</h2>\n"
                 i += 1
                 continue
 
@@ -4876,17 +4877,17 @@ class MainWindow(QMainWindow):
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
-                html_content += f"<h3 style='color:{self.highlight_color}; font-size:18px; margin-top:18px; margin-bottom:10px; border-bottom:2px solid {self.highlight_color}; padding-bottom:6px; font-weight:bold;'>{_process_inline(stripped[3:])}</h3>\n"
+                html_content += f"<h3 style='color:{self.highlight_color}; font-size:16pt; margin-top:18px; margin-bottom:10px; border-bottom:2px solid {self.highlight_color}; padding-bottom:6px; font-weight:bold;'>{_process_inline(stripped[3:])}</h3>\n"
                 i += 1
                 continue
 
             if stripped.startswith('### '):
-                html_content += f"<h4 style='color:{self.accent_color}; font-size:16px; margin-top:14px; margin-bottom:8px; border-left:3px solid {self.accent_color}; padding-left:10px; font-weight:bold;'>{_process_inline(stripped[4:])}</h4>\n"
+                html_content += f"<h4 style='color:{self.accent_color}; font-size:15pt; margin-top:14px; margin-bottom:8px; border-left:3px solid {self.accent_color}; padding-left:10px; font-weight:bold;'>{_process_inline(stripped[4:])}</h4>\n"
                 i += 1
                 continue
 
             if stripped.startswith('#### '):
-                html_content += f"<h5 style='color:{self.highlight_color}; font-size:15px; margin-top:12px; margin-bottom:6px; font-weight:bold;'>{_process_inline(stripped[5:])}</h5>\n"
+                html_content += f"<h5 style='color:{self.highlight_color}; font-size:14pt; margin-top:12px; margin-bottom:6px; font-weight:bold;'>{_process_inline(stripped[5:])}</h5>\n"
                 i += 1
                 continue
 
@@ -4911,7 +4912,7 @@ class MainWindow(QMainWindow):
             if stripped.startswith('|') and stripped.endswith('|'):
                 cells = [c.strip() for c in stripped.split('|')[1:-1]]
                 if not all(c.startswith('---') for c in cells if c):
-                    html_content += f"<div style='font-size:14px; padding:6px 0; border-bottom:1px solid #3b4252;'>{'  |  '.join(cells)}</div>\n"
+                    html_content += f"<div style='font-size:13pt; padding:6px 0; border-bottom:1px solid #3b4252;'>{'  |  '.join(cells)}</div>\n"
                 i += 1
                 continue
 
@@ -4925,7 +4926,7 @@ class MainWindow(QMainWindow):
                     html_content += "<ol style='margin:10px 0; padding-left:22px;'>\n"
                     in_numbered_list = True
                 content = _process_inline(numbered_match.group(2))
-                html_content += f"<li style='margin:10px 0; font-size:15px; line-height:1.7;'>{content}</li>\n"
+                html_content += f"<li style='margin:10px 0; font-size:14pt; line-height:1.7;'>{content}</li>\n"
                 i += 1
                 continue
 
@@ -4937,7 +4938,7 @@ class MainWindow(QMainWindow):
                     section_open = True
                     in_bullet_section = True
                 content = _process_inline(bullet_match.group(1))
-                html_content += f"<div style='margin:10px 0; padding-left:18px; font-size:15px;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
+                html_content += f"<div style='margin:10px 0; padding-left:18px; font-size:14pt;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
                 i += 1
                 continue
 
@@ -4951,7 +4952,7 @@ class MainWindow(QMainWindow):
             if in_bullet_section:
                 in_bullet_section = False
 
-            html_content += f"<p style='margin:12px 0; font-size:15px; line-height:1.8; text-align:justify;'>{_process_inline(stripped)}</p>\n"
+            html_content += f"<p style='margin:12px 0; font-size:14pt; line-height:1.8; text-align:justify;'>{_process_inline(stripped)}</p>\n"
             i += 1
 
         # 确保所有区块都关闭
@@ -5782,7 +5783,7 @@ class MainWindow(QMainWindow):
                     padding: 8px 12px;
                     border-radius: 6px;
                     font-weight: bold;
-                    font-size: 14px;
+                    font-size: 13pt;
                 }}
             """)
             self.board_voice_button.setText("📡 监听中...")

@@ -1892,15 +1892,16 @@ class MainWindow(QMainWindow):
         
         # 延迟加载保存的API密钥
         QTimer.singleShot(100, self.load_saved_api_key)
-        
+
         # 延迟初始化重量级组件,提高启动速度
         QTimer.singleShot(300, self.lazy_load_components)
-        
+
         # 显示加载状态
         self.status_bar.showMessage("正在初始化系统组件...")
-        
-        # 异步加载历史记录
+
+        # 异步加载历史记录并自动启动摄像头接收器
         QTimer.singleShot(500, self.load_history_records)
+        QTimer.singleShot(800, self.auto_start_camera_receiver)
 
         # 启动时清理过期临时图像 (7天前)
         QTimer.singleShot(1000, self._cleanup_temp_images)
@@ -5599,7 +5600,15 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("AI回复失败")
             self.show_message_box("错误", f"AI回复失败：{event.data}", QMessageBox.Critical)
 
-    def show_board_interaction(self):
+    def auto_start_camera_receiver(self):
+        """系统启动时自动开始监听开发板摄像头端口，无需手动点击连接"""
+        try:
+            if hasattr(self, 'camera_receiver') and self.camera_receiver is not None:
+                if not self.camera_receiver.is_receiving:
+                    self.camera_receiver.start_receiving()
+                    print("[开发板] 摄像头接收器已自动启动，等待开发板连接...")
+        except Exception as e:
+            print(f"[开发板] 自动启动摄像头接收器失败: {e}")
         """显示开发板交互界面——引导用户连接或展示已连接状态"""
         is_connected = (hasattr(self, 'camera_receiver') and
                         self.camera_receiver is not None and

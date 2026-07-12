@@ -2316,8 +2316,17 @@ class MainWindow(QMainWindow):
         """)
 
         voice_ctrl_layout = QHBoxLayout()
+        self.voice_chat_enabled = QCheckBox("🔊 自动朗读 AI 回复")
+        self.voice_chat_enabled.setStyleSheet(f"color: {self.text_color};")
+        self.voice_chat_enabled.setChecked(True)
+        self.voice_chat_enabled.stateChanged.connect(self.toggle_voice_chat)
         voice_ctrl_layout.addWidget(self.voice_chat_enabled)
 
+        self.voice_input_button = QPushButton("🎤 语音输入")
+        self.voice_input_button.setStyleSheet(f"background-color: {self.accent_color}; color: white; padding: 6px 15px; border-radius: 15px;")
+        self.voice_input_button.clicked.connect(self.start_voice_input)
+        self.voice_input_button.setEnabled(True)
+        self.voice_input_button.setCursor(QCursor(Qt.PointingHandCursor))
         voice_ctrl_layout.addWidget(self.voice_input_button)
         voice_ctrl_layout.addStretch()
 

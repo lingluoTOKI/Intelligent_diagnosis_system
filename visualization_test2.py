@@ -2703,10 +2703,20 @@ class MainWindow(QMainWindow):
             
             if reply == QMessageBox.Yes:
                 self.chat_history.clear()
-                self.advice_text.setHtml("""
-                <div style='text-align: center; padding: 50px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
+                # 重置聊天显示区域
+                self.chat_display.setHtml(f"""
+                <html><body style='color:{self.text_color}; background:{self.primary_color}; font-family:Microsoft YaHei;'>
+                <div style='text-align: center; padding: 50px;'>
                     <h2 style='color: #00B5D8; margin-bottom: 20px;'>🗑️ 对话历史已清除</h2>
                     <p style='color: #e2e8f0; font-size: 16px;'>您可以开始新的医疗咨询对话</p>
+                </div>
+                </body></html>
+                """)
+                # 同时重置 AI 建议面板
+                self.advice_text.setHtml(f"""
+                <div style='text-align:center; margin-top:50px;'>
+                    <h2 style='color:{self.highlight_color};'>DeepSeek 诊疗引擎</h2>
+                    <p style='color:#616E88;'>请先进行疾病检测, 然后点击生成报告获取专业建议.</p>
                 </div>
                 """)
                 self.status_bar.showMessage("对话历史已清除")
@@ -4695,289 +4705,144 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def format_advice_html(self, markdown_text):
-        """将Markdown文本转换为美观的HTML格式"""
-        # 基本样式设置
-        html_header = f"""
-        <html>
-        <head>
-        <style>
-            body {{
-                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
-                color: {self.text_color};
-                background-color: {self.secondary_bg};
-                line-height: 1.8;
-                padding: 15px;
-                margin: 0;
-            }}
-            h1 {{
-                color: {self.highlight_color};
-                font-size: 26px;
-                font-weight: bold;
-                border-bottom: 3px solid {self.highlight_color};
-                padding-bottom: 12px;
-                margin-top: 10px;
-                margin-bottom: 20px;
-                text-align: center;
-            }}
-            h2 {{
-                color: {self.accent_color};
-                font-size: 22px;
-                margin-top: 25px;
-                margin-bottom: 15px;
-                border-left: 5px solid {self.accent_color};
-                padding-left: 15px;
-                font-weight: bold;
-            }}
-            h3 {{
-                color: {self.highlight_color};
-                font-size: 20px;
-                margin-top: 20px;
-                margin-bottom: 12px;
-                font-weight: bold;
-                border-bottom: 2px solid {self.highlight_color};
-                padding-bottom: 8px;
-            }}
-            h4 {{
-                color: {self.accent_color};
-                font-size: 18px;
-                margin-top: 18px;
-                margin-bottom: 10px;
-                font-weight: bold;
-                border-left: 3px solid {self.accent_color};
-                padding-left: 10px;
-            }}
-            p {{
-                margin: 12px 0;
-                font-size: 16px;
-                text-align: justify;
-            }}
-            ul, ol {{
-                margin: 15px 0;
-                padding-left: 25px;
-            }}
-            li {{
-                margin: 8px 0;
-                font-size: 16px;
-                line-height: 1.6;
-            }}
-            .advice-section {{
-                background-color: rgba(66, 153, 225, 0.08);
-                border-radius: 10px;
-                padding: 20px;
-                margin: 20px 0;
-                border-left: 5px solid {self.accent_color};
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .question-section {{
-                background-color: rgba(237, 100, 166, 0.08);
-                border-radius: 10px;
-                padding: 20px;
-                margin: 20px 0;
-                border-left: 5px solid {self.highlight_color};
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-            .highlight {{
-                background-color: rgba(237, 100, 166, 0.15);
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-weight: bold;
-            }}
-            .important {{
-                background-color: rgba(255, 193, 7, 0.15);
-                border: 1px solid #ffc107;
-                border-radius: 8px;
-                padding: 15px;
-                margin: 15px 0;
-                font-weight: bold;
-            }}
-            .warning {{
-                background-color: rgba(220, 53, 69, 0.1);
-                border: 1px solid #dc3545;
-                border-radius: 8px;
-                padding: 15px;
-                margin: 15px 0;
-                color: #dc3545;
-            }}
-            .info {{
-                background-color: rgba(23, 162, 184, 0.1);
-                border: 1px solid #17a2b8;
-                border-radius: 8px;
-                padding: 15px;
-                margin: 15px 0;
-                color: #17a2b8;
-                font-style: italic;
-            }}
-            .emoji-title {{
-                font-size: 1.2em;
-                display: inline-block;
-                margin-right: 8px;
-            }}
-            .health-tip {{
-                background: linear-gradient(135deg, rgba(40, 167, 69, 0.1), rgba(23, 162, 184, 0.1));
-                border-left: 4px solid #38A169;
-                padding: 12px 16px;
-                margin: 16px 0;
-                border-radius: 0 8px 8px 0;
-                font-style: italic;
-                color: #38A169;
-            }}
-            hr {{
-                border: none;
-                height: 3px;
-                background: linear-gradient(to right, {self.accent_color}, {self.highlight_color});
-                margin: 25px 0;
-                border-radius: 2px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            }}
-        </style>
-        </head>
-        <body>
-        """
+        """将Markdown文本转换为美观的HTML格式（返回 body 片段，不嵌套完整 HTML 文档）"""
 
-        html_footer = """
-        </body>
-        </html>
-        """
+        def _process_bold(text):
+            """将 **粗体** 和 *斜体* 转为 HTML 标签"""
+            text = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.accent_color};">\1</b>', text)
+            text = re.sub(r'(?<!\*)\*([^*\n]+?)\*(?!\*)', rf'<i style="color:{self.highlight_color};">\1</i>', text)
+            return text
 
-        # 处理标题（#、##、###、#### 开头的行）
+        def _process_inline(text):
+            """处理行内格式：粗体、斜体"""
+            return _process_bold(text)
+
         lines = markdown_text.split('\n')
         html_content = ""
 
         section_open = False
         in_numbered_list = False
-        for line in lines:
+        in_bullet_section = False
+        i = 0
+        while i < len(lines):
+            line = lines[i]
             stripped = line.strip()
 
-            # 空行
+            # 空行 — 关闭已打开的区域
             if not stripped:
-                if section_open and in_numbered_list:
+                if in_numbered_list:
                     html_content += "</ol>\n"
                     in_numbered_list = False
+                if in_bullet_section:
+                    html_content += "</div>\n"
+                    in_bullet_section = False
                 if section_open:
                     html_content += "</div>\n"
                     section_open = False
+                i += 1
                 continue
 
-            # 有序列表 "1." "2." 开头
+            # ── 标题处理 ──
+            if stripped.startswith('# '):
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
+                html_content += f"<h2 style='color:{self.accent_color}; font-size:20px; margin-top:22px; margin-bottom:12px; border-left:5px solid {self.accent_color}; padding-left:14px; font-weight:bold;'>{_process_inline(stripped[2:])}</h2>\n"
+                i += 1
+                continue
+
+            if stripped.startswith('## '):
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
+                html_content += f"<h3 style='color:{self.highlight_color}; font-size:18px; margin-top:18px; margin-bottom:10px; border-bottom:2px solid {self.highlight_color}; padding-bottom:6px; font-weight:bold;'>{_process_inline(stripped[3:])}</h3>\n"
+                i += 1
+                continue
+
+            if stripped.startswith('### '):
+                html_content += f"<h4 style='color:{self.accent_color}; font-size:16px; margin-top:14px; margin-bottom:8px; border-left:3px solid {self.accent_color}; padding-left:10px; font-weight:bold;'>{_process_inline(stripped[4:])}</h4>\n"
+                i += 1
+                continue
+
+            if stripped.startswith('#### '):
+                html_content += f"<h5 style='color:{self.highlight_color}; font-size:15px; margin-top:12px; margin-bottom:6px; font-weight:bold;'>{_process_inline(stripped[5:])}</h5>\n"
+                i += 1
+                continue
+
+            # ── 水平线 ──
+            if stripped == '---' or stripped == '--':
+                html_content += "<hr style='border:none; height:2px; background:#3b4252; margin:20px 0;'>\n"
+                i += 1
+                continue
+
+            # ── 引用块 ──
+            if stripped.startswith('> '):
+                html_content += f"<blockquote style='border-left:4px solid {self.accent_color}; margin:12px 0; padding:8px 16px; color:#94A3B8; font-style:italic;'>{_process_inline(stripped[2:])}</blockquote>\n"
+                i += 1
+                continue
+
+            # ── 代码块 ──
+            if stripped.startswith('```'):
+                i += 1
+                continue
+
+            # ── 表格 ──
+            if stripped.startswith('|') and stripped.endswith('|'):
+                cells = [c.strip() for c in stripped.split('|')[1:-1]]
+                if not all(c.startswith('---') for c in cells if c):
+                    html_content += f"<div style='font-size:14px; padding:6px 0; border-bottom:1px solid #3b4252;'>{'  |  '.join(cells)}</div>\n"
+                i += 1
+                continue
+
+            # ── 有序列表 "1." "2." 开头 ──
             numbered_match = re.match(r'^(\d+)\.\s+(.*)', stripped)
             if numbered_match:
                 if not section_open:
-                    html_content += f"<div class='advice-section' style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
+                    html_content += f"<div style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
                     section_open = True
                 if not in_numbered_list:
                     html_content += "<ol style='margin:10px 0; padding-left:22px;'>\n"
                     in_numbered_list = True
-                content = numbered_match.group(2)
-                content = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.accent_color};">\1</b>', content)
+                content = _process_inline(numbered_match.group(2))
                 html_content += f"<li style='margin:10px 0; font-size:15px; line-height:1.7;'>{content}</li>\n"
+                i += 1
                 continue
 
-            # 无序列表
-            bullet_match = re.match(r'^[\-\*]\s+(.*)', stripped)
-            if bullet_match and stripped != '---':
+            # ── 无序列表：- 、 * 、 • ──
+            bullet_match = re.match(r'^[\-\*•]\s*(.*)', stripped)
+            if bullet_match and stripped not in ('---', '--'):
                 if not section_open:
-                    html_content += f"<div class='advice-section' style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
+                    html_content += f"<div style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
                     section_open = True
-                content = bullet_match.group(1)
-                content = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.highlight_color};">\1</b>', content)
+                    in_bullet_section = True
+                content = _process_inline(bullet_match.group(1))
                 html_content += f"<div style='margin:10px 0; padding-left:18px; font-size:15px;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
+                i += 1
                 continue
 
-            # 代码块
-            if stripped.startswith('```'):
-                continue
+            # ── 普通段落 ──
+            if section_open:
+                html_content += "</div>\n"
+                section_open = False
+            if in_numbered_list:
+                html_content += "</ol>\n"
+                in_numbered_list = False
+            if in_bullet_section:
+                in_bullet_section = False
 
-            # 表格行
-            if stripped.startswith('|') and stripped.endswith('|'):
-                cells = [c.strip() for c in stripped.split('|')[1:-1]]
-                if all(c.startswith('---') for c in cells if c):
-                    continue
-                html_content += f"<div style='font-size:14px; padding:6px 0; border-bottom:1px solid #3b4252; color:{self.text_color};'>{'  |  '.join(cells)}</div>\n"
-                continue
-
-            # 水平线
-            if stripped == '---':
-                html_content += "<hr>\n"
-                continue
-
-            # 引用
-            if stripped.startswith('> '):
-                html_content += f"<blockquote style='border-left:4px solid {self.accent_color}; margin:12px 0; padding:8px 16px; color:#94A3B8; font-style:italic;'>{stripped[2:]}</blockquote>\n"
-                continue
-            # 处理大标题 (# 开头)
-            if line.strip().startswith('# '):
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                title = line.strip()[2:]
-                html_content += f"<h1>{title}</h1>\n"
-
-            # 处理小标题 (## 开头)
-            elif line.strip().startswith('## '):
-                if section_open:
-                    html_content += "</div>\n"
-                section_open = True
-                title = line.strip()[3:]
-                html_content += f'<div class="advice-section">\n<h2>{title}</h2>\n'
-
-            # 处理三级标题 (### 开头)
-            elif line.strip().startswith('### '):
-                title = line.strip()[4:]
-                html_content += f'<h3>{title}</h3>\n'
-
-            # 处理四级标题 (#### 开头)
-            elif line.strip().startswith('#### '):
-                title = line.strip()[5:]
-                html_content += f'<h4>{title}</h4>\n'
-
-            # 处理分隔线 (--- 或 --)
-            elif line.strip() == '---' or line.strip() == '--':
-                html_content += '<hr>\n'
-
-            # 处理无序列表 (- 或 * 开头)
-            elif line.strip().startswith('-') or line.strip().startswith('*'):
-                # 检查是否需要开始列表
-                if not html_content.endswith("<ul>\n") and not html_content.endswith("</li>\n"):
-                    html_content += "<ul>\n"
-
-                list_item = line.strip()[1:].strip()
-                html_content += f"<li>{list_item}</li>\n"
-
-                # 检查下一行是否还是列表项,如果不是则结束列表
-                next_index = lines.index(line) + 1
-                if next_index < len(lines) and not (lines[next_index].strip().startswith('-') or
-                                                    lines[next_index].strip().startswith('*')):
-                    html_content += "</ul>\n"
-
-            # 处理有序列表 (数字开头)
-            elif re.match(r'^\d+\.', line.strip()):
-                # 检查是否需要开始列表
-                if not html_content.endswith("<ol>\n") and not html_content.endswith("</li>\n"):
-                    html_content += "<ol>\n"
-
-                list_item = re.sub(r'^\d+\.', '', line.strip()).strip()
-                html_content += f"<li>{list_item}</li>\n"
-
-                # 检查下一行是否还是列表项,如果不是则结束列表
-                next_index = lines.index(line) + 1
-                if next_index < len(lines) and not re.match(r'^\d+\.', lines[next_index].strip()):
-                    html_content += "</ol>\n"
-
-            # 处理普通段落
-            elif line.strip():
-                if not html_content.endswith("</p>\n"):
-                    html_content += f"<p>{line.strip()}</p>\n"
-                else:
-                    # 如果上一行是段落结束,而这行不是特殊格式,那么合并为同一段落
-                    html_content = html_content[:-5] + " " + line.strip() + "</p>\n"
+            html_content += f"<p style='margin:12px 0; font-size:15px; line-height:1.8; text-align:justify;'>{_process_inline(stripped)}</p>\n"
+            i += 1
 
         # 确保所有区块都关闭
-        if section_open:
-            html_content += "</div>\n"
         if in_numbered_list:
             html_content += "</ol>\n"
+        if section_open or in_bullet_section:
+            html_content += "</div>\n"
 
-        return html_header + html_content + html_footer
+        # 对整体再做一次粗体处理（兜底）
+        html_content = _process_bold(html_content)
+
+        return f"<div style='font-family:Microsoft YaHei,SimHei,sans-serif; line-height:1.8;'>{html_content}</div>"
 
 
 
@@ -5354,6 +5219,18 @@ class MainWindow(QMainWindow):
             if not message:
                 QApplication.postEvent(self, AIResponseEvent("error", "请输入您的问题或症状描述。"))
                 return
+
+            # 附加上下文：当前检测结果
+            disease = getattr(self, 'current_disease', None)
+            confidence = getattr(self, 'current_confidence', None)
+            detection_context = ""
+            if disease and disease != "未知" and confidence is not None:
+                detection_context = (
+                    f"\n\n[系统上下文] 患者当前已完成的眼部AI检测结果："
+                    f"检测疾病为「{disease}」，置信度 {confidence:.2f}。"
+                    f"请结合此检测结果回答患者问题。"
+                )
+                message = message + detection_context
 
             QApplication.postEvent(self, AIResponseEvent("progress", "正在连接 AI 引擎...", 25))
 

@@ -3280,78 +3280,68 @@ class MainWindow(QMainWindow):
             self.show_message_box("错误", "请先加载模型!", QMessageBox.Critical)
             return
 
-        # 创建进度对话框
-        progress_dialog = QProgressDialog("批量处理图像...", "取消", 0, 100, self)
-        progress_dialog.setWindowTitle("批量处理")
-        progress_dialog.setWindowModality(Qt.WindowModal)
-        progress_dialog.setAutoClose(True)
-        progress_dialog.setAutoReset(True)
-
         file_dialog = QFileDialog()
         file_dialog.setFileMode(QFileDialog.ExistingFiles)
         file_dialog.setNameFilter("图像文件 (*.png *.jpg *.jpeg *.bmp)")
 
-        if file_dialog.exec() == QFileDialog.Accepted:
-            image_paths = file_dialog.selectedFiles()
-            if not image_paths:
-                return
+        if file_dialog.exec() != QFileDialog.Accepted:
+            return
 
-            progress_dialog.setMaximum(len(image_paths))
-            progress_dialog.show()
+        image_paths = file_dialog.selectedFiles()
+        if not image_paths:
+            return
 
-            results_summary = []
-            disease_counter = {}
+        progress_dialog = QProgressDialog("批量处理图像...", "取消", 0, len(image_paths), self)
+        progress_dialog.setWindowTitle("批量处理")
+        progress_dialog.setWindowModality(Qt.WindowModal)
+        progress_dialog.setAutoClose(True)
+        progress_dialog.setAutoReset(True)
+        progress_dialog.show()
 
-            for i, image_path in enumerate(image_paths):
+        results_summary = []
+        disease_counter = {}
+
+        try:
+            # 使用 YOLO stream 模式，底层 C++ 批处理+Pipeline，极致性能
+            results_generator = self.detector.model.predict(
+                source=image_paths, stream=True, conf=0.5
+            )
+
+            for i, (image_path, current_results) in enumerate(zip(image_paths, results_generator)):
                 if progress_dialog.wasCanceled():
                     break
 
                 progress_dialog.setValue(i)
-                progress_dialog.setLabelText(f"正在处理: {os.path.basename(image_path)}")
+                progress_dialog.setLabelText(f"正在处理 ({i+1}/{len(image_paths)}): {os.path.basename(image_path)}")
                 QApplication.processEvents()
 
+                disease_name = "未知"
+                confidence = 0.0
+
                 try:
-                    image = cv2.imread(image_path)
-                    if image is None:
-                        results_summary.append(f"❌ 无法加载图像: {os.path.basename(image_path)}")
-                        continue
+                    # 直接读 API 属性，不走 redirect_stdout + 正则
+                    if hasattr(current_results, 'probs') and current_results.probs is not None:
+                        top_class_idx = int(current_results.probs.top1)
+                        confidence = float(current_results.probs.top1conf)
+                        disease_name = self.detector.class_names.get(top_class_idx, "未知")
 
-                    output_buffer = io.StringIO()
-                    with redirect_stdout(output_buffer):
-                        results = self.detector.predict(image)
+                    # 只统计有效疾病
+                    if disease_name not in ("未知", "Other"):
+                        disease_counter[disease_name] = disease_counter.get(disease_name, 0) + 1
 
-                    prediction_output = output_buffer.getvalue()
-                    disease_name = "未知"
-                    confidence = 0.0
-
-                    if results and len(results) > 0:
-                        current_results = results[0]
-                        pattern = r'512x512 ([A-Z]) ([0-9]+\.[0-9]+)'
-                        match = re.search(pattern, prediction_output)
-
-                        if match:
-                            letter = match.group(1)
-                            confidence = float(match.group(2))
-                            disease_name = self.detector.letter_to_disease.get(letter, "未知")
-                        elif hasattr(current_results, 'probs') and current_results.probs is not None:
-                            top_class_idx = int(current_results.probs.top1)
-                            confidence = float(current_results.probs.top1conf)
-                            disease_name = self.detector.class_names.get(top_class_idx, "未知")
-
-                    # 统计
-                    disease_counter[disease_name] = disease_counter.get(disease_name, 0) + 1
-                    # 保存到历史
                     self.save_to_history(image_path, disease_name, confidence)
-                    results_summary.append(
-                        f"✅ 图像 {os.path.basename(image_path)}: 检测结果 - {disease_name} (置信度: {confidence:.2f})")
+                    results_summary.append(f"✅ 图像 {os.path.basename(image_path)}: 检测结果 - {disease_name} (置信度: {confidence:.2f})")
 
                 except Exception as e:
                     results_summary.append(f"❌ 图像 {os.path.basename(image_path)} 处理出错: {str(e)}")
 
-            progress_dialog.close()
-            # 统计报告弹窗
-            self.show_batch_report(disease_counter, results_summary)
-            self.status_bar.showMessage("批量处理完成")
+        except Exception as e:
+            self.show_message_box("错误", f"批量处理失败: {str(e)}", QMessageBox.Critical)
+            return
+
+        progress_dialog.setValue(len(image_paths))
+        self.show_batch_report(disease_counter, results_summary)
+        self.status_bar.showMessage("批量处理完成")
 
     def show_batch_report(self, disease_counter, results_summary):
         dialog = QDialog(self)

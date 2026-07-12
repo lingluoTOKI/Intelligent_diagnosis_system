@@ -2173,9 +2173,13 @@ class MainWindow(QMainWindow):
         self.results_button.clicked.connect(self.show_results)
         self.results_button.setEnabled(False)
 
-        # 扩展工具按钮
-        tools_layout = QHBoxLayout()
-        tools_layout.setSpacing(10)
+        # 布局工具按钮
+        tools_widget = QWidget()
+        tools_widget.setStyleSheet(f"background-color: {self.secondary_bg}; border-radius: 8px; border-top: 3px solid {self.accent_color}; padding: 8px;")
+        tools_layout = QGridLayout(tools_widget)
+        tools_layout.setSpacing(8)
+        tools_layout.setContentsMargins(8, 8, 8, 8)
+
         self.batch_button = QPushButton("📁 批量处理")
         self.history_button = QPushButton("📜 历史记录")
         self.board_interaction_button = QPushButton("📱 开发板交互")
@@ -2187,10 +2191,11 @@ class MainWindow(QMainWindow):
                 background-color: #3B4252;
                 border: 1px solid #4C566A;
                 color: {self.text_color};
-                padding: 10px;
+                padding: 8px;
                 border-radius: 6px;
                 font-weight: bold;
                 font-size: 12px;
+                min-height: 32px;
             }}
             QPushButton:hover {{
                 background-color: #4C566A;
@@ -2206,7 +2211,18 @@ class MainWindow(QMainWindow):
                      self.voice_server_button, self.connection_test_button]:
             btn.setStyleSheet(tool_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
-            tools_layout.addWidget(btn)
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        # 按两行排列：第一行3个，第二行2个靠左
+        tools_layout.addWidget(self.history_button, 0, 0)
+        tools_layout.addWidget(self.board_interaction_button, 0, 1)
+        tools_layout.addWidget(self.voice_server_button, 0, 2)
+        tools_layout.addWidget(self.connection_test_button, 1, 0)
+        tools_layout.addWidget(self.batch_button, 1, 1)
+
+        # 设置列等宽
+        for col in range(3):
+            tools_layout.setColumnStretch(col, 1)
 
         self.batch_button.clicked.connect(self.batch_process)
         self.batch_button.setEnabled(False)
@@ -2216,7 +2232,7 @@ class MainWindow(QMainWindow):
         self.connection_test_button.clicked.connect(self.test_board_connection)
 
         btn_layout_v.addLayout(main_flow_layout)
-        btn_layout_v.addLayout(tools_layout)
+        btn_layout_v.addWidget(tools_widget)  # 工具按钮面板
         left_layout.addWidget(btn_panel, stretch=0)  # 保持按钮区原始高度
 
         # ========================================================

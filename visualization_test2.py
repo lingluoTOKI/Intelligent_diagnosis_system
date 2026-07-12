@@ -5212,8 +5212,9 @@ class MainWindow(QMainWindow):
                 ], capture_output=True, check=True, timeout=30)
                 # 2. 打断上一轮播放
                 self.stop_speaking()
-                # 3. 播放
-                self._tts_proc = subprocess.Popen(['start', '/WAIT', '', mp3_path], shell=True)
+                # 3. 播放（用系统默认音频设备，不弹第三方播放器）
+                import os as _os2
+                _os2.startfile(mp3_path)
                 print(f"[DEBUG] TTS(edge-tts): 播放完成 → {mp3_path}")
             except Exception as e:
                 print(f"[DEBUG] TTS(edge-tts): 失败 {e}")

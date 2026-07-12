@@ -95,7 +95,7 @@ class HistoryDB:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT * FROM records WHERE disease_name NOT LIKE '[对�]%' ORDER BY timestamp DESC LIMIT ?", (limit,)
+                "SELECT * FROM records WHERE disease_name NOT LIKE '[对话]%' ORDER BY timestamp DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -4088,6 +4088,10 @@ class MainWindow(QMainWindow):
             try:
                 date = datetime.strptime(rec['timestamp'], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
                 disease = rec['disease_name']
+
+                # 过滤以 '[' 开头的非标准疾病名（如 [对话]、[异常] 等脏数据）
+                if disease.startswith('['):
+                    continue
 
                 # 统计每日总数
                 date_count[date] = date_count.get(date, 0) + 1

@@ -2302,6 +2302,23 @@ class MainWindow(QMainWindow):
 
         self.ai_progress_bar = QProgressBar()
         self.ai_progress_bar.setVisible(False)
+        self.ai_progress_bar.setTextVisible(True)
+        self.ai_progress_bar.setStyleSheet(f"""
+            QProgressBar {{
+                border: none;
+                background-color: #1E222A;
+                height: 6px;
+                border-radius: 3px;
+                text-align: center;
+                font-size: 11px;
+                color: {self.accent_color};
+            }}
+            QProgressBar::chunk {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {self.accent_color}, stop:1 {self.highlight_color});
+                border-radius: 3px;
+            }}
+        """)
 
         chat_layout.addWidget(self.chat_input)
         chat_layout.addLayout(voice_ctrl_layout)
@@ -3197,6 +3214,9 @@ class MainWindow(QMainWindow):
                 temp_image_path = f"medical_images/temp_image_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
                 cv2.imwrite(temp_image_path, self.current_image)
                 self.save_to_history(os.path.abspath(temp_image_path), disease_name, confidence)
+
+                # 自动弹出 DeepSeek 报告
+                QTimer.singleShot(300, lambda: self.advice_button.click())
             else:
                 self.show_message_box("警告", "模型未能生成检测结果！", QMessageBox.Warning)
         except Exception as e:
@@ -4824,7 +4844,66 @@ class MainWindow(QMainWindow):
         html_content = ""
 
         section_open = False
+        in_numbered_list = False
         for line in lines:
+            stripped = line.strip()
+
+            # 空行
+            if not stripped:
+                if section_open and in_numbered_list:
+                    html_content += "</ol>\n"
+                    in_numbered_list = False
+                if section_open:
+                    html_content += "</div>\n"
+                    section_open = False
+                continue
+
+            # 有序列表 "1." "2." 开头
+            numbered_match = re.match(r'^(\d+)\.\s+(.*)', stripped)
+            if numbered_match:
+                if not section_open:
+                    html_content += f"<div class='advice-section' style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
+                    section_open = True
+                if not in_numbered_list:
+                    html_content += "<ol style='margin:10px 0; padding-left:22px;'>\n"
+                    in_numbered_list = True
+                content = numbered_match.group(2)
+                content = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.accent_color};">\1</b>', content)
+                html_content += f"<li style='margin:10px 0; font-size:15px; line-height:1.7;'>{content}</li>\n"
+                continue
+
+            # 无序列表
+            bullet_match = re.match(r'^[\-\*]\s+(.*)', stripped)
+            if bullet_match and stripped != '---':
+                if not section_open:
+                    html_content += f"<div class='advice-section' style='background-color:rgba(0,181,216,0.06); border-left:5px solid {self.accent_color}; border-radius:10px; padding:18px; margin:16px 0;'>\n"
+                    section_open = True
+                content = bullet_match.group(1)
+                content = re.sub(r'\*\*(.+?)\*\*', rf'<b style="color:{self.highlight_color};">\1</b>', content)
+                html_content += f"<div style='margin:10px 0; padding-left:18px; font-size:15px;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
+                continue
+
+            # 代码块
+            if stripped.startswith('```'):
+                continue
+
+            # 表格行
+            if stripped.startswith('|') and stripped.endswith('|'):
+                cells = [c.strip() for c in stripped.split('|')[1:-1]]
+                if all(c.startswith('---') for c in cells if c):
+                    continue
+                html_content += f"<div style='font-size:14px; padding:6px 0; border-bottom:1px solid #3b4252; color:{self.text_color};'>{'  |  '.join(cells)}</div>\n"
+                continue
+
+            # 水平线
+            if stripped == '---':
+                html_content += "<hr>\n"
+                continue
+
+            # 引用
+            if stripped.startswith('> '):
+                html_content += f"<blockquote style='border-left:4px solid {self.accent_color}; margin:12px 0; padding:8px 16px; color:#94A3B8; font-style:italic;'>{stripped[2:]}</blockquote>\n"
+                continue
             # 处理大标题 (# 开头)
             if line.strip().startswith('# '):
                 if section_open:
@@ -4892,30 +4971,11 @@ class MainWindow(QMainWindow):
                     # 如果上一行是段落结束,而这行不是特殊格式,那么合并为同一段落
                     html_content = html_content[:-5] + " " + line.strip() + "</p>\n"
 
-        # 确保所有区块都正确关闭
+        # 确保所有区块都关闭
         if section_open:
             html_content += "</div>\n"
-
-        # 替换任何可能的**粗体**标记
-        html_content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', html_content)
-
-        # 替换任何可能的*斜体*标记
-        html_content = re.sub(r'\*(.*?)\*', r'<em>\1</em>', html_content)
-
-        # 替换任何可能的`代码`标记
-        html_content = re.sub(r'`(.*?)`', r'<code>\1</code>', html_content)
-
-                    # 处理特殊关键词高亮
-        html_content = re.sub(r'(\*[^*]+\*)', r'<span class="highlight">\1</span>', html_content)
-
-        # 处理重要提醒
-        if '关键提醒' in html_content or '重要提醒' in html_content or '⚠️ 重要提醒' in html_content:
-            html_content = re.sub(r'(关键提醒|重要提醒|⚠️ 重要提醒)(.*?)(?=<h|$)', 
-                                r'<div class="important"><strong>\1</strong>\2</div>', 
-                                html_content, flags=re.DOTALL)
-        
-        # 处理健康提示的特殊样式
-        html_content = re.sub(r'(\*💊 健康提示：[^*]+\*)', r'<div class="health-tip">\1</div>', html_content)
+        if in_numbered_list:
+            html_content += "</ol>\n"
 
         return html_header + html_content + html_footer
 
@@ -5252,10 +5312,39 @@ class MainWindow(QMainWindow):
 
     def send_chat_message_with_progress(self):
         """发送消息并显示进度条"""
-        # 显示进度条
+        question = self.chat_input.toPlainText().strip()
+        if not question:
+            self.show_message_box("提示", "请输入您的问题或症状描述。", QMessageBox.Information)
+            return
+
+        self._last_user_question = question[:500]
+
+        # 先追加用户消息到聊天框
+        user_block = f"""
+        <div style='margin-bottom: 16px; padding: 10px 14px; background-color: #282C34; border-radius: 8px; border-left: 3px solid #805AD5;'>
+            <div style='color: #805AD5; font-weight: bold; margin-bottom: 4px;'>👤 您 ({datetime.now().strftime('%H:%M:%S')}):</div>
+            <div style='color: #E5E9F0; padding-left: 8px;'>{question}</div>
+        </div>
+        """
+        # 追加 AI 正在思考的占位块
+        thinking_block = f"""
+        <div style='margin-bottom: 20px; padding: 12px; background-color: #282C34; border-radius: 8px; border-left: 3px solid #00B5D8;'>
+            <div style='color: #00B5D8; font-weight: bold; margin-bottom: 6px;'>🩺 AI 正在回复...</div>
+            <div style='color: #94A3B8; padding-left: 10px; font-style: italic;'>请稍候, AI 正在分析您的问题并生成专业回复...</div>
+        </div>
+        """
+
+        current_html = self.chat_display.toHtml()
+        if "DeepSeek 诊疗引擎" in current_html or "对话历史已清除" in current_html or len(current_html) < 500:
+            wrapper = f"<html><body style='color:{self.text_color}; background:{self.primary_color}; font-family:Microsoft YaHei;'>{user_block}{thinking_block}</body></html>"
+            self.chat_display.setHtml(wrapper)
+        else:
+            self.chat_display.setHtml(current_html.replace("</body>", user_block + thinking_block + "</body>"))
+
+        self.chat_input.clear()
         self.show_ai_progress(True)
-        
-        # 在新线程中处理AI回复以避免阻塞UI
+        self.ai_progress_bar.setFormat("🤔 AI 正在分析您的问题...")
+
         threading.Thread(target=self.process_ai_response, daemon=True).start()
 
     def process_ai_response(self):
@@ -5265,59 +5354,50 @@ class MainWindow(QMainWindow):
             if not message:
                 QApplication.postEvent(self, AIResponseEvent("error", "请输入您的问题或症状描述。"))
                 return
-                
-            # 更新进度
-            QApplication.postEvent(self, AIResponseEvent("progress", "连接AI服务...", 20))
-            import time
-            time.sleep(0.5)  # 给进度条更新时间
-            
+
+            QApplication.postEvent(self, AIResponseEvent("progress", "正在连接 AI 引擎...", 25))
+
             api_key = self.api_key_input.text().strip()
             if not api_key:
-                # 使用默认建议
                 QApplication.postEvent(self, AIResponseEvent("progress", "生成默认建议...", 60))
-                time.sleep(0.5)  # 给进度条更新时间
+                time.sleep(0.3)
                 response = """# 🩺 AI医疗咨询建议
 
 ## 💡 一般建议
 
 ### 🔍 日常护理
 1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
-2. **保持良好的用眼习惯** - 适当休息,避免长时间用眼疲劳
-3. **注意眼部卫生** - 保持手部清洁,避免用手直接接触眼部
+2. **保持良好的用眼习惯** - 适当休息, 避免长时间用眼疲劳
+3. **注意眼部卫生** - 保持手部清洁, 避免用手直接接触眼部
 
 ### ⚠️ 重要提醒
-- 如有不适症状,请及时就医
-- 以上建议仅供参考,不能替代专业医疗诊断
+- 如有不适症状, 请及时就医
+- 以上建议仅供参考, 不能替代专业医疗诊断
 
 ---
 
 ## 🚀 获取更专业建议
-如需更详细的医疗建议,建议您：
+如需更详细的医疗建议, 建议您:
 - 启用 **DeepSeek API** 获取AI专业分析
 - 咨询专业眼科医生进行详细检查
 
-*💊 健康提示：早发现、早治疗是眼部疾病防治的关键*"""
+*💊 健康提示: 早发现、早治疗是眼部疾病防治的关键*"""
                 QApplication.postEvent(self, AIResponseEvent("progress", "完成", 100))
+                time.sleep(0.2)
                 QApplication.postEvent(self, AIResponseEvent("completed", response))
                 return
-            
-            # 使用AI API
-            QApplication.postEvent(self, AIResponseEvent("progress", "发送请求到AI...", 40))
-            time.sleep(0.5)  # 给进度条更新时间
-            
+
+            QApplication.postEvent(self, AIResponseEvent("progress", "正在请求 AI 分析...", 50))
             ai_service = MedicalAIService(api_key)
             response = ai_service.get_custom_advice(message)
-            
-            QApplication.postEvent(self, AIResponseEvent("progress", "处理AI回复...", 80))
-            time.sleep(0.5)  # 给进度条更新时间
-            
-            # 模拟一些处理时间
-            import time
-            time.sleep(0.5)
-            
+
+            QApplication.postEvent(self, AIResponseEvent("progress", "正在组织回复...", 85))
+            time.sleep(0.3)
+
             QApplication.postEvent(self, AIResponseEvent("progress", "完成", 100))
+            time.sleep(0.2)
             QApplication.postEvent(self, AIResponseEvent("completed", response))
-            
+
         except Exception as e:
             QApplication.postEvent(self, AIResponseEvent("error", str(e)))
 
@@ -5492,230 +5572,75 @@ class MainWindow(QMainWindow):
         """)
 
     def handle_ai_response_event(self, event):
-        """处理AI回复事件"""
+        """处理AI回复事件——一问一答追加模式"""
         if event.event_type == "progress":
             self.update_ai_progress(event.progress, event.data)
-            
+
         elif event.event_type == "completed":
             self.show_ai_progress(False)
 
-            # 使用 format_advice_html 渲染问答内容,复用精美医疗排版
-            formatted_html = self.format_advice_html(event.data)
-            self.chat_display.setHtml(formatted_html)
+            ai_msg = event.data
+
+            self.chat_history.append({
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
+                "question": getattr(self, '_last_user_question', ''),
+                "answer": ai_msg[:1000]
+            })
+            if len(self.chat_history) > 50:
+                self.chat_history = self.chat_history[-50:]
+
+            # 构建 AI 回复块
+            ai_block = f"""
+            <div style='margin-bottom: 20px; padding: 12px; background-color: #1E222A; border-radius: 8px; border-left: 3px solid #00B5D8;'>
+                <div style='color: #00B5D8; font-weight: bold; margin-bottom: 6px;'>🩺 AI 回复 ({self.chat_history[-1]['timestamp']}):</div>
+                <div style='color: #E5E9F0; padding-left: 10px; line-height: 1.6;'>
+                    {self.format_advice_html(ai_msg)}
+                </div>
+            </div>
+            """
+
+            current_html = self.chat_display.toHtml()
+            # 移除之前追加的 thinking 占位块
+            marker = 'AI 正在回复...'
+            clean = current_html
+            if marker in current_html:
+                idx = current_html.find(marker)
+                if idx > 0:
+                    start = current_html.rfind("<div style='margin-bottom:", 0, idx)
+                    if start >= 0 and start < idx:
+                        end1 = current_html.find("</div>", idx)
+                        if end1 >= 0:
+                            end2 = current_html.find("</div>", end1 + 6)
+                            if end2 >= 0:
+                                clean = current_html[:start] + current_html[end2 + 6:]
+
+            if len(clean) < 500:
+                wrapper = f"<html><body style='color:{self.text_color}; background:{self.primary_color}; font-family:Microsoft YaHei;'>{ai_block}</body></html>"
+                self.chat_display.setHtml(wrapper)
+            else:
+                self.chat_display.setHtml(clean.replace("</body>", ai_block + "</body>"))
 
             self.chat_input.clear()
             self.status_bar.showMessage("对话完成")
 
-            # 如果启用语音对话,播放AI回复
             if self.voice_chat_enabled.isChecked():
                 print("[DEBUG] 语音对话已启用,准备播放AI回复")
-                self.speak_text(event.data)
+                self.speak_text(ai_msg)
                 self.status_bar.showMessage("对话完成,正在播放语音回复...")
-                
+
         elif event.event_type == "error":
             self.show_ai_progress(False)
             self.status_bar.showMessage("AI回复失败")
             self.show_message_box("错误", f"AI回复失败：{event.data}", QMessageBox.Critical)
 
     def show_board_interaction(self):
-        """显示开发板交互界面"""
-        try:
-            dialog = QDialog(self)
-            dialog.setWindowTitle("开发板交互管理")
-            dialog.resize(800, 600)
-            dialog.setStyleSheet(f"""
-                QDialog {{
-                    background-color: {self.background_color};
-                    color: {self.text_color};
-                }}
-            """)
-            
-            layout = QVBoxLayout(dialog)
-            layout.setSpacing(20)
-            
-            # 标题
-            title_label = QLabel("[开发板] 交互控制中心")
-            title_label.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
-            title_label.setAlignment(Qt.AlignCenter)
-            title_label.setStyleSheet(f"color: {self.accent_color}; margin: 20px;")
-            layout.addWidget(title_label)
-            
-            # 功能按钮区域
-            buttons_layout = QHBoxLayout()
-            
-            camera_btn = QPushButton("启动摄像头")
-            camera_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {self.accent_color};
-                    color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }}
-                QPushButton:hover {{
-                    background-color: {self.highlight_color};
-                }}
-            """)
-            camera_btn.clicked.connect(self.start_board_camera)
-            
-            voice_btn = QPushButton("启动语音对话")
-            voice_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: #38a169;
-                    color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }}
-                QPushButton:hover {{
-                    background-color: #2f855a;
-                }}
-            """)
-            voice_btn.clicked.connect(self.start_board_voice)
-            
-            test_btn = QPushButton("测试连接")
-            test_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: #d69e2e;
-                    color: white;
-                    padding: 15px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    font-size: 12px;
-                }}
-                QPushButton:hover {{
-                    background-color: #b7791f;
-                }}
-            """)
-            test_btn.clicked.connect(self.test_board_connection)
-            
-            buttons_layout.addWidget(camera_btn)
-            buttons_layout.addWidget(voice_btn)
-            buttons_layout.addWidget(test_btn)
-            layout.addLayout(buttons_layout)
-            
-            # 音频设备选择区域
-            audio_group = QGroupBox("音频播放设备设置")
-            audio_group.setStyleSheet(f"""
-                QGroupBox {{
-                    font-weight: bold;
-                    border: 2px solid {self.accent_color};
-                    border-radius: 8px;
-                    margin-top: 10px;
-                    padding-top: 10px;
-                }}
-                QGroupBox::title {{
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px 0 5px;
-                }}
-            """)
-            
-            audio_layout = QVBoxLayout(audio_group)
-            
-            # 设备选择按钮
-            device_layout = QHBoxLayout()
-            
-            # 当前音频设备设置
-            current_device = getattr(self, 'audio_output_device', 'pc')
-            
-            pc_radio = QCheckBox("PC端播放")
-            pc_radio.setChecked(current_device == 'pc')
-            pc_radio.toggled.connect(lambda checked: self.set_audio_device('pc') if checked else None)
-            
-            board_radio = QCheckBox("开发板播放")  
-            board_radio.setChecked(current_device == 'board')
-            board_radio.toggled.connect(lambda checked: self.set_audio_device('board') if checked else None)
-            
-            both_radio = QCheckBox("双端播放")
-            both_radio.setChecked(current_device == 'both')
-            both_radio.toggled.connect(lambda checked: self.set_audio_device('both') if checked else None)
-            
-            device_layout.addWidget(pc_radio)
-            device_layout.addWidget(board_radio)
-            device_layout.addWidget(both_radio)
-            
-            # 测试音频按钮
-            test_audio_btn = QPushButton("测试音频播放")
-            test_audio_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: #805ad5;
-                    color: white;
-                    padding: 8px 15px;
-                    border-radius: 6px;
-                    font-weight: bold;
-                }}
-                QPushButton:hover {{
-                    background-color: #6b46c1;
-                }}
-            """)
-            test_audio_btn.clicked.connect(self.test_audio_output)
-            
-            audio_layout.addLayout(device_layout)
-            audio_layout.addWidget(test_audio_btn)
-            layout.addWidget(audio_group)
-            
-            # 说明文本
-            info_text = QTextEdit()
-            info_text.setReadOnly(True)
-            info_text.setStyleSheet(f"""
-                QTextEdit {{
-                    background-color: {self.secondary_bg};
-                    border: 1px solid {self.accent_color};
-                    border-radius: 6px;
-                    padding: 10px;
-                }}
-            """)
-            info_text.setText("""
-开发板功能说明：
+        """显示开发板交互界面——单机模式提示"""
+        self.show_message_box(
+            "开发板交互功能",
+            "此功能需要连接开发板硬件。\\n\\n当前为 PC 单机模式，支持：\\n- 本地图像检测\\n- DeepSeek AI 医疗问诊\\n- 语音交互\\n\\n如需使用完整功能，请连接开发板后在「硬件实时视窗」中操作。",
+            QMessageBox.Information
+        )
 
-1. 摄像头功能：
-   - 实时预览视频流
-   - 拍照并发送AI诊断
-   - 保存图像到本地
-
-2. 语音对话：
-   - 开发板录音发送到PC
-   - PC端AI处理并回复
-   - 语音合成播放到开发板
-
-3. 网络交互：
-   - 实时屏幕共享
-   - 触摸屏控制PC
-   - 数据双向传输
-
-使用步骤：
-1. 确保开发板和PC在同一网络
-2. 启动对应的开发板程序
-3. 通过界面或语音进行交互
-            """)
-            layout.addWidget(info_text)
-            
-            # 关闭按钮
-            close_btn = QPushButton("关闭")
-            close_btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: {self.accent_color};
-                    color: white;
-                    padding: 10px 30px;
-                    border-radius: 6px;
-                    font-weight: bold;
-                }}
-            """)
-            close_btn.clicked.connect(dialog.accept)
-            
-            close_layout = QHBoxLayout()
-            close_layout.addStretch()
-            close_layout.addWidget(close_btn)
-            layout.addLayout(close_layout)
-            
-            dialog.exec_()
-            
-        except Exception as e:
-            self.show_message_box("错误", f"开发板交互界面启动失败: {e}", QMessageBox.Critical)
-    
     def toggle_voice_server(self):
         """启动/停止语音服务器"""
         try:

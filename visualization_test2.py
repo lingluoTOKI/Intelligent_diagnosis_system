@@ -3389,7 +3389,7 @@ class MainWindow(QMainWindow):
             theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-            fig.set_facecolor('#2d3748')
+            fig.set_facecolor('#1a1e24'); fig.patch.set_alpha(0.0)
 
             wedges, texts, autotexts = ax1.pie(
                 list(filtered.values()), labels=list(filtered.keys()), autopct='%1.1f%%',
@@ -3413,10 +3413,11 @@ class MainWindow(QMainWindow):
                 ax2.annotate(f'{int(h)}', xy=(bar.get_x() + bar.get_width() / 2, h),
                              xytext=(0, 3), textcoords="offset points", ha='center', va='bottom', color='white')
             for ax in [ax1, ax2]:
-                ax.set_facecolor('#2d3748')
+                ax.set_facecolor('#1a1e24'); ax.patch.set_alpha(0.0)
                 for spine in ax.spines.values(): spine.set_edgecolor('#4a5568')
 
-            fig.tight_layout()
+            fig.subplots_adjust(top=0.85, bottom=0.2, wspace=0.25)
+            fig.tight_layout(pad=2.0)
             canvas = FigureCanvas(fig)
             chart_container = QWidget()
             chart_container.setStyleSheet("background-color: #2d3748; border-radius: 8px;")
@@ -3459,11 +3460,20 @@ class MainWindow(QMainWindow):
         btn_style = f"QPushButton {{ background-color: {self.accent_color}; color: white; padding: 8px 24px; border-radius: 6px; font-weight: bold; font-size: 13px; min-width: 100px; }} QPushButton:hover {{ background-color: #0097B2; }}"
 
         fullscreen_btn = QPushButton("🖥️ 全屏")
-        fullscreen_btn.setStyleSheet(btn_style)
+        fullscreen_btn.setStyleSheet(f"""
+            QPushButton {{ background-color: transparent; color: {self.accent_color};
+                border: 1px solid {self.accent_color}; padding: 8px 30px; border-radius: 6px;
+                font-weight: bold; font-size: 13px; }}
+            QPushButton:hover {{ background-color: rgba(0, 181, 216, 0.1); }}
+        """)
         fullscreen_btn.clicked.connect(lambda: self.toggle_batch_report_fullscreen(dialog))
 
         close_btn = QPushButton("❌ 关闭")
-        close_btn.setStyleSheet(btn_style)
+        close_btn.setStyleSheet(f"""
+            QPushButton {{ background-color: #3b4252; color: #E5E9F0; border: none;
+                padding: 8px 30px; border-radius: 6px; font-weight: bold; font-size: 13px; }}
+            QPushButton:hover {{ background-color: #4C566A; }}
+        """)
         close_btn.clicked.connect(dialog.accept)
 
         button_layout.addWidget(fullscreen_btn)

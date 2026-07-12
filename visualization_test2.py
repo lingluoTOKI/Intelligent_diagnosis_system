@@ -2179,6 +2179,7 @@ class MainWindow(QMainWindow):
         self.history_button = QPushButton("📜 历史记录")
         self.board_interaction_button = QPushButton("📱 开发板交互")
         self.voice_server_button = QPushButton("🎤 语音服务")
+        self.connection_test_button = QPushButton("🔗 连接测试")
 
         tool_style = f"""
             QPushButton {{
@@ -2188,6 +2189,7 @@ class MainWindow(QMainWindow):
                 padding: 10px;
                 border-radius: 6px;
                 font-weight: bold;
+                font-size: 12px;
             }}
             QPushButton:hover {{
                 background-color: #4C566A;
@@ -2199,7 +2201,8 @@ class MainWindow(QMainWindow):
                 border: 1px solid #3b4252;
             }}
         """
-        for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.voice_server_button]:
+        for btn in [self.batch_button, self.history_button, self.board_interaction_button,
+                     self.voice_server_button, self.connection_test_button]:
             btn.setStyleSheet(tool_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
             tools_layout.addWidget(btn)
@@ -2209,6 +2212,7 @@ class MainWindow(QMainWindow):
         self.history_button.clicked.connect(self.show_history)
         self.board_interaction_button.clicked.connect(self.show_board_interaction)
         self.voice_server_button.clicked.connect(self.toggle_voice_server)
+        self.connection_test_button.clicked.connect(self.test_board_connection)
 
         btn_layout_v.addLayout(main_flow_layout)
         btn_layout_v.addLayout(tools_layout)

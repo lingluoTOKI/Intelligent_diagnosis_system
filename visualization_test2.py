@@ -5190,8 +5190,8 @@ class MainWindow(QMainWindow):
         clean = re.sub(r'`{1,3}[^`]*`{1,3}', '', clean)
         clean = re.sub(r'\n+', '。', clean)
         clean = re.sub(r'\s+', ' ', clean).strip()
-        if len(clean) > 300:
-            clean = clean[:300] + "。以下内容已省略。"
+        if len(clean) > 100:
+            clean = clean[:100] + "。具体建议请查看界面。"
         if not clean.strip():
             return
 
@@ -5229,6 +5229,31 @@ class MainWindow(QMainWindow):
 
         threading.Thread(target=safe_speak, daemon=True).start()
     
+    def _summarize_for_tts(self, markdown_text):
+        """从 AI 回复中提取简短摘要（≤100字），用于语音播报"""
+        import re
+        # 先提取纯文本
+        text = markdown_text
+        text = re.sub(r'<[^>]+>', '', text)
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'#+\s*', '', text)
+        text = re.sub(r'[-*•`]\s*', '', text)
+        text = re.sub(r'\d+\.\s+', '', text)
+        text = re.sub(r'\n+', '，', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        # 取前100个字符作为摘要
+        if len(text) > 100:
+            # 尝试在句号处截断
+            cutoff = text[:100].rfind('。')
+            if cutoff == -1:
+                cutoff = text[:100].rfind('，')
+            if cutoff == -1 or cutoff < 40:
+                cutoff = 99
+            text = text[:cutoff+1] + "具体建议请查看界面文字。"
+        return text
+
     def _extract_plain_text(self, markdown_text):
         """从 Markdown/HTML 中提取纯文本（用于 TTS 播报）"""
         import re
@@ -5656,7 +5681,9 @@ class MainWindow(QMainWindow):
                 pass
 
             if self.voice_chat_enabled.isChecked():
-                self.speak_text(ai_msg)
+                # 生成简短摘要用于语音播报（≤100字），保留完整回复在 UI
+                tts_text = self._summarize_for_tts(ai_msg)
+                self.speak_text(tts_text)
             else:
                 # 用户取消勾选 → 停止正在播放的 TTS
                 self.stop_speaking()

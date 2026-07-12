@@ -95,7 +95,7 @@ class HistoryDB:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT * FROM records ORDER BY timestamp DESC LIMIT ?", (limit,)
+                "SELECT * FROM records WHERE disease_name NOT LIKE '[对�]%' ORDER BY timestamp DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(r) for r in rows]
 
@@ -3509,8 +3509,11 @@ class MainWindow(QMainWindow):
         dialog.exec_()
 
     def save_to_history(self, image_path, disease_name, confidence):
-        """保存检测结果到历史记录 (SQLite)"""
+        """保存检测结果到历史记录 (SQLite)，仅保存有效疾病名"""
         try:
+            # 过滤掉以 [对话] 开头的聊天记录
+            if disease_name.startswith('[对话]'):
+                return
             db = get_history_db()
             db.add(
                 record_id=str(uuid.uuid4()),
@@ -5678,19 +5681,6 @@ class MainWindow(QMainWindow):
 
             self.chat_input.clear()
             self.status_bar.showMessage("对话完成")
-
-            # 保存对话记录到 HistoryDB
-            try:
-                db = get_history_db()
-                db.add(
-                    record_id=str(uuid.uuid4()),
-                    timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    image_path="",
-                    disease_name=f"[对话] {getattr(self, '_last_user_question', '')[:80]}",
-                    confidence=0.0
-                )
-            except Exception:
-                pass
 
             if self.voice_chat_enabled.isChecked():
                 # AI 生成的简短摘要优先，否则用本地截取

@@ -5206,6 +5206,27 @@ class MainWindow(QMainWindow):
 
         threading.Thread(target=safe_speak, daemon=True).start()
     
+    def _extract_plain_text(self, markdown_text):
+        """从 Markdown/HTML 中提取纯文本（用于 TTS 播报）"""
+        import re
+        text = markdown_text
+        # 去除 HTML 标签
+        text = re.sub(r'<[^>]+>', '', text)
+        # 去除 Markdown 标记符号
+        text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
+        text = re.sub(r'\*([^*]+)\*', r'\1', text)
+        text = re.sub(r'#+\s*', '', text)
+        text = re.sub(r'[-*•]\s+', '', text)
+        text = re.sub(r'\d+\.\s+', '', text)
+        text = re.sub(r'`{1,3}[^`]*`{1,3}', '', text)
+        text = re.sub(r'---+', '', text)
+        text = re.sub(r'\n+', '\n', text)
+        text = text.strip()
+        # 限制长度避免播放过久
+        if len(text) > 500:
+            text = text[:500] + "..."
+        return text
+
     def _clean_text_for_tts(self, text):
         """清理文本,使其适合TTS播放"""
         import re
@@ -5596,9 +5617,10 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("对话完成")
 
             if self.voice_chat_enabled.isChecked():
-                print(f"[DEBUG] 语音对话已启用,准备播放AI回复 (文本长度: {len(ai_msg)})")
-                self.speak_text(ai_msg)
-                self.status_bar.showMessage("对话完成,正在播放语音回复...")
+                # 提取纯文本用于 TTS 播报
+                ai_clean_text = self._extract_plain_text(ai_msg)
+                print(f"[DEBUG] 语音朗读已启用,准备播放AI回复 (文本长度: {len(ai_clean_text)})")
+                self.speak_text(ai_clean_text)
 
         elif event.event_type == "error":
             self.show_ai_progress(False)

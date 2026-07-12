@@ -2043,9 +2043,10 @@ class MainWindow(QMainWindow):
         self.image_tab_widget = QTabWidget()
         self.image_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 10px 25px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 14px; margin-right: 2px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 16px; border-top-left-radius: 6px; border-top-right-radius: 6px; font-weight: bold; font-size: 13px; margin-right: 2px; min-width: 100px; }}
             QTabBar::tab:selected {{ background-color: {self.accent_color}; color: white; }}
         """)
+        self.image_tab_widget.tabBar().setElideMode(Qt.ElideNone)
 
         # 标签页 A：本地图像分析
         local_tab = QWidget()
@@ -2076,25 +2077,57 @@ class MainWindow(QMainWindow):
         # 标签页 B：开发板流媒体
         board_tab = QWidget()
         board_layout = QVBoxLayout(board_tab)
+        board_layout.setSpacing(12)
 
-        self.camera_preview_label = QLabel("摄像头未连接\n点击连接开始预览")
+        # 摄像头预览区 — 不再限制最大尺寸，自适应空间
+        self.camera_preview_label = QLabel("📱 摄像头未连接\n\n点击下方「连接开发板」开始实时预览")
         self.camera_preview_label.setAlignment(Qt.AlignCenter)
-        self.camera_preview_label.setMinimumSize(200, 150)
-        self.camera_preview_label.setMaximumSize(350, 250)
+        self.camera_preview_label.setMinimumSize(280, 200)
         self.camera_preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.camera_preview_label.setScaledContents(False)
-        self.camera_preview_label.setStyleSheet("background-color: #1a1e24; border-radius: 6px; color: #616E88;")
-        board_layout.addWidget(self.camera_preview_label)
+        self.camera_preview_label.setStyleSheet(f"""
+            background-color: #1a1e24;
+            border-radius: 8px;
+            border: 2px dashed #3b4252;
+            color: #616E88;
+            font-size: 14px;
+            font-family: 'Microsoft YaHei', sans-serif;
+        """)
+        board_layout.addWidget(self.camera_preview_label, stretch=1)
 
-        # 摄像头控制条
-        cam_ctrl_layout = QHBoxLayout()
+        # 状态信息栏
+        info_layout = QHBoxLayout()
+        info_layout.setSpacing(15)
+
         self.board_camera_status = QLabel("🔴 未连接")
-        self.board_camera_status.setStyleSheet("font-weight: bold; color: #E53E3E;")
+        self.board_camera_status.setStyleSheet(f"""
+            font-weight: bold;
+            color: #E53E3E;
+            font-size: 13px;
+            padding: 6px 12px;
+            background-color: {self.secondary_bg};
+            border-radius: 4px;
+        """)
+
+        self.board_resolution_label = QLabel("分辨率: --")
+        self.board_resolution_label.setStyleSheet(f"color: #81A1C1; font-size: 12px;")
+
+        self.board_fps_label = QLabel("帧率: --")
+        self.board_fps_label.setStyleSheet(f"color: #81A1C1; font-size: 12px;")
+
+        info_layout.addWidget(self.board_camera_status)
+        info_layout.addWidget(self.board_resolution_label)
+        info_layout.addWidget(self.board_fps_label)
+        info_layout.addStretch()
+        board_layout.addLayout(info_layout)
+
+        # 控制按钮栏
+        cam_ctrl_layout = QHBoxLayout()
         self.connect_camera_button = QPushButton("🔗 连接开发板")
         self.capture_from_camera_button = QPushButton("📸 截取并诊断")
         self.capture_from_camera_button.setEnabled(False)
 
-        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 8px 15px; border-radius: 4px; font-weight: bold; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
+        cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 13px; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
         for btn in [self.connect_camera_button, self.capture_from_camera_button]:
             btn.setStyleSheet(cam_btn_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -2102,12 +2135,20 @@ class MainWindow(QMainWindow):
         self.connect_camera_button.clicked.connect(self.toggle_camera_connection)
         self.capture_from_camera_button.clicked.connect(self.capture_from_board_camera)
 
-        cam_ctrl_layout.addWidget(self.board_camera_status)
         cam_ctrl_layout.addStretch()
         cam_ctrl_layout.addWidget(self.connect_camera_button)
         cam_ctrl_layout.addWidget(self.capture_from_camera_button)
+        cam_ctrl_layout.addStretch()
         board_layout.addLayout(cam_ctrl_layout)
-        self.image_tab_widget.addTab(board_tab, "📱 硬件实时视窗")
+
+        # 提示标签
+        hint_label = QLabel("💡 提示：请确保 PC 与开发板在同一局域网，并已启动开发板端摄像头服务")
+        hint_label.setAlignment(Qt.AlignCenter)
+        hint_label.setStyleSheet(f"color: #616E88; font-size: 11px; padding: 4px;")
+        hint_label.setWordWrap(True)
+        board_layout.addWidget(hint_label)
+
+        self.image_tab_widget.addTab(board_tab, "📱 硬件视窗")
 
         left_layout.addWidget(self.image_tab_widget, stretch=1)  # 图像区占据弹性空间
 
@@ -2193,9 +2234,10 @@ class MainWindow(QMainWindow):
         self.right_tab_widget = QTabWidget()
         self.right_tab_widget.setStyleSheet(f"""
             QTabWidget::pane {{ border: 1px solid #3b4252; border-radius: 8px; background-color: {self.secondary_bg}; }}
-            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 12px 20px; font-weight: bold; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; }}
+            QTabBar::tab {{ background-color: {self.primary_color}; color: #81A1C1; padding: 8px 18px; font-weight: bold; font-size: 13px; border-top-left-radius: 6px; border-top-right-radius: 6px; margin-right: 2px; min-width: 90px; }}
             QTabBar::tab:selected {{ background-color: {self.highlight_color}; color: white; }}
         """)
+        self.right_tab_widget.tabBar().setElideMode(Qt.ElideNone)
 
         # --- Tab 1: AI 诊疗建议 (主视图) ---
         advice_tab = QWidget()

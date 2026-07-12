@@ -4602,11 +4602,11 @@ class MainWindow(QMainWindow):
         button_layout.addStretch()
 
         close_btn = QPushButton("完成阅片 (Esc)")
-        close_btn.setStyleSheet(f"background-color: transparent; border: 1px solid #4C566A; color: {self.text_color};")
+        close_btn.setStyleSheet(f"background-color: transparent; border: 1px solid #4C566A; color: {self.text_color}; padding: 8px 16px; font-size: 13px;")
         close_btn.clicked.connect(dialog.accept)
 
         report_btn = QPushButton("生成 DeepSeek 报告")
-        report_btn.setStyleSheet(f"background-color: {self.highlight_color}; color: white;")
+        report_btn.setStyleSheet(f"background-color: {self.highlight_color}; color: white; padding: 8px 16px; font-size: 13px; font-weight: bold;")
         report_btn.clicked.connect(lambda: [dialog.accept(), self.advice_button.click()])
 
         button_layout.addWidget(close_btn)

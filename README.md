@@ -4,9 +4,9 @@
 
 **AI 眼科辅助诊断系统**
 
-一个面向 **PC 端 + 开发板协同** 的眼部图像诊断、语音交互、屏幕联动与网络传输一体化项目。
+基于 YOLO11 + AKConv 的眼部疾病智能诊断系统，集成 DeepSeek AI 诊疗对话、离线语音识别、PC + 开发板协同与 WiFi 屏幕共享。
 
-[快速开始](#-快速开始) · [系统架构](#-系统架构) · [目录说明](#-目录说明) · [使用指南](#-使用指南) · [目录整理说明](#-目录整理说明)
+[快速开始](#-快速开始) · [系统架构](#-系统架构) · [主界面功能](#-主界面功能) · [模型说明](#-模型说明) · [通信协议](#-通信协议)
 
 </div>
 
@@ -14,471 +14,212 @@
 
 ## ✨ 项目简介
 
-本项目聚焦于“**眼部图像智能辅助诊断**”场景，结合 YOLO 视觉推理、中文离线语音识别、局域网通信与开发板联动控制，构建了一个可演示、可部署、可扩展的综合系统。
+本项目聚焦于「**眼部图像智能辅助诊断**」，结合 YOLO 视觉推理、中文离线语音识别、DeepSeek API 诊疗对话、局域网通信与开发板联动，构建了一个可演示、可部署的综合系统。
 
-它适合作为：
+**适用场景：**
 
 - 课程设计 / 毕业设计
 - AI 医疗方向原型系统
 - PC + 开发板协同教学项目
 - 视觉识别 + 语音交互综合实验平台
 
-> 说明：本系统仅用于辅助诊断和教学展示，不能替代专业医生的临床诊断。
-
----
-
-## 🌟 项目亮点
-
-- **AI 视觉诊断**：基于 YOLO 的眼部图像识别与分析
-- **语音交互**：支持中文语音输入、语音识别与 AI 建议
-- **双端协同**：PC 端和开发板端分工明确，便于演示和部署
-- **屏幕共享与控制**：开发板可接收 PC 画面并回传触摸操作
-- **网络通信**：支持局域网内图像、命令和结果传输
-- **工程化文档**：仓库中保留了大量使用说明、问题修复和集成文档
-- **可答辩展示**：功能链路完整，适合课程汇报和答辩
+> ⚠️ 说明：本系统仅用于辅助诊断和教学展示，不能替代专业医生的临床诊断。
 
 ---
 
 ## 🧭 系统架构
 
-```mermaid
-flowchart LR
-    subgraph PC端[PC 端]
-        UI[主界面<br/>visualization_test2.py]
-        DIAG[诊断服务<br/>pc_diagnosis_server.py]
-        VOICE[语音服务<br/>pc_voice_server.py]
-        SHARE[屏幕发送/鼠标控制<br/>wifi_pc_sender_with_mouse.py]
-        MODEL[YOLO/AI 推理<br/>ultralytics-main/]
-    end
+```
+visualization_test2.py          ← PC 端主入口（PyQt5 单体 GUI，~6500 行）
+    ├── EyeDiseaseDetector      ← YOLO11 + 自定义 AKConv 推理引擎
+    ├── ResultProcessor         ← 检测结果解析与可视化
+    ├── SmartVoiceManager       ← Vosk 离线优先 → Google 在线回退
+    ├── DeepSeekAPI             ← AI 诊疗建议 + 对话式问诊
+    ├── MedicalAIService        ← 自由文本医疗咨询
+    ├── HistoryDB               ← SQLite 诊断历史存储
+    ├── BoardCameraReceiver     ← UDP 接收开发板摄像头数据
+    ├── CommandListener         ← UDP 命令控制监听
+    └── configs/system_config   ← 端口/网络/摄像头配置
 
-    subgraph BOARD[开发板端]
-        CAM[摄像头采集<br/>board_camera_integration.py]
-        BOARDUI[开发板集成入口<br/>board_integrated_system.py]
-        BOARDMODEL[本地模型/语音交互<br/>board_local_model.py / board_voice_interaction.py]
-        RECV[屏幕接收<br/>wifi_pc_receiver_2.0.py]
-    end
+src/pc/                          ← PC 端独立服务
+    ├── pc_diagnosis_server.py   ← 接收开发板图像 → YOLO 推理 → 返回结果
+    └── pc_voice_server.py       ← 语音识别/合成服务（外部独立进程）
 
-    subgraph DATA[资源与配置]
-        CFG[system_config.py<br/>system_config.json]
-        VOSK[vosk-model-cn-0.22/]
-        IMG[medical_images/]
-        MODELSET[models/custom/self_model/AKConv_best_moudle/]
-    end
+src/network/                     ← WiFi 屏幕共享 + 远程控制（全 UDP）
+    ├── wifi_pc_sender_with_mouse.py  ← PC 屏幕捕获 + 接收鼠标控制
+    ├── wifi_pc_receiver_2.0.py       ← 开发板屏幕接收 + 触摸→鼠标转发
+    └── wifi1.0/                      ← 旧版归档（不再使用）
 
-    UI --> DIAG
-    UI --> VOICE
-    UI --> SHARE
-    UI --> MODEL
-    CAM --> DIAG
-    BOARDUI --> CAM
-    BOARDUI --> RECV
-    BOARDMODEL --> VOICE
-    CFG --> UI
-    CFG --> DIAG
-    CFG --> BOARDUI
-    VOSK --> VOICE
-    MODEL --> UI
-    MODELSET --> MODEL
-    IMG --> MODEL
+src/board/                       ← 开发板端（树莓派）
+    ├── board_camera_integration.py   ← 摄像头采集 + UDP 分包发送
+    ├── board_integrated_system.py    ← 开发板集成入口
+    ├── board_local_model.py          ← 本地 ONNX 推理
+    └── board_voice_interaction.py    ← 开发板语音交互
 ```
 
 ---
 
-## 🔄 典型工作流程
+## 🖥️ 主界面功能
 
-```mermaid
-flowchart TD
-    A[启动系统] --> B[PC 端主界面启动]
-    B --> C[加载配置与模型]
-    C --> D[用户上传图像或开发板采集图像]
-    D --> E[YOLO 推理与结果分析]
-    E --> F[显示诊断结果]
-    F --> G[语音咨询 / AI 建议]
-    G --> H[结果保存 / 历史记录 / 报告输出]
-    B --> I[启动屏幕共享与鼠标控制]
-    I --> J[开发板接收画面并执行触控]
-    J --> K[开发板摄像头拍摄/上传]
-    K --> E
-```
+程序启动后界面分为 **左侧视觉操作区** 和 **右侧 AI 分析区**：
 
----
+### 左侧 —— 图像检测与硬件视窗
 
-## 📁 目录结构
-
-```
-Intelligent_diagnosis_system/
-├── configs/                    # 配置文件
-│   ├── system_config.json
-│   └── system_config.py
-├── data/                       # 数据集目录（预留）
-├── docs/                       # 文档
-│   ├── guide/                  # 使用指南
-│   ├── notes/                  # 开发笔记
-│   ├── reports/                # 项目报告
-│   └── setup/                  # 环境配置
-├── markdown/                   # Markdown文档
-├── models/                     # 模型文件
-│   └── custom/self_model/AKConv_best_moudle/
-├── scripts/                    # 启动脚本
-│   ├── jupyter_board_launcher.py
-│   ├── quick_start.py
-│   ├── simple_start.py
-│   ├── start_system.py
-│   └── system_launcher.py
-├── src/                        # 源代码
-│   ├── board/                  # 开发板端代码
-│   ├── network/                # 网络通信模块
-│   ├── pc/                     # PC端代码
-│   ├── utils/                  # 工具函数
-│   └── visualization/          # 可视化模块（遗留代码）
-├── tests/                      # 测试目录
-│   ├── network/                # 网络测试
-│   ├── notebooks/              # Jupyter笔记本
-│   ├── reports/                # 测试报告
-│   ├── scripts/                # 测试脚本
-│   └── voice/                  # 语音测试
-├── ultralytics-main/           # YOLO框架源码
-├── .gitignore
-├── LICENSE
-├── README.md
-└── PROJECT_STRUCTURE.md        # 目录结构文档
-```
-
-### 目录说明
-
-| 目录 | 说明 |
+| 区域 | 说明 |
 |------|------|
-| `configs/` | 系统配置文件（JSON和Python） |
-| `data/` | 数据集存储目录（预留） |
-| `docs/` | 项目文档（指南、笔记、报告、配置说明） |
-| `models/` | 训练好的模型文件 |
-| `scripts/` | 快速启动脚本 |
-| `src/board/` | 开发板端核心代码 |
-| `src/network/` | WiFi网络通信模块 |
-| `src/pc/` | PC端服务代码 |
-| `src/utils/` | 通用工具函数 |
-| `src/visualization/` | 可视化模块（遗留代码） |
-| `tests/` | 测试代码和报告 |
+| 🖼️ 本地图像分析 | 加载本地眼底图像 → YOLO 推理 → 并排显示原图与标注结果 |
+| 📱 硬件视窗 | 实时接收开发板摄像头画面、连接管理、截取诊断 |
+| 工作流按钮 | `加载模型` → `加载图像` → `开始检测` → `查看报告` 四步操作 |
+| 扩展工具 | 批量处理、历史记录、开发板交互、语音服务 |
 
-### 核心文件位置
+### 右侧 —— AI 分析与对话
 
-#### 开发板端 (`src/board/`)
-- `board_camera_integration.py`：摄像头采集与上传
-- `board_integrated_system.py`：开发板集成入口
-- `board_local_model.py`：本地模型推理
-- `board_voice_interaction.py`：语音交互
-- `start_board.sh`：开发板启动脚本
+| Tab | 说明 |
+|-----|------|
+| 🩺 诊疗建议 | 检测完成后生成 DeepSeek AI 专业治疗报告，支持全屏阅览 |
+| 💬 医疗问答 | 多轮对话式 AI 问诊，自动附带当前检测结果作为上下文 |
+| ⚙️ 系统设置 | DeepSeek API Key 配置、录音时长调节、云端 AI 开关 |
 
-#### PC端 (`src/pc/`)
-- `pc_diagnosis_server.py`：诊断服务
-- `pc_voice_server.py`：语音服务
+### 其他功能
 
-#### 网络通信 (`src/network/`)
-- `wifi_pc_sender_with_mouse.py`：PC端屏幕发送与鼠标控制
-- `wifi_pc_sender_2.0.py`：PC端发送端
-- `wifi_pc_receiver_2.0.py`：开发板接收端
-- `wifi1.0/`：旧版脚本归档
+- **历史记录**：SQLite 存储，支持查看详情、批量删除、趋势分析
+- **批量处理**：选中多张眼底图像 → 一键推理
+- **语音交互**：点击语音按钮说话 → 自动识别 → AI 回复 → 可选 TTS 朗读
 
-#### 工具函数 (`src/utils/`)
-- `integration_test.py`、`interaction_test.py`：集成测试
-- `test_batch_report.py`：批量报告测试
-- `latency_optimizer.py`：延迟优化
-
-#### 可视化模块 (`src/visualization/`)
-- `visualization1.0.py` ~ `visualization5.0.py`：历史版本
-- `visualization_test.py`、`visualization_test1.py`：测试版本
 ---
 
 ## 🚀 快速开始
 
-### 1）环境要求
+### 环境要求
 
-#### PC 端
 - Python 3.9+
 - Windows / Linux / macOS
-- 8GB 以上内存更佳
-- 可选：CUDA 显卡用于加速推理
-
-#### 开发板端
-- Python 3.7+
-- 摄像头模块
-- 触摸屏或远程操作设备
-- 与 PC 处于同一局域网
-
-### 2）安装依赖
-
-使用项目提供的 `requirements.txt` 文件一键安装所有依赖：
+- 8GB+ 内存推荐
 
 ```bash
-# 安装所有依赖（推荐使用国内镜像加速）
-pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 安装依赖
+pip install -r requirements.txt
 
-# 如果安装失败，可以尝试分步安装
-pip install torch torchvision -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install opencv-python numpy PyQt5 -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install ultralytics requests -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install vosk pyttsx3 speechrecognition -i https://pypi.tuna.tsinghua.edu.cn/simple
-pip install mss pyautogui psutil matplotlib -i https://pypi.tuna.tsinghua.edu.cn/simple
+# 启动主界面
+python visualization_test2.py
+
+# 一键启动所有服务
+python scripts/start_system.py
+
+# 交互式启动
+python scripts/quick_start.py
 ```
 
-### 3）准备模型与资源
+---
 
-请确认以下目录存在：
+## 🤖 模型说明
 
-- `ultralytics-main/` - YOLO框架源码
-- `vosk-model-cn-0.22/` - 中文离线语音识别模型（需单独下载）
-- `models/custom/self_model/AKConv_best_moudle/` - 自定义YOLO模型
-  - `best.pt` - 最佳权重文件
-  - `best.onnx` - ONNX格式模型（用于开发板推理）
+基于 **YOLO11-cls** 分类模型，集成自定义 **AKConv**（可变形卷积）模块。
 
-#### 数据集结构
+**模型文件：**
 
-项目包含眼部疾病诊断数据集，位于 `data/` 目录：
+| 文件 | 用途 |
+|------|------|
+| `models/custom/AKConv_best_moudle/best.pt` | 主要权重（PyTorch） |
+| `models/custom/AKConv_best_moudle/best.onnx` | ONNX 导出（开发板推理） |
+| `models/custom/common/best.pt` | 备用权重 |
 
-```
-data/
-├── eyes_dataset.yaml    # 数据集配置文件
-└── eyes_val/            # 验证集（按类别分类）
-    ├── A/               # 正常眼
-    ├── C/               # 白内障
-    ├── D/               # 糖尿病视网膜病变
-    ├── G/               # 青光眼
-    ├── H/               # 高血压性视网膜病变
-    ├── M/               # 黄斑病变
-    ├── N/               # 视神经病变
-    └── O/               # 其他眼部疾病
+**AKConv 注册：** 自定义模块定义在 `ultralytics-main/ultralytics/nn/modules/akconv.py`，通过 `__init__.py` 的 `from .akconv import *` 和 `tasks.py` 的模块字典注册，使模型 YAML 可直接引用 `C3k2_AKConv`。
 
-```
+**8 种疾病类别：**
 
-**数据集类别说明：**
-
-| 类别 | 名称 | 说明 |
+| 代码 | 疾病 | 中文 |
 |------|------|------|
-| A | 正常眼 | 无明显病变 |
-| C | 白内障 | 晶状体混浊 |
-| D | 糖尿病视网膜病变 | 微血管损伤 |
-| G | 青光眼 | 眼压升高 |
-| H | 高血压性视网膜病变 | 高血压引起的眼底病变 |
-| M | 黄斑病变 | 黄斑区异常 |
-| N | 视神经病变 | 视神经损伤 |
-| O | 其他眼部疾病 | 其他未分类病变 |
+| A | AMD | 年龄相关性黄斑变性 |
+| C | Cataract | 白内障 |
+| D | Diabetic Retinopathy | 糖尿病视网膜病变 |
+| G | Glaucoma | 青光眼 |
+| H | Hypertensive Retinopathy | 高血压性视网膜病变 |
+| M | Myopia | 近视性黄斑病变 |
+| N | Normal | 正常眼 |
+| O | Other | 其他眼部疾病 |
 
-如果你是从 GitHub 克隆而来，但目录为空或缺失，需要手动补齐这些资源。
+---
 
-### 4）配置网络参数
+## 📡 通信协议
 
-编辑 `configs/system_config.json`，至少确认以下字段：
+所有实时数据（屏幕、摄像头、命令、诊断结果）均使用 **UDP** 通信。
 
-- `pc_ip` - PC端IP地址
-- `board_ip` - 开发板IP地址
-- `camera_port` - 摄像头端口（默认5002）
-- `diagnosis_port` - 诊断服务端口（默认5003）
-- `command_port` - 命令端口（默认5004）
-- `screen_port` - 屏幕共享端口（默认5000）
-- `control_port`
+**数据分包格式：** 每包最大 1400 字节，包头 8 字节（4 字节 packet_id + 4 字节 total_packets），开发板 → PC 端通过多端口并行传输。
 
-如果 PC 和开发板 IP 不一致，系统通信会失败。
+**默认端口：**
 
-### 5）启动系统
+| 端口 | 用途 |
+|------|------|
+| 5000 | 屏幕共享视频 |
+| 5001 | 触摸/鼠标控制 |
+| 5002 | 摄像头数据传输 |
+| 5003 | 诊断结果回传 |
+| 5004 | 命令控制 |
+| 5005 | 语音数据发送 |
+| 5006 | 语音合成接收 |
+| 5007 | 语音命令控制 |
+| 5008 | 鼠标控制 |
 
-#### 方式一：一键启动
+**默认 IP：** PC `172.20.10.3`，开发板 `172.20.10.8`
+
+---
+
+## ⚙️ 配置
+
+两套配置并存：
+
+| 文件 | 用途 |
+|------|------|
+| `configs/system_config.py` | Python 配置 + ConnectionManager（主界面导入） |
+| `configs/system_config.json` | JSON 配置（启动脚本使用） |
+
+> 注意：`visualization_test2.py` 第 43 行 `from system_config import ...` 直接导入（无 `configs.` 前缀），需 `configs/` 在 PYTHONPATH 中。导入失败时使用硬编码默认值。
+
+---
+
+## 💬 DeepSeek API
+
+`visualization_test2.py` 中的 `DeepSeekAPI` 类提供：
+- **治疗建议**：根据检测疾病 + 置信度调用 API 生成专业报告
+- **AI 对话**：自由文本问答，自动附带当前检测结果上下文
+- **语音集成**：语音输入 → API 回复 → TTS 朗读
+- Endpoint：`https://api.deepseek.com/v1/chat/completions`，模型：`deepseek-chat`
+- API Key 存储：base64 编码 → `saved_api_key.txt`（已加入 .gitignore）
+
+---
+
+## 🎙️ 语音系统
+
+`SmartVoiceManager` 识别策略：
+
+1. **Vosk** 离线中文模型（延迟加载，搜索路径：`$VOSK_MODEL_PATH` → `./vosk-model-small-cn-0.22/` → `./vosk-model-cn-0.22/`）
+2. **Google Speech Recognition**（在线回退）
+3. **pyttsx3** — TTS 语音合成（Windows 下每次线程内独立 init 避免 COM 跨线程崩溃）
+
+---
+
+## 🧪 训练
 
 ```bash
-python start_system.py
+# 在 ultralytics-main/ 目录下（需修改 eyes_train.py 中的硬编码路径）
+cd ultralytics-main && python eyes_train.py
+
+# YOLO 命令行
+yolo predict model=models/custom/AKConv_best_moudle/best.pt source=<image>
+yolo val model=models/custom/AKConv_best_moudle/best.pt data=data/eyes_dataset.yaml
 ```
-
-#### 方式二：PC 端分步启动
-
-```bash
-python src/pc/pc_diagnosis_server.py
-python src/pc/pc_voice_server.py
-python src/network/wifi_pc_sender_with_mouse.py
-```
-
-#### 方式三：开发板端分步启动
-
-```bash
-python src/network/wifi_pc_receiver_2.0.py
-python src/board/board_camera_integration.py
-```
-
-#### 方式四：开发板脚本
-
-```bash
-./start_board.sh
-```
-
----
-
-## 🛠️ 使用指南
-
-### A. PC 端主界面怎么用
-
-1. 启动 `scripts/quick_start.py` 或 `scripts/start_system.py`
-2. 等待界面加载完成
-3. 上传眼部图像或接收开发板传来的图片
-4. 点击诊断按钮执行 AI 推理
-5. 查看结果、建议和历史记录
-6. 需要时可使用语音提问获取辅助说明
-
-### B. 开发板端怎么用
-
-1. 启动开发板侧屏幕接收脚本 `src/network/wifi_pc_receiver_2.0.py`
-2. 启动摄像头集成程序 `src/board/board_camera_integration.py`
-3. 打开摄像头拍摄眼部图像
-4. 将图像上传至 PC 端进行诊断
-5. 接收诊断结果并在开发板端查看
-
-### C. 屏幕共享怎么用
-
-1. PC 端启动 `src/network/wifi_pc_sender_with_mouse.py`
-2. 开发板端启动 `src/network/wifi_pc_receiver_2.0.py`
-3. 连接成功后，开发板会显示 PC 画面
-4. 触摸开发板屏幕即可控制 PC 端鼠标
-
-### D. 语音识别怎么用
-
-1. 确保麦克风可用
-2. 启动语音相关服务或主界面
-3. 按住语音按钮说出问题
-4. 系统会优先尝试本地离线识别，再回退到在线识别
-5. 输出文字后可进一步获取 AI 建议
-
----
-
-## ⚙️ 部署说明
-
-### 配置文件
-
-主要配置集中在 `configs/` 目录：
-
-- `configs/system_config.py`
-- `configs/system_config.json`
-
-建议先检查：
-
-- 设备 IP 是否正确
-- 端口是否冲突
-- 网络是否处于同一局域网
-- 防火墙是否放行相关端口
-
-### 模型文件
-
-视觉与语音能力依赖以下目录：
-
-- `ultralytics-main/`
-- `vosk-model-cn-0.22/`
-- `models/custom/self_model/AKConv_best_moudle/`
-
-如果只想运行 UI 而不启用完整 AI 能力，可以先保留目录结构，再逐步补齐资源。
-
----
-
-## 🧪 测试与调试
-
-整理后的测试目录如下：
-
-- `tests/voice/`：语音功能测试、集成、诊断和使用说明
-- `tests/network/`：接口与连接测试
-- `tests/scripts/`：脚本类修复与检查工具
-- `tests/reports/`：测试报告与修复报告
-- `tests/notebooks/`：Notebook 实验文件
-
-如需排查问题，建议优先查看：
-
-- `docs/reports/问题解决报告.md`
-- `docs/setup/开发板环境修复指南.md`
-- `docs/guide/开发板PC端交互使用说明.md`
-
----
-
-## 📚 常用文档
-
-- `docs/guide/完整系统使用指南.md`
-- `docs/guide/开发板集成系统使用说明.md`
-- `docs/guide/开发板PC端交互使用说明.md`
-- `docs/guide/开发板AI语音对话功能说明.md`
-- `docs/guide/语音对话使用说明.md`
-- `docs/setup/百度API配置说明.md`
-- `docs/setup/README_NETWORK_SETUP.md`
-- `docs/setup/开发板环境修复指南.md`
-- `docs/reports/系统优化完成报告.md`
-- `docs/reports/项目完成总结.md`
-
----
-
-## 📁 目录结构说明
-
-### 项目结构概览
-
-```
-Intelligent_diagnosis_system/
-├── configs/                    # 配置文件
-├── data/                       # 数据集目录（预留）
-├── docs/                       # 项目文档
-├── markdown/                   # Markdown文档
-├── models/                     # 模型文件
-├── scripts/                    # 启动脚本
-├── src/                        # 源代码
-│   ├── board/                  # 开发板端代码
-│   ├── network/                # 网络通信模块
-│   ├── pc/                     # PC端代码
-│   ├── utils/                  # 工具函数
-│   └── visualization/          # 可视化模块（历史版本）
-├── tests/                      # 测试目录
-├── ultralytics-main/           # YOLO框架源码
-├── requirements.txt            # 依赖配置文件
-├── visualization_test2.py      # 主入口文件
-├── PROJECT_STRUCTURE.md        # 目录结构文档
-└── README.md
-```
-
-### 建议保留
-- 核心业务文件（`src/` 目录）
-- 网络传输脚本（`src/network/`）
-- 配置文件（`configs/`）
-- 测试脚本（`tests/`）
-- 文档与答辩资料（`docs/`）
-- 许可证文件（`LICENSE`）
-- `src/visualization/` 中的旧版本代码（仅作为历史参考）
-- `models/custom/self_model/AKConv_best_moudle/` 中的自定义模型
-- `requirements.txt` 依赖配置文件
-
-### 建议忽略（添加到 .gitignore）
-- `.idea/`
-- `.vscode/`
-- `.history/`
-- `.claude/`
-- `__pycache__/`
-- `*.pyc`
-- `saved_api_key.txt`
-- `.env`
-- `.env.*`
-- `temp_image_*.png`
-- `network_config.json`
-
-### 建议迁移到外部管理（大文件）
-- `vosk-model-cn-0.22/` - 中文语音模型（约1.5GB）
-- 超大模型文件：`.pt`、`.mdl`、`.fst`、`.carpa`
-- 如果 `ultralytics-main/` 只是依赖，建议改为 pip 安装
-- 如果 `ultralytics-main/` 只是依赖，建议改为 pip 安装；如果包含本地修改，再考虑保留必要部分
-
-### 建议进一步重构
-- 把大脚本拆分成 `ui/`、`services/`、`network/`、`config/` 等模块
-- 将主入口逐步迁移到更语义化的名字，例如 `main_app.py`
-- 测试脚本按功能归类到更清晰的目录
-- 旧版可继续放在 `legacy/` 中，不再参与主流程
 
 ---
 
 ## 🔒 安全提醒
 
-- 不要把 API Key、账号密码等敏感信息提交到仓库
-- 不要把本地编辑器缓存和历史文件提交到仓库
-- 如果已经提交过敏感信息，请立即轮换密钥并清理 Git 历史
+- 请勿将 API Key、密码等敏感信息提交到仓库
+- `saved_api_key.txt` 已加入 `.gitignore`
+- 如曾提交敏感信息，请轮换密钥并清理 Git 历史
 
 ---
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证，详见 `LICENSE`。
+MIT License，详见 `LICENSE`。

@@ -429,11 +429,12 @@ class VoiceRecognitionEvent(QEvent):
 
 class AIResponseEvent(QEvent):
     """AI回复事件"""
-    def __init__(self, event_type, data=None, progress=0):
+    def __init__(self, event_type, data=None, progress=0, tts=None):
         super().__init__(QEvent.User + 2)
         self.event_type = event_type
         self.data = data
         self.progress = progress
+        self.tts = tts  # 简短摘要用于语音播报
 
 
 class MedicalAIService:
@@ -5419,7 +5420,18 @@ class MainWindow(QMainWindow):
 
             QApplication.postEvent(self, AIResponseEvent("progress", "正在请求 AI 分析...", 50))
             ai_service = MedicalAIService(api_key)
+            # 请求详细回复
             response = ai_service.get_custom_advice(message)
+
+            # 同时让 AI 生成一个100字左右的简短摘要用于语音播报
+            tts_summary = response  # 兜底
+            try:
+                summary_prompt = f"请用100字以内简短总结以下医疗建议的核心要点，不要扩展：" + message
+                tts_summary = ai_service.get_custom_advice(summary_prompt)
+                if not tts_summary or len(tts_summary) > 200:
+                    tts_summary = response
+            except Exception:
+                pass
 
             if not response or "请先设置有效的API密钥" in response:
                 QApplication.postEvent(self, AIResponseEvent("progress", "生成默认建议...", 85))
@@ -5442,7 +5454,7 @@ class MainWindow(QMainWindow):
 
             QApplication.postEvent(self, AIResponseEvent("progress", "完成", 100))
             time.sleep(0.2)
-            QApplication.postEvent(self, AIResponseEvent("completed", response))
+            QApplication.postEvent(self, AIResponseEvent("completed", response, tts=tts_summary))
 
         except Exception as e:
             QApplication.postEvent(self, AIResponseEvent("error", str(e)))
@@ -5681,8 +5693,8 @@ class MainWindow(QMainWindow):
                 pass
 
             if self.voice_chat_enabled.isChecked():
-                # 生成简短摘要用于语音播报（≤100字），保留完整回复在 UI
-                tts_text = self._summarize_for_tts(ai_msg)
+                # AI 生成的简短摘要优先，否则用本地截取
+                tts_text = event.tts if event.tts else self._summarize_for_tts(ai_msg)
                 self.speak_text(tts_text)
             else:
                 # 用户取消勾选 → 停止正在播放的 TTS

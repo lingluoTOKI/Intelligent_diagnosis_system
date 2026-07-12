@@ -84,7 +84,51 @@ src/board/                       ← 开发板端（树莓派）
 
 - **历史记录**：SQLite 存储，支持查看详情、批量删除、趋势分析
 - **批量处理**：选中多张眼底图像 → 一键推理
-- **语音交互**：点击语音按钮说话 → 自动识别 → AI 回复 → 可选 TTS 朗读
+- **语音交互**：点击语音按钮说话 → 自动识别 → AI 回复 → edge-tts 微软神经网络语音朗读（自然流畅），音频缓存至 `data/temp/`，下一轮对话自动打断上一轮播放
+
+---
+
+## 💾 数据存储
+
+### 诊断历史（SQLite）
+
+检测结果自动保存到 SQLite 数据库，位于用户主目录下：
+
+```
+~/EyeDiseaseDetectorHistory/history.db
+```
+
+**records 表结构：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 自增主键 |
+| record_id | TEXT | UUID 唯一标识 |
+| timestamp | TEXT | 检测时间（ISO 格式） |
+| image_path | TEXT | 原始图像路径 |
+| disease_name | TEXT | 检测结果（疾病名 或 `[对话] 问题摘要`） |
+| confidence | REAL | 置信度（0~1，对话类记录为 0.0） |
+
+**触发保存的场景：**
+1. 图像检测完成后自动保存（含疾病名 + 置信度 + 图像路径）
+2. 医疗问答每轮对话完成后自动保存（disease_name 为 `[对话] 问题前80字`，confidence 为 0.0）
+3. 旧版 JSON 文件（`history.json`）首次启动时自动迁移到 SQLite，迁移后原文件重命名为 `.bak`
+
+**API 封装：** `visualization_test2.py` → `HistoryDB` 类，提供 `add / get_all / delete_by_record_id / delete_all / count / migrate_from_json` 方法。全局单例通过 `get_history_db()` 获取。
+
+### 音频缓存
+
+TTS 合成的中间音频文件存放于：
+
+```
+data/temp/tts_HHMMSSffffff.mp3
+```
+
+每次对话生成独立文件，便于追溯，不会自动清理。
+
+### API 密钥
+
+DeepSeek API Key 经 base64 编码后存储于 `saved_api_key.txt`（已加入 `.gitignore`），启动时自动加载。
 
 ---
 

@@ -5178,7 +5178,7 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """edge-tts 语音合成，音频缓存到 data/temp/，支持停止播放"""
+        """edge-tts 语音合成（排队播放，下一轮打断上一轮）"""
         import re
         clean = text
         clean = re.sub(r'<[^>]+>', '', clean)
@@ -5195,7 +5195,6 @@ class MainWindow(QMainWindow):
         if not clean.strip():
             return
 
-        # 音频缓存目录
         cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'temp')
         os.makedirs(cache_dir, exist_ok=True)
         mp3_path = os.path.join(cache_dir, f'tts_{datetime.now().strftime("%H%M%S%f")}.mp3')
@@ -5205,15 +5204,16 @@ class MainWindow(QMainWindow):
         def safe_speak():
             try:
                 import subprocess
+                # 1. 合成
                 subprocess.run([
                     'edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural',
                     '--rate=+10%', '--text', clean,
                     '--write-media', mp3_path
                 ], capture_output=True, check=True, timeout=30)
-                # 停止之前可能正在播放的音频
-                subprocess.run(['taskkill', '/F', '/IM', 'wmplayer.exe'], capture_output=True)
-                subprocess.run(['taskkill', '/F', '/IM', 'Microsoft.Media.Player.exe'], capture_output=True)
-                self._current_tts_proc = subprocess.Popen(['start', '/WAIT', '', mp3_path], shell=True)
+                # 2. 打断上一轮播放
+                self.stop_speaking()
+                # 3. 播放
+                self._tts_proc = subprocess.Popen(['start', '/WAIT', '', mp3_path], shell=True)
                 print(f"[DEBUG] TTS(edge-tts): 播放完成 → {mp3_path}")
             except Exception as e:
                 print(f"[DEBUG] TTS(edge-tts): 失败 {e}")
@@ -5221,15 +5221,14 @@ class MainWindow(QMainWindow):
         threading.Thread(target=safe_speak, daemon=True).start()
 
     def stop_speaking(self):
-        """停止当前 TTS 播放"""
+        """打断当前 TTS 播放"""
         try:
             import subprocess
             subprocess.run(['taskkill', '/F', '/IM', 'wmplayer.exe'], capture_output=True)
             subprocess.run(['taskkill', '/F', '/IM', 'Microsoft.Media.Player.exe'], capture_output=True)
-            if hasattr(self, '_current_tts_proc') and self._current_tts_proc:
-                self._current_tts_proc.terminate()
-                self._current_tts_proc = None
-            self.status_bar.showMessage("🔇 语音播放已停止")
+            if hasattr(self, '_tts_proc') and self._tts_proc:
+                self._tts_proc.terminate()
+                self._tts_proc = None
         except Exception:
             pass
     
@@ -5642,6 +5641,19 @@ class MainWindow(QMainWindow):
 
             self.chat_input.clear()
             self.status_bar.showMessage("对话完成")
+
+            # 保存对话记录到 HistoryDB
+            try:
+                db = get_history_db()
+                db.add(
+                    record_id=str(uuid.uuid4()),
+                    timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    image_path="",
+                    disease_name=f"[对话] {getattr(self, '_last_user_question', '')[:80]}",
+                    confidence=0.0
+                )
+            except Exception:
+                pass
 
             if self.voice_chat_enabled.isChecked():
                 self.speak_text(ai_msg)

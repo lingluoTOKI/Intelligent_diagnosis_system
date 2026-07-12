@@ -4600,6 +4600,8 @@ class MainWindow(QMainWindow):
         """显示检测结果"""
         if hasattr(self, 'current_results') and self.current_results:
             self.parse_and_show_results(self.current_results)
+        elif hasattr(self, 'current_disease') and self.current_disease:
+            self.show_disease_result(self.current_disease, self.current_confidence)
         else:
             self.show_message_box("提示", "请先完成检测")
 

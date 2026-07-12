@@ -5178,34 +5178,33 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """将文本转换为语音播放（线程安全：每次在独立线程中局部初始化 pyttsx3）"""
-        try:
-            # 清理文本,确保适合语音播放
-            clean_text = self._clean_text_for_tts(text)
-            if not clean_text.strip():
-                print("[DEBUG] 没有可播放的文本内容")
-                return
+        """将文本转换为语音播放（线程安全）"""
+        clean_text = self._clean_text_for_tts(text)
+        if not clean_text.strip():
+            print("[DEBUG] TTS: 没有可播放的文本内容")
+            return
 
-            print(f"[DEBUG] 开始TTS播放: {clean_text[:50]}...")
+        print(f"[DEBUG] TTS: 开始播放 (文本长度: {len(clean_text)})")
 
-            # 在后台线程中播放语音，线程内局部初始化 pyttsx3，
-            # 避免跨线程调用 Windows SAPI5 COM 对象导致崩溃
-            def safe_speak():
-                try:
-                    import pyttsx3
-                    engine = pyttsx3.init()
-                    engine.setProperty('rate', 180)
-                    engine.setProperty('volume', 0.8)
-                    engine.say(clean_text)
-                    engine.runAndWait()
-                    print("[DEBUG] TTS播放完成")
-                except Exception as e:
-                    print(f"[DEBUG] TTS播放线程错误: {e}")
+        def safe_speak():
+            try:
+                import pyttsx3
+                engine = pyttsx3.init()
+                # 尝试设置中文语音
+                voices = engine.getProperty('voices')
+                for v in voices:
+                    if 'chinese' in v.name.lower() or 'zh' in v.id.lower():
+                        engine.setProperty('voice', v.id)
+                        break
+                engine.setProperty('rate', 180)
+                engine.setProperty('volume', 0.9)
+                engine.say(clean_text)
+                engine.runAndWait()
+                print("[DEBUG] TTS: 播放完成")
+            except Exception as e:
+                print(f"[DEBUG] TTS: 播放失败 {e}")
 
-            threading.Thread(target=safe_speak, daemon=True).start()
-
-        except Exception as e:
-            print(f"[DEBUG] TTS播放失败: {e}")
+        threading.Thread(target=safe_speak, daemon=True).start()
     
     def _clean_text_for_tts(self, text):
         """清理文本,使其适合TTS播放"""
@@ -5602,7 +5601,7 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("对话完成")
 
             if self.voice_chat_enabled.isChecked():
-                print("[DEBUG] 语音对话已启用,准备播放AI回复")
+                print(f"[DEBUG] 语音对话已启用,准备播放AI回复 (文本长度: {len(ai_msg)})")
                 self.speak_text(ai_msg)
                 self.status_bar.showMessage("对话完成,正在播放语音回复...")
 

@@ -3632,6 +3632,31 @@ class MainWindow(QMainWindow):
             disease_item = QTableWidgetItem(record["disease_name"])
             confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
 
+            # 根据疾病名称给检测结果列着色
+            disease_colors = {
+                'AMD': '#E53E3E', 'Cataract': '#DD6B20', 'Diabetic Retinopathy': '#38A169',
+                'Glaucoma': '#805AD5', 'Hypertensive Retinopathy': '#E53E3E',
+                'Myopia': '#3182CE', 'Normal': '#38A169', 'Other': '#718096', 'Unknown': '#718096'
+            }
+            color = disease_colors.get(record["disease_name"], '#718096')
+            disease_item.setForeground(QBrush(QColor(color)))
+            disease_item.setData(Qt.UserRole, record)
+            font = disease_item.font()
+            font.setBold(True)
+            disease_item.setFont(font)
+
+            # 置信度按级别着色
+            conf_val = record["confidence"]
+            if conf_val >= 0.9:
+                conf_color = '#38A169'
+            elif conf_val >= 0.7:
+                conf_color = '#D69E2E'
+            elif conf_val >= 0.5:
+                conf_color = '#DD6B20'
+            else:
+                conf_color = '#E53E3E'
+            confidence_item.setForeground(QBrush(QColor(conf_color)))
+
             # 设置项目不可编辑
             for item in [timestamp_item, path_item, disease_item, confidence_item]:
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)

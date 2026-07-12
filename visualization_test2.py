@@ -2211,6 +2211,7 @@ class MainWindow(QMainWindow):
                 border: 1px solid #3b4252;
             }}
         """
+        TOOL_BTN_STYLE = tool_style  # 保存一份引用供 toggle_voice_server 恢复样式
         for btn in [self.batch_button, self.history_button, self.board_interaction_button, self.voice_server_button]:
             btn.setStyleSheet(tool_style)
             btn.setCursor(QCursor(Qt.PointingHandCursor))
@@ -5601,15 +5602,14 @@ class MainWindow(QMainWindow):
 
             if self.voice_manager.is_recording:
                 self.voice_manager.cancel_recording()
-                self.voice_server_button.setText("🎤 语音输入")
-                self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet().replace(
-                    "background-color: #E53E3E", ""))
+                self.voice_server_button.setText("🎤 语音服务")
+                self.voice_server_button.setStyleSheet(TOOL_BTN_STYLE)
                 self.status_bar.showMessage("语音识别已停止")
             else:
                 self.voice_manager.start_voice_recognition()
                 self.voice_server_button.setText("🛑 停止录音")
-                self.voice_server_button.setStyleSheet(self.voice_server_button.styleSheet() +
-                    "QPushButton { background-color: #E53E3E; }")
+                self.voice_server_button.setStyleSheet(
+                    TOOL_BTN_STYLE + "QPushButton { background-color: #E53E3E; border-color: #C53030; }")
                 self.status_bar.showMessage("🎤 正在录音，请说话...")
 
         except Exception as e:

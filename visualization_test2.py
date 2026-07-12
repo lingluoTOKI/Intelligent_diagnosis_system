@@ -4089,8 +4089,8 @@ class MainWindow(QMainWindow):
                 date = datetime.strptime(rec['timestamp'], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
                 disease = rec['disease_name']
 
-                # 过滤以 '[' 开头的非标准疾病名（如 [对话]、[异常] 等脏数据）
-                if disease.startswith('['):
+                # 过滤非标准数据：对话记录、解析失败的兜底值等
+                if disease.startswith('[') or disease in ("未知", "Other"):
                     continue
 
                 # 统计每日总数

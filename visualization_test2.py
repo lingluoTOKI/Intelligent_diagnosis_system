@@ -5198,33 +5198,37 @@ class MainWindow(QMainWindow):
         print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
 
         def safe_speak():
-            # 优先级1：GPT-SoVITS 洛天依本地 API
+            # 优先级1: 洛天依 GPT-SoVITS TTS API（本地服务）
             try:
-                import urllib.request, tempfile, os as _os, json as _json
+                import subprocess, tempfile, os as _os
                 fd, wav = tempfile.mkstemp(suffix='.wav')
                 _os.close(fd)
-                payload = _json.dumps({
-                    "text": clean, "text_lang": "zh",
+                payload = json.dumps({
+                    "text": clean,
+                    "text_lang": "zh",
                     "ref_audio_path": "lty_ref.wav",
-                    "prompt_text": "我现在需要一个长达三秒的语音",
+                    "prompt_text": "参考音频的原文内容",
                     "prompt_lang": "zh",
                     "text_split_method": "cut5",
-                    "batch_size": 1, "media_type": "wav",
+                    "batch_size": 1,
+                    "media_type": "wav",
                     "streaming_mode": False
-                }).encode('utf-8')
-                req = urllib.request.Request("http://127.0.0.1:9880/tts", data=payload,
-                    headers={"Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                }, ensure_ascii=False)
+                # Python 原生 HTTP 请求，无需 curl 依赖
+                import urllib.request
+                req = urllib.request.Request(
+                    'http://127.0.0.1:9880/tts',
+                    data=payload.encode('utf-8'),
+                    headers={'Content-Type': 'application/json'}
+                )
+                with urllib.request.urlopen(req, timeout=60) as resp:
                     with open(wav, 'wb') as f:
                         f.write(resp.read())
-                import subprocess
                 subprocess.run(['start', '', wav], shell=True, timeout=5)
-                print("[DEBUG] TTS(洛天依): 播放完成")
+                print("[DEBUG] TTS(洛天依 GPT-SoVITS): 播放完成")
                 return
             except Exception:
                 pass
-
-            # 优先级2：edge-tts 微软神经网络语音
             try:
                 import subprocess, tempfile, os as _os
                 fd, mp3 = tempfile.mkstemp(suffix='.mp3')
@@ -5239,8 +5243,6 @@ class MainWindow(QMainWindow):
                 return
             except Exception:
                 pass
-
-            # 优先级3：pyttsx3 离线 SAPI5
             try:
                 import pyttsx3
                 engine = pyttsx3.init()

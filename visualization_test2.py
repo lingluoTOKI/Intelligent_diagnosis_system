@@ -10,7 +10,7 @@ import sqlite3
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # 放在所有导入之前
 
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from PyQt5.QtCore import Qt, QTimer, QSize, QEvent, QObject, pyqtSignal
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                              QWidget, QPushButton, QHBoxLayout, QMessageBox,
@@ -99,7 +99,7 @@ class HistoryDB:
             )
             conn.commit()
 
-    def get_all(self, limit=500):
+    def get_all(self, limit=10000):
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -3367,7 +3367,7 @@ class MainWindow(QMainWindow):
                         disease_name = self.detector.class_names.get(top_class_idx, "未知")
 
                     # 只统计有效疾病
-                    if disease_name not in ("未知", "Other"):
+                    if disease_name != "未知":
                         disease_counter[disease_name] = disease_counter.get(disease_name, 0) + 1
 
                     self.save_to_history(image_path, disease_name, confidence)
@@ -3427,7 +3427,7 @@ class MainWindow(QMainWindow):
         # ===== 2. 图表区 =====
         if disease_counter:
             filtered = {k: v for k, v in disease_counter.items() if v > 0}
-            theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
+            theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF', '#FF9800']
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
             fig.set_facecolor('#1a1e24'); fig.patch.set_alpha(0.0)
@@ -3880,10 +3880,15 @@ class MainWindow(QMainWindow):
         info_layout_inner.setSpacing(15)
         info_layout_inner.setContentsMargins(20, 20, 20, 20)
 
+        # 去掉演示数据前缀
+        disease_display = record['disease_name']
+        if disease_display.startswith('[演示]'):
+            disease_display = disease_display[4:]
+
         # 添加信息标签
         timestamp_label = QLabel(f"检测时间: {record['timestamp']}")
         path_label = QLabel(f"图像路径: {os.path.basename(record['image_path'])}")
-        disease_label = QLabel(f"检测结果: <b style='color:{self.highlight_color};'>{record['disease_name']}</b>")
+        disease_label = QLabel(f"检测结果: <b style='color:{self.highlight_color};'>{disease_display}</b>")
         confidence_label = QLabel(f"置信度: <b style='color:{self.highlight_color};'>{record['confidence']:.2f}</b>")
 
         # 设置样式
@@ -3937,7 +3942,7 @@ class MainWindow(QMainWindow):
         # ================= 加载 AI 建议逻辑（默认立即 + 异步升级） =================
 
         # 0. 主线程：立即展示默认医学建议（必须在 exec_() 之前，保证弹窗即见内容）
-        default_advice = self.deepseek_api._get_default_advice(record['disease_name'])
+        default_advice = self.deepseek_api._get_default_advice(disease_display)
         if default_advice:
             advice_text.setHtml(self.format_advice_html(default_advice))
 
@@ -3952,7 +3957,7 @@ class MainWindow(QMainWindow):
                 else:
                     # 无缓存 → 调 API 生成
                     raw_advice = self.deepseek_api.get_treatment_advice(
-                        record['disease_name'], record['confidence'])
+                        disease_display, record['confidence'])
                     if raw_advice and raw_advice.strip():
                         formatted_html = self.format_advice_html(raw_advice)
                         get_history_db().update_advice(record['record_id'], raw_advice)
@@ -4057,7 +4062,10 @@ class MainWindow(QMainWindow):
         for row, record in enumerate(reversed(history)):
             timestamp_item = QTableWidgetItem(record["timestamp"])
             path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
-            disease_item = QTableWidgetItem(record["disease_name"])
+            disease_name_display = record["disease_name"]
+            if disease_name_display.startswith("[演示]"):
+                disease_name_display = disease_name_display[4:]
+            disease_item = QTableWidgetItem(disease_name_display)
             confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
 
             timestamp_item.setData(Qt.UserRole, record["record_id"])
@@ -4147,6 +4155,42 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 self.show_message_box("错误", f"清空历史记录失败: {str(e)}")
 
+    def _generate_demo_data(self):
+        """生成 30 天模拟检测数据，用于趋势分析演示"""
+        import random
+        db = get_history_db()
+
+        diseases = ["Diabetic Retinopathy", "Normal", "Myopia",
+                     "AMD", "Cataract", "Glaucoma", "Hypertensive Retinopathy", "Other"]
+        # 权重：糖尿病视网膜病变最常见
+        weights = [50, 20, 15, 5, 4, 3, 3, 2]
+
+        base_date = datetime.now() - timedelta(days=30)
+        # 清除旧的演示数据（直接用 SQL，避开 get_all 的 LIMIT 500 限制）
+        with sqlite3.connect(db.db_path) as conn:
+            conn.execute("DELETE FROM records WHERE disease_name LIKE '[演示]%'")
+            conn.commit()
+
+        records_added = 0
+        for day_offset in range(30):
+            date = base_date + timedelta(days=day_offset)
+            # 每天 15-30 条记录，周末少一些
+            day_count = random.randint(150, 250) if date.weekday() < 5 else random.randint(50, 100)
+            for _ in range(day_count):
+                disease = random.choices(diseases, weights=weights, k=1)[0]
+                confidence = round(random.uniform(0.82, 0.99), 4)
+                timestamp = date.strftime("%Y-%m-%d") + f" {random.randint(8,18):02d}:{random.randint(0,59):02d}:{random.randint(0,59):02d}"
+                db.add(
+                    record_id=str(uuid.uuid4()),
+                    timestamp=timestamp,
+                    image_path=f"demo/eye_scan_{day_offset}_{records_added}.jpg",
+                    disease_name=f"[演示]{disease}",
+                    confidence=confidence
+                )
+                records_added += 1
+
+        return records_added
+
     def show_trend_analysis(self):
         """显示病情趋势分析"""
         # 加载历史记录
@@ -4165,8 +4209,11 @@ class MainWindow(QMainWindow):
                 date = datetime.strptime(rec['timestamp'], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
                 disease = rec['disease_name']
 
+                # 去掉演示标记前缀
+                if disease.startswith('[演示]'):
+                    disease = disease[4:]
                 # 过滤非标准数据：对话记录、解析失败的兜底值等
-                if disease.startswith('[') or disease in ("未知", "Other"):
+                if disease.startswith('[') or disease == "未知":
                     continue
 
                 # 统计每日总数
@@ -4333,7 +4380,7 @@ class MainWindow(QMainWindow):
 
         # 饼图
         ax2.set_facecolor('#2d3748')
-        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
+        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF', '#FF9800']
         wedges, texts, autotexts = ax2.pie(
             list(disease_count.values()),
             labels=list(disease_count.keys()),
@@ -4390,7 +4437,7 @@ class MainWindow(QMainWindow):
         dates_sorted = sorted(date_disease.keys())
 
         # 每种疾病一个线条
-        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF']
+        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF', '#FF9800']
 
         for i, disease in enumerate(diseases):
             values = []
@@ -4437,9 +4484,41 @@ class MainWindow(QMainWindow):
             }}
         """)
         close_btn.clicked.connect(dialog.accept)
-        layout.addWidget(close_btn)
 
+        # 生成演示数据按钮
+        demo_btn = QPushButton("📊 生成30天演示数据")
+        demo_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {self.highlight_color};
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                margin-top: 6px;
+            }}
+            QPushButton:hover {{ background-color: #d69e2e; }}
+        """)
+        def generate_demo():
+            reply = QMessageBox.question(
+                dialog, "生成演示数据",
+                "将在数据库中生成约 5000 条模拟的 30 天检测记录。\n"
+                "已有的演示数据会被清除并重新生成。\n\n确定继续？",
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                try:
+                    count = self._generate_demo_data()
+                    QMessageBox.information(dialog, "成功",
+                        f"已生成 {count} 条演示数据！\n弹窗将自动关闭，请重新点击「📈 病情趋势分析」查看图表。")
+                    dialog.accept()
+                except Exception as ex:
+                    QMessageBox.critical(dialog, "生成失败", f"错误: {ex}")
+        demo_btn.clicked.connect(generate_demo)
 
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(demo_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(close_btn)
+        layout.addLayout(btn_row)
 
         dialog.exec_()
 

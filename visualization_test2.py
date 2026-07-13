@@ -4062,7 +4062,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("就绪")
 
     def _populate_history_table(self):
-        """刷新历史记录表格数据（极速版：禁用按钮控件，用单元格点击代替）"""
+        """刷新历史记录表格数据（极速渲染 + 进度条弹窗）"""
         self.status_bar.showMessage("正在加载历史记录...")
         QApplication.processEvents()
 
@@ -4074,15 +4074,45 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("暂无历史记录")
             return
 
-        # 关键优化：暂停界面重绘
+        # 1. 进度条弹窗（仅在数据量较大时显示，避免小数据量时进度条本身成为瓶颈）
+        SHOW_PROGRESS = total_records > 500
+        progress_dialog = None
+        if SHOW_PROGRESS:
+            progress_dialog = QProgressDialog(
+                "正在渲染数据到表格...", "⏹ 取消加载", 0, total_records, self)
+            progress_dialog.setWindowTitle("⏳ 正在加载")
+            progress_dialog.setWindowModality(Qt.WindowModal)
+            progress_dialog.setMinimumWidth(450)
+            progress_dialog.setStyleSheet(f"""
+                QProgressDialog {{ background-color: {self.secondary_bg}; border: 1px solid {self.accent_color}; }}
+                QLabel {{ font-size: 13pt; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
+                QProgressBar {{ border: 1px solid #3b4252; border-radius: 8px; background-color: #1a1e24;
+                    text-align: center; color: white; font-weight: bold; font-size: 11pt; height: 24px; }}
+                QProgressBar::chunk {{ background-color: {self.accent_color}; border-radius: 7px; width: 20px; }}
+                QPushButton {{ background-color: transparent; color: #FF5252; border: 1px solid #FF5252;
+                    padding: 6px 20px; border-radius: 6px; font-weight: bold; margin-top: 10px; }}
+                QPushButton:hover {{ background-color: rgba(255, 82, 82, 0.15); }}
+            """)
+            progress_dialog.setWindowFlags(
+                progress_dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
+            progress_dialog.setAutoClose(True)
+            progress_dialog.setAutoReset(True)
+            progress_dialog.show()
+
+        # 2. 暂停表格重绘（核心性能优化）
         self.history_table.setUpdatesEnabled(False)
         self.history_table.setRowCount(total_records)
+        self.history_table.clearSelection()
 
-        # 预存 record 映射，供点击事件使用
         self._history_records_cache = list(reversed(history))
 
-        # 批量构建所有数据（不逐个建 QPushButton）
+        # 3. 批量构建数据
         for row, record in enumerate(self._history_records_cache):
+            if progress_dialog and progress_dialog.wasCanceled():
+                self.history_table.setRowCount(row)
+                self.status_bar.showMessage(f"已取消加载，当前显示部分数据 ({row}/{total_records})")
+                break
+
             timestamp_item = QTableWidgetItem(record["timestamp"])
             path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
 
@@ -4092,13 +4122,11 @@ class MainWindow(QMainWindow):
 
             disease_item = QTableWidgetItem(disease_name_display)
             confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
-
             timestamp_item.setData(Qt.UserRole, record["record_id"])
 
             for item in [timestamp_item, path_item, disease_item, confidence_item]:
                 item.setFlags(item.flags() & ~Qt.ItemIsEditable)
 
-            # 第 5 列：用文字代替按钮，样式通过 QTableWidgetItem 模拟
             view_item = QTableWidgetItem("查看详情")
             view_item.setTextAlignment(Qt.AlignCenter)
             view_item.setForeground(QBrush(QColor("white")))
@@ -4111,11 +4139,13 @@ class MainWindow(QMainWindow):
             self.history_table.setItem(row, 3, confidence_item)
             self.history_table.setItem(row, 4, view_item)
 
-            # 每 100 条释放一次事件循环
-            if row % 100 == 0:
+            # 大数据量时才刷新进度条（每 200 条一次，减少 UI 开销）
+            if progress_dialog and (row % 200 == 0 or row == total_records - 1):
+                progress_dialog.setValue(row + 1)
+                progress_dialog.setLabelText(f"正在极速渲染数据... ({row + 1} / {total_records})")
                 QApplication.processEvents()
 
-        # 列宽设置
+        # 4. 列宽设置
         self.history_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.history_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
@@ -4126,9 +4156,11 @@ class MainWindow(QMainWindow):
         self.history_table.setColumnWidth(3, 100)
         self.history_table.setColumnWidth(4, 120)
 
-        # 恢复界面重绘
+        # 5. 恢复表格重绘
         self.history_table.setUpdatesEnabled(True)
-        self.status_bar.showMessage(f"历史记录加载完成（共 {total_records} 条）")
+
+        if not (progress_dialog and progress_dialog.wasCanceled()):
+            self.status_bar.showMessage(f"历史记录加载完成（共 {total_records} 条）")
 
     def delete_selected_history(self):
         """删除选中的历史记录 (SQLite)"""

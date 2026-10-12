@@ -222,6 +222,16 @@ vosk-model-small-zh-cn-0.22/
 # *.pt
 # *.onnx
 
+# 预训练权重：官方权重，训练时自动下载，不入库（仅根目录）
+/yolo11n.pt
+/yolo11s.pt
+/yolo11m.pt
+/yolov8n.pt
+
+# 训练产物
+runs/
+*.cache
+
 # ===== 数据集：不随仓库分发（课程要求 + 医疗影像隐私） =====
 # 眼底图像数据集（获取途径见 README「数据集」一节）
 data/eyes_val/
@@ -245,7 +255,6 @@ eyes_test/
 # 运行时产物
 medical_images/
 temp_image_*.png
-runs/
 services/
 
 # secrets

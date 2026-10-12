@@ -2,7 +2,7 @@
 
 <div align="center">
 
-**基于 YOLO11 + AKConv 的眼部疾病智能诊断系统**
+**基于 YOLO11 的眼部疾病智能诊断系统**
 
 集成 DeepSeek AI 诊疗对话 · 离线语音识别 · PC + 开发板协同 · WiFi 屏幕共享
 
@@ -39,7 +39,7 @@
 
 ```bash
 # 1. 克隆仓库
-git clone <repo-url>
+git clone https://github.com/lingluoTOKI/Intelligent_diagnosis_system.git
 cd Intelligent_diagnosis_system
 
 # 2. 安装依赖
@@ -73,7 +73,7 @@ python scripts/quick_start.py
 ```
 visualization_test2.py          ← PC 端主入口（PyQt5 单体 GUI，~7000 行）
     │
-    ├── EyeDiseaseDetector      ← YOLO11 + 自定义 AKConv 推理引擎
+    ├── EyeDiseaseDetector      ← YOLO11-cls 推理引擎
     ├── ResultProcessor         ← 检测结果解析、可视化、备用结果
     ├── SmartVoiceManager       ← Vosk 离线优先 → Google 在线回退
     ├── DeepSeekAPI             ← AI 诊疗建议 + 对话式问诊 + 默认医学知识库
@@ -150,7 +150,7 @@ src/utils/                       ← 一次性测试 / 调试脚本（非通用�
 
 | 步骤 | 按钮 | 说明 |
 |------|------|------|
-| 1 | 🔁 加载模型 | 加载 YOLO11 + AKConv 模型权重 |
+| 1 | 🔁 加载模型 | 加载 YOLO11-cls 模型权重 |
 | 2 | 🖼️ 加载图像 | 选择本地眼底图像文件 |
 | 3 | 🔍 开始检测 | YOLO 推理 → 自动展示结果 + 保存历史 |
 | 4 | 📊 查看报告 | 重新打开最近一次检测的报告弹窗 |
@@ -202,27 +202,32 @@ src/utils/                       ← 一次性测试 / 调试脚本（非通用�
 
 ### 模型架构
 
-基于 **YOLO11-cls** 分类模型，集成自定义 **AKConv**（可变形卷积）模块以提升特征提取能力。
+当前部署权重基于 **YOLO11-cls** 分类模型（`best.pt` 内部结构为原生 `C2f` / `C3k2` / `C2PSA` + `Classify` 头）。
+
+> **关于 AKConv**：项目已在框架层完成 **AKConv**（可变形卷积，Lv et al.）模块的代码集成与注册（见下方"AKConv 注册机制"），但**当前 `best.pt` / `last.pt` / `best.onnx` 权重均未使用 AKConv 模块**，仍是原生 YOLO11-cls 结构。AKConv 属于集成验证阶段的探索性工作，尚未纳入最终权重。
 
 **模型文件：**
 
 | 文件 | 格式 | 用途 |
 |------|------|------|
-| `models/custom/AKConv_best_moudle/best.pt` | PyTorch | PC 端主要推理权重 |
+| `models/custom/AKConv_best_moudle/best.pt` | PyTorch | PC 端主要推理权重（实为原生 YOLO11-cls） |
 | `models/custom/AKConv_best_moudle/best.onnx` | ONNX | 开发板端推理 |
-| `models/custom/common/best.pt` | PyTorch | 备用权重 |
+| `models/custom/common/best.pt` | PyTorch | 备用权重（原生 YOLO11-cls） |
 
-**AKConv 注册机制：**
+> 目录名 `AKConv_best_moudle` 为历史命名沿用，**不代表其中权重含有 AKConv 模块**。
+
+**AKConv 注册机制（已实现，当前权重未启用）：**
 
 ```
-ultralytics-main/ultralytics/nn/modules/akconv.py   ← 自定义模块定义
+ultralytics-main/ultralytics/nn/modules/akconv.py   ← 自定义模块定义（AKConv / C3k2_AKConv）
     ↓ from .akconv import * (__init__.py L19)
-    ↓ parse_model() 添加 AKConv / C3k2_AKConv (tasks.py)
+    ↓ parse_model() 添加 AKConv / C3k2_AKConv (tasks.py L1136-1137, L1157)
     ↓
 模型 YAML 可直接引用 C3k2_AKConv 模块
 ```
 
 > 注意：`ultralytics-main/` 是整个 YOLO 框架的本地副本（含 AKConv 修改），不是 pip 安装的 `ultralytics` 包。运行前需确保项目根目录在 `sys.path` 中。
+> 目前仓库内**尚无任何 YAML 引用 `C3k2_AKConv`**，`yolo11-cls.yaml` 的 backbone 仍为原生 `C3k2`。
 
 ### 疾病类别（8 分类）
 
@@ -251,14 +256,33 @@ class_names = {
 
 ### 训练
 
-```bash
-# 在 ultralytics-main/ 目录下（需修改 eyes_train.py 中的硬编码路径）
-cd ultralytics-main && python eyes_train.py
+> ⚠️ `eyes_train.py` **当前不在仓库中**（历史上曾用于训练，未提交）。如需重训，请按下例自行编写训练脚本。
 
-# YOLO 命令行（使用本地 ultralytics-main，非 pip 包）
-yolo predict model=models/custom/AKConv_best_moudle/best.pt source=<image>
-yolo val model=models/custom/AKConv_best_moudle/best.pt data=data/eyes_dataset.yaml
+```python
+# 参考写法（需先在 ultralytics-main/ 目录下，并确保本地 ultralytics 在 sys.path 中）
+from ultralytics import YOLO
+
+model = YOLO("yolo11n-cls.yaml")   # 或 "yolo11-cls-AKConv.yaml" 启用 AKConv
+model.train(data="data", epochs=100, imgsz=224, batch=32, device=0)
 ```
+
+```bash
+# 验证 / 推理（使用本地 ultralytics-main，非 pip 包）
+yolo val model=models/custom/AKConv_best_moudle/best.pt data=data/eyes_dataset.yaml
+yolo predict model=models/custom/AKConv_best_moudle/best.pt source=<image>
+```
+
+### 数据集
+
+数据集**不随仓库分发**。`data/eyes_dataset.yaml` 定义了 8 类眼部疾病（A/C/D/G/H/M/N/O）的目录结构与划分。本地运行时请将数据放置为：
+
+```
+data/eyes_val/<类别字母>/<图像>.jpg     # 验证集
+data/eyes_train/images/<类别字母>/...   # 训练集
+data/eyes_test/images/<类别字母>/...    # 测试集
+```
+
+获取途径：公开眼底数据集（如 ODIR-5K、EyePACS、Kaggle 眼底图像数据集等）或自采数据，使用前请确认其许可协议。
 
 ---
 

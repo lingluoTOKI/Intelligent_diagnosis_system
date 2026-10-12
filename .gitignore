@@ -213,7 +213,40 @@ __marimo__/
 .idea/
 # local models
 vosk-model-cn-0.22/
+vosk-model-small-cn-0.22/
+vosk-model-small-zh-cn-0.22/
 
+# 注意：模型权重（models/**/*.pt、*.onnx）**保留在仓库中**，
+# 便于 clone 后直接运行演示。若日后需移除，取消下面两行注释并执行：
+#   git rm -r --cached models/
+# *.pt
+# *.onnx
+
+# ===== 数据集：不随仓库分发（课程要求 + 医疗影像隐私） =====
+# 眼底图像数据集（获取途径见 README「数据集」一节）
+data/eyes_val/
+data/eyes_train/
+data/eyes_test/
+eyes_val/
+eyes_train/
+eyes_test/
+# 图像文件兜底（防止误提交）
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tif
+*.tiff
+# 例外：文档/框架自带的示意图与资源
+!docs/**
+!ultralytics-main/docs/**
+!**/*.svg
+
+# 运行时产物
+medical_images/
+temp_image_*.png
+runs/
+services/
 
 # secrets
 saved_api_key.txt

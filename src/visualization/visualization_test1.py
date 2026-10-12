@@ -3,6 +3,7 @@
 # ------------------------------------------------------------
 import sys
 import os
+from pathlib import Path
 import cv2
 import json
 import numpy as np
@@ -36,8 +37,10 @@ try:
 except ImportError:
     pass  # matplotlib不可用时忽略
 
-# 默认模型路径
-DEFAULT_MODEL_PATH = r"C:\Users\47449\Desktop\yolo\Intelligent_diagnosis_system\ultralytics-main\self_model\AKConv_best_moudle\best.pt"
+# 默认模型路径（相对项目根目录；注意该权重为原生 YOLO11-cls，不含 AKConv）
+DEFAULT_MODEL_PATH = str(
+    Path(__file__).resolve().parents[2] / "models" / "custom" / "AKConv_best_moudle" / "best.pt"
+)
 
 # =================  追加到 import 区域之后即可  =================
 

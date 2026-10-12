@@ -10,7 +10,7 @@ AI 眼科辅助诊断系统，采用 **PC + 开发板** 分离式架构。PC 端
 
 ```
 visualization_test2.py          ← PC 端主入口（PyQt5 GUI 单体应用，~6500 行）
-    ├── YOLO 推理（ultralytics + 自定义 AKConv 模块）
+    ├── YOLO 推理（ultralytics，当前权重为原生 YOLO11-cls）
     ├── SmartVoiceManager（Vosk 离线 → Google 在线回退）
     ├── DeepSeekAPI（AI 治疗建议 + 对话式问诊）
     ├── HistoryDB（SQLite，存储诊断历史）
@@ -62,8 +62,8 @@ python src/network/wifi_pc_sender_with_mouse.py
 python src/network/wifi_pc_receiver_2.0.py
 python src/board/board_camera_integration.py
 
-# 训练（在 ultralytics-main/ 目录下，注意硬编码路径需修改）
-cd ultralytics-main && python eyes_train.py
+# 训练（eyes_train.py 未提交到仓库，需自行编写）
+# 参考：YOLO("yolo11n-cls.yaml").train(data="data", epochs=100, imgsz=224)
 
 # YOLO 命令行（使用本地 ultralytics-main/，非 pip 包）
 yolo predict model=models/custom/AKConv_best_moudle/best.pt source=<image>
@@ -72,21 +72,21 @@ yolo val model=models/custom/AKConv_best_moudle/best.pt data=data/eyes_dataset.y
 
 ## 模型
 
-基于 **YOLO11 分类** 模型，集成自定义 **AKConv**（可变形卷积）模块。
+基于 **YOLO11-cls 分类** 模型。
 
-- `models/custom/AKConv_best_moudle/best.pt` — 主要权重（注意：README 中误写为 `self_model/AKConv_best_moudle/`）
+- `models/custom/AKConv_best_moudle/best.pt` — 主要权重（实为原生 YOLO11-cls 结构）
 - `models/custom/AKConv_best_moudle/best.onnx` — ONNX 导出（开发板推理用）
 - `models/custom/common/best.pt` — 备用权重
 
-**AKConv 注册机制：** 自定义模块定义在 `ultralytics-main/ultralytics/nn/modules/akconv.py`，通过以下两步注册到 YOLO：
-1. `ultralytics-main/ultralytics/nn/modules/__init__.py` 第 19 行：`from .akconv import *`
-2. `ultralytics-main/ultralytics/nn/tasks.py` 将 `AKConv` 和 `C3k2_AKConv` 加入 `parse_model()` 的可用模块字典
-
-这意味着模型 YAML 配置中可以直接引用 `C3k2_AKConv` 模块，训练/推理时会自动解析。
+> **关于 AKConv：** 模块定义在 `ultralytics-main/ultralytics/nn/modules/akconv.py`，并已完成框架注册：
+> 1. `ultralytics-main/ultralytics/nn/modules/__init__.py` 第 19 行：`from .akconv import *`
+> 2. `ultralytics-main/ultralytics/nn/tasks.py` 将 `AKConv` 和 `C3k2_AKConv` 加入 `parse_model()` 的可用模块字典
+>
+> 但**当前所有权重均未使用 AKConv**，且仓库内**无任何 YAML 引用 `C3k2_AKConv`**（`yolo11-cls.yaml` backbone 仍为原生 `C3k2`）。AKConv 属**未启用**的集成验证代码，不要据此宣称模型含 AKConv。AKConv 原始工作见 Lv et al., *AKConv: Convolutional Kernel with Arbitrary Sampled Shapes and Arbitrary Number of Parameters*。
 
 `ultralytics-main/` 是整个 YOLO 框架的本地副本（包含 AKConv 修改），**不是** pip 安装的 `ultralytics` 包。运行时需要确保 `ultralytics-main/` 在 `sys.path` 中（或在项目根目录运行）。
 
-**8 种疾病类别：** A（正常）、C（白内障）、D（糖尿病视网膜病变）、G（青光眼）、H（高血压性视网膜病变）、M（黄斑病变）、N（视神经病变）、O（其他）。
+**8 种疾病类别：** A（AMD，年龄相关性黄斑变性）、C（白内障）、D（糖尿病视网膜病变）、G（青光眼）、H（高血压性视网膜病变）、M（近视性黄斑病变）、N（正常）、O（其他）。以 `visualization_test2.py` 的 `EyeDiseaseDetector.class_names` 为准。
 
 ## 配置系统
 

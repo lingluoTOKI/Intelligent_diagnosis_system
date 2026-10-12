@@ -234,12 +234,10 @@ runs/
 
 # ===== 数据集：不随仓库分发（课程要求 + 医疗影像隐私） =====
 # 眼底图像数据集（获取途径见 README「数据集」一节）
-data/eyes_val/
-data/eyes_train/
-data/eyes_test/
-eyes_val/
-eyes_train/
-eyes_test/
+# YOLO 分类任务要求 data/ 下子目录名固定为 train / val（ultralytics 硬编码）
+data/train/
+data/val/
+data/test/
 # 图像文件兜底（防止误提交）
 *.jpg
 *.jpeg

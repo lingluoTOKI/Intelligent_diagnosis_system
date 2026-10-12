@@ -262,25 +262,31 @@ class_names = {
 # 参考写法（需先在 ultralytics-main/ 目录下，并确保本地 ultralytics 在 sys.path 中）
 from ultralytics import YOLO
 
-model = YOLO("yolo11n-cls.yaml")   # 或 "yolo11-cls-AKConv.yaml" 启用 AKConv
-model.train(data="data", epochs=100, imgsz=224, batch=32, device=0)
+model = YOLO("yolo11n-cls.yaml")   # 或 "yolo11n-cls-AKConv.yaml" 启用 AKConv
+model.train(data="data", epochs=100, imgsz=224, batch=32, device=0)  # data 传目录
 ```
 
 ```bash
 # 验证 / 推理（使用本地 ultralytics-main，非 pip 包）
-yolo val model=models/custom/AKConv_best_moudle/best.pt data=data/eyes_dataset.yaml
+yolo val model=models/custom/AKConv_best_moudle/best.pt data=data
 yolo predict model=models/custom/AKConv_best_moudle/best.pt source=<image>
 ```
 
 ### 数据集
 
-数据集**不随仓库分发**。`data/eyes_dataset.yaml` 定义了 8 类眼部疾病（A/C/D/G/H/M/N/O）的目录结构与划分。本地运行时请将数据放置为：
+数据集**不随仓库分发**（课程要求「不含数据集」，且眼底影像涉及隐私）。本地运行时请将数据放置为：
 
 ```
-data/eyes_val/<类别字母>/<图像>.jpg     # 验证集
-data/eyes_train/images/<类别字母>/...   # 训练集
-data/eyes_test/images/<类别字母>/...    # 测试集
+data/train/<类别字母>/<图像>.jpg     # 训练集（5110 张）
+data/val/<类别字母>/<图像>.jpg       # 验证集（1163 张）
 ```
+
+> ⚠️ YOLO **分类任务**的 `data` 参数必须传目录（`data`），且子目录名固定为
+> `train` / `val`（ultralytics 源码硬编码）。**不要传 yaml** —— 分类任务会把
+> yaml 路径当成数据集名去下载而报错。`data/eyes_dataset.yaml` 仅作说明文档。
+
+类别为 8 类：A（AMD）、C（白内障）、D（糖尿病视网膜病变）、G（青光眼）、
+H（高血压性视网膜病变）、M（近视性黄斑病变）、N（正常）、O（其他）。
 
 获取途径：公开眼底数据集（如 ODIR-5K、EyePACS、Kaggle 眼底图像数据集等）或自采数据，使用前请确认其许可协议。
 

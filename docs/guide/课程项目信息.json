@@ -1,0 +1,20 @@
+{
+  "title": "基于YOLO与大语言模型的眼科图像分类辅助诊断系统",
+  "members": [
+    {
+      "name": "欧阳宸",
+      "student_id": "230722105"
+    },
+    {
+      "name": "汪晓蕾",
+      "student_id": "231613212"
+    }
+  ],
+  "available_hardware": [
+    "本机摄像头",
+    "麦克风",
+    "扬声器"
+  ],
+  "board_available": false,
+  "dataset_source_status": "历史报告记载ODIR及天池94998，原始标签和转换未核实"
+}

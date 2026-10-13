@@ -1,0 +1,20 @@
+[Unit]
+Description=Eye Disease Classification Service
+After=network.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__APP_DIR__
+Environment="EYE_SERVER_WEIGHTS=__APP_DIR__/models/server/best512.onnx"
+Environment="EYE_HISTORY_DB=__APP_DIR__/runtime/history.db"
+Environment="EYE_MAX_UPLOAD_MB=12"
+Environment="DEEPSEEK_API_KEY="
+ExecStart=__APP_DIR__/venv/bin/uvicorn src.server.app:app --host 0.0.0.0 --port __PORT__
+Restart=always
+RestartSec=5
+StandardOutput=append:__APP_DIR__/runtime/service.log
+StandardError=append:__APP_DIR__/runtime/service.log
+
+[Install]
+WantedBy=multi-user.target

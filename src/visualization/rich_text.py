@@ -50,3 +50,23 @@ def apply_reading_font(editor,size):
             cursor=QTextCursor(document);cursor.setPosition(position);cursor.setPosition(position+length,QTextCursor.KeepAnchor)
             fmt=QTextCharFormat();fmt.setFontPointSize(target);cursor.mergeCharFormat(fmt)
     finally:editor._applying_reading_font=False
+
+
+def advice_guide(classified=False):
+    """Instructions shown only before a report has been generated."""
+    if classified:
+        text = """## 分类已完成，接下来可以
+1. 点击 **生成辅助建议**，查看当前图像的结果说明。
+2. 切换到 **多轮问答**，补充情况或继续提问。
+3. 使用 **阅读字号** 调整文字，或点击 **展开阅读** 查看长内容。
+在线建议需要在「系统设置」中配置 AI 服务。
+"""
+    else:
+        text = """## 开始使用
+1. **导入图像**：点击左侧「加载图像」，也可拖入图片或使用摄像头采集。
+2. **开始分类**：确认模型已就绪，点击「开始分类」；未就绪时先点击「加载模型」。
+3. **查看建议**：分类完成后，点击「生成辅助建议」。
+4. **继续交流**：切换到「多轮问答」，输入问题并发送。
+可用右上角「阅读字号」调整文字大小，点击「展开阅读」查看长内容。
+"""
+    return render_text(text)

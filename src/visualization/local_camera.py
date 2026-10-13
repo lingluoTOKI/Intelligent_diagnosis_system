@@ -2,10 +2,13 @@
 from pathlib import Path
 import uuid
 from PyQt5.QtWidgets import QWidget,QVBoxLayout,QHBoxLayout,QComboBox,QPushButton,QLabel
+from PyQt5.QtCore import QTimer
 
 class LocalCameraPage(QWidget):
     def __init__(self,window):
         super().__init__();self.window=window;self.camera=None;self.capture=None
+        self.open_timeout=QTimer(self);self.open_timeout.setSingleShot(True)
+        self.open_timeout.timeout.connect(self.open_failed)
         layout=QVBoxLayout(self);bar=QHBoxLayout();layout.addLayout(bar)
         self.devices=QComboBox();bar.addWidget(self.devices,1)
         refresh=QPushButton('刷新设备');refresh.clicked.connect(self.refresh);bar.addWidget(refresh)
@@ -31,11 +34,27 @@ class LocalCameraPage(QWidget):
         self.open_button.setEnabled(self.devices.count()>0)
         if not self.devices.count():self.status.setText('未发现摄像头；请连接设备，并检查 Windows 摄像头权限。')
     def stop(self):
+        self.open_timeout.stop()
         self.photo.setEnabled(False)
         if self.camera:
             self.camera.stop()
+            self.camera.unload()
             self.camera.deleteLater();self.camera=None;self.capture=None
+        self.open_button.setEnabled(self.devices.count()>0)
         self.status.setText('预览已关闭')
+    def open_failed(self):
+        self.stop()
+        self.status.setText('摄像头未能在 10 秒内就绪。请关闭其他占用摄像头的软件，然后重新打开；也可刷新设备后重试。')
+    def camera_status(self,camera,status):
+        from PyQt5.QtMultimedia import QCamera
+        if camera is not self.camera:return
+        if status==QCamera.ActiveStatus:
+            self.open_timeout.stop()
+            self.status.setText('摄像头预览已打开；就绪后可拍照并载入')
+    def camera_error(self,camera):
+        if camera is not self.camera:return
+        message=camera.errorString()
+        self.stop();self.status.setText('摄像头打开失败：'+message)
     def open_camera(self):
         self.stop()
         info=self.devices.currentData()
@@ -46,8 +65,12 @@ class LocalCameraPage(QWidget):
         self.capture.readyForCaptureChanged.connect(self.photo.setEnabled)
         self.capture.imageSaved.connect(self.saved)
         self.capture.error.connect(lambda _,code,message:self.status.setText('拍照失败：'+message))
-        self.camera.error.connect(lambda _:self.status.setText('摄像头错误：'+self.camera.errorString()) if self.camera else None)
-        self.camera.start();self.status.setText('正在打开 '+info.description())
+        camera=self.camera
+        camera.error.connect(lambda _:self.camera_error(camera))
+        camera.statusChanged.connect(lambda status:self.camera_status(camera,status))
+        self.open_button.setEnabled(False)
+        self.status.setText('正在打开 '+info.description())
+        self.open_timeout.start(10000);camera.start()
     def take_photo(self):
         if getattr(self.window,'_busy',False):self.status.setText('请等待当前任务完成再拍照');return
         if self.capture and self.capture.isReadyForCapture():

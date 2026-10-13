@@ -1,6 +1,6 @@
 """Consistent graphite, blue and teal theme with persistent, live typography sizing."""
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QWidget, QTableWidget
+from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtWidgets import QWidget, QTableWidget, QLineEdit, QTextEdit
 
 STYLE = """
 QLabel#notice { color: #F1B761; font-size: SMALLpt; padding-top: 6px; }
@@ -21,6 +21,7 @@ QPushButton[primary='true'] { background: #4DD6B4; border-color: #4DD6B4; color:
 QPushButton[primary='true']:hover { background: #72E5C8; }
 QPushButton[primary='true']:disabled { background: #252D37; color: #8693A3; border-color: #394451; }
 QTextEdit, QLineEdit, QComboBox { background: #1D242D; color: #EEF2F6; border: 1px solid #465362; border-radius: 7px; padding: 8px; selection-background-color: #226F98; selection-color: #FFFFFF; }
+QLineEdit:disabled, QTextEdit:disabled { color: #A5B2C2; background: #252D37; }
 QTextEdit:focus, QLineEdit:focus { border-color: #4DD6B4; }
 QComboBox QAbstractItemView { background: #242C37; selection-background-color: #226F98; selection-color: #FFFFFF; }
 QTabWidget::pane { border: 1px solid #394451; border-radius: 8px; background: #242C37; }
@@ -63,6 +64,7 @@ def style_dialog(dialog,window):
     for child in dialog.findChildren(QWidget):child.setStyleSheet("")
     family=window.font_family_combo.currentData()
     dialog.setStyleSheet(stylesheet(size,family))
+    apply_input_palette(dialog)
     for table in dialog.findChildren(QTableWidget):
         table.verticalHeader().setMinimumSectionSize(round(size*2.4))
         table.verticalHeader().setDefaultSectionSize(round(size*2.6))
@@ -81,7 +83,8 @@ def apply_workbench_theme(window):
         button=getattr(window,name);button.setProperty("primary",True)
         button.style().unpolish(button);button.style().polish(button)
     window.workbench_splitter.setMinimumHeight(round((560 if window.probability_toggle.isChecked() else 400)*size/14))
-    window.probability_details.setMinimumHeight(round(150*size/14))
+    window.probability_details.setMinimumHeight(0)
+    window.probability_details.layout().invalidate()
     window.original_image_label.setFont(QFont(family,size))
     for text in (window.advice_text,window.chat_display,window.chat_input):
         text.setFont(QFont(family,size))
@@ -107,4 +110,16 @@ def apply_workbench_theme(window):
 
     window.probability_details.setStyleSheet("background: transparent;")
 
+    apply_input_palette(window)
     if hasattr(window,"apply_reading_size"):window.apply_reading_size()
+
+
+def apply_input_palette(root):
+    """Qt 5 placeholder text needs an explicit palette role on dark themes."""
+    for editor in root.findChildren(QLineEdit) + root.findChildren(QTextEdit):
+        editor.ensurePolished()
+        palette = editor.palette()
+        for group in (QPalette.Active, QPalette.Inactive, QPalette.Disabled):
+            palette.setColor(group, QPalette.PlaceholderText, QColor("#A5B2C2"))
+            palette.setColor(group, QPalette.Text, QColor("#A5B2C2" if group == QPalette.Disabled else "#EEF2F6"))
+        editor.setPalette(palette)

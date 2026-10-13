@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#171C24">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect x='8' y='8' width='240' height='240' rx='58' fill='%23142937'/%3E%3Cpath d='M38 128Q128 28 218 128Q128 228 38 128Z' fill='none' stroke='%2351C5E3' stroke-width='13' stroke-linejoin='round'/%3E%3Ccircle cx='128' cy='128' r='40' fill='none' stroke='%234DD6B4' stroke-width='10'/%3E%3Ccircle cx='128' cy='128' r='18' fill='%23E6FAFF'/%3E%3Ccircle cx='142' cy='111' r='7' fill='%23142937'/%3E%3C/svg%3E">
+<title>眼科图像分类辅助诊断系统</title>
+<style>
+:root{
+  /* 让浏览器原生控件（日历图标、下拉箭头、滚动条、日期弹窗）按深色渲染，
+     否则 Chrome 会把 input[type=date] 的日历图标画成黑色，在深色输入框里几乎看不见 */
+  color-scheme:dark;
+  --bg:#171C24;
+  --card:#242C37;
+  --card-line:#394451;
+  --canvas:#1B222B;
+  --canvas-grid:#27313D;
+  --ink:#EEF2F6;
+  --muted:#ADB8C7;
+  --section:#83D8EA;
+  --score:#4DD6B4;
+  --accent:#51C5E3;
+  --primary:#4DD6B4;
+  --btn:#303B49;
+  --btn-line:#465362;
+  --input:#1D242D;
+  --notice:#F1B761;
+  --bar:#394451;
+  --row-alt:#2A3440;
+  --head:#303B49;
+  --font:"Microsoft YaHei","DengXian","PingFang SC","Noto Sans SC",sans-serif;
+  --fs-body:18px;
+  --fs-small:16px;
+  --fs-section:20px;
+  --fs-title:26px;
+  --fs-score:32px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;width:100%;height:100%;min-height:100%;overflow:hidden}
+body{background:
+  radial-gradient(circle at 8% 0%,rgba(81,197,227,.08),transparent 28%),
+  radial-gradient(circle at 92% 100%,rgba(77,214,180,.055),transparent 26%),
+  var(--bg);color:var(--ink);font-family:var(--font);font-size:var(--fs-body);line-height:1.6;-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--card)}
+::-webkit-scrollbar-thumb{background:#556477;min-height:24px;border-radius:4px}
+.app{width:100%;max-width:none;margin:0;padding:clamp(10px,1.15vw,18px);display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
+#pageSingle,#pageBatch,#pageHistory,#pageSettings{flex:1 1 auto;min-height:0;overflow:auto}
+
+/* 顶栏 */
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding:10px 12px;flex-wrap:wrap;background:linear-gradient(115deg,rgba(36,44,55,.96),rgba(27,34,43,.88));border:1px solid var(--card-line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.16)}
+.brand{width:44px;height:44px;flex:none}
+.page-title{font-size:var(--fs-title);font-weight:bold;color:#F4F7FA;margin:0;letter-spacing:.02em;text-wrap:balance}
+.badge{color:var(--section);background:#123145;border:1px solid #40536B;padding:8px 14px;border-radius:8px;font-size:var(--fs-body);white-space:nowrap}
+.badge.off{color:var(--notice);background:#3a2f18;border-color:#5c4a22}
+.spacer{flex:1}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(180deg,#354252,var(--btn));border:1px solid var(--btn-line);border-radius:8px;padding:8px 12px;min-height:42px;color:var(--ink);font-family:var(--font);font-size:var(--fs-body);cursor:pointer;transition:transform .15s,background .15s,border-color .15s,box-shadow .15s}
+.btn:hover{border-color:var(--primary);background:#394958}
+.btn:active{background:#202A33;transform:translateY(1px)}
+.btn:focus-visible,.pages button:focus-visible,.tabs button:focus-visible,.pages-sm button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn:disabled{color:#8693A3;border-color:var(--card-line);background:#252D37;cursor:not-allowed}
+.btn.primary{background:linear-gradient(135deg,#62E2C2,var(--primary));border-color:#76E8CD;color:#102A24;font-weight:bold;box-shadow:0 5px 16px rgba(77,214,180,.16)}
+.btn.primary:hover{background:#72E5C8;border-color:#72E5C8}
+.btn.primary:disabled{background:#252D37;color:#8693A3;border-color:var(--card-line)}
+.btn.sm{min-height:34px;padding:4px 12px;font-size:var(--fs-small)}
+.ic{width:20px;height:20px;flex:none}
+
+/* 分页 */
+.pages{display:flex;gap:4px;margin-bottom:10px;padding:0 6px;border-bottom:1px solid var(--card-line);flex-wrap:wrap;background:rgba(29,36,45,.52);border-radius:9px 9px 0 0}
+.pages button{display:inline-flex;align-items:center;gap:8px;background:var(--bg);border:none;border-bottom:3px solid transparent;color:var(--muted);padding:10px 16px;font-family:var(--font);font-size:var(--fs-body);cursor:pointer}
+.pages button:hover{color:#fff}
+.pages button.on{color:var(--section);background:var(--card);border-bottom-color:var(--accent)}
+
+/* 状态行 */
+.statusline{display:flex;align-items:center;gap:10px;margin-bottom:10px;min-height:28px;padding:2px 10px;border-left:3px solid var(--accent);background:linear-gradient(90deg,rgba(81,197,227,.08),transparent 55%);border-radius:3px}
+.status-text{color:var(--muted);font-size:var(--fs-small)}
+.status-text.err{color:#FC8181}
+.status-text.ok{color:var(--primary)}
+.status-text.note{color:var(--notice)}
+.progress{height:4px;background:var(--bar);border-radius:2px;margin-bottom:16px;overflow:hidden;display:none}
+.progress.run{display:block}
+.progress i{display:block;height:100%;width:40%;background:var(--primary);animation:ind 1s linear infinite}
+@keyframes ind{0%{margin-left:-40%}100%{margin-left:100%}}
+
+/* 通用 */
+.section-title{display:flex;align-items:center;gap:8px;font-size:var(--fs-section);font-weight:bold;color:var(--section);margin:0 0 10px}
+.section-title::before{content:"";width:4px;height:1.05em;border-radius:3px;background:linear-gradient(var(--accent),var(--primary));box-shadow:0 0 10px rgba(81,197,227,.28)}
+.card{background:linear-gradient(145deg,rgba(39,48,60,.98),rgba(34,42,52,.98));border:1px solid var(--card-line);border-radius:11px;box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.row .grow{flex:1}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+input[type=text],input[type=date],select,textarea{
+  background:var(--input);color:var(--ink);border:1px solid var(--btn-line);border-radius:7px;
+  padding:8px;font-family:var(--font);font-size:var(--fs-body);
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary)}
+input::placeholder,textarea::placeholder{color:#A5B2C2}
+input[type=date]{color:var(--ink)}
+input[type=date]::-webkit-calendar-picker-indicator{
+  filter:invert(1) brightness(1.35);opacity:.85;cursor:pointer;
+}
+input[type=date]::-webkit-calendar-picker-indicator:hover{opacity:1}
+input[type=date]::-webkit-datetime-edit{color:var(--ink)}
+input[type=date]::-webkit-datetime-edit-fields-wrapper{color:var(--ink)}
+input[type=date]::-webkit-datetime-edit-text{color:var(--muted);padding:0 1px}
+input[type=date]::-webkit-datetime-edit-year-field,
+input[type=date]::-webkit-datetime-edit-month-field,
+input[type=date]::-webkit-datetime-edit-day-field{color:var(--ink)}
+input[type=date]::-webkit-inner-spin-button{filter:invert(1) brightness(1.35);opacity:.7}
+.summary{color:var(--muted);font-size:var(--fs-small);margin-bottom:10px}
+
+/* 分栏 */
+.split{display:flex;flex-wrap:nowrap;gap:clamp(10px,1vw,16px);align-items:stretch;width:100%;height:100%;min-height:0}
+.split>.left{flex:1 1 300px;min-width:260px;padding:14px;background:rgba(29,36,45,.72);border:1px solid var(--card-line);border-radius:11px}
+.split>.right{flex:2.2 1 380px;min-width:260px}
+.split-wide{display:flex;flex-wrap:nowrap;gap:clamp(10px,1vw,16px);align-items:flex-start;width:100%;min-width:0}
+.split-wide>div:first-child{flex:2 1 420px;min-width:300px}
+.split-wide>div:last-child{flex:1 1 340px;min-width:280px}
+
+/* 左栏（单图） */
+.left{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:auto}
+.tabs{display:flex;gap:2px;margin-bottom:10px}
+.tabs button{background:var(--bg);border:none;border-bottom:3px solid transparent;color:var(--muted);padding:10px 16px;font-family:var(--font);font-size:var(--fs-body);cursor:pointer;border-radius:6px 6px 0 0}
+.tabs button:hover{color:#fff}
+.tabs button.on{color:var(--section);background:var(--card);border-bottom-color:var(--accent)}
+.canvas{position:relative;background:var(--canvas);border:1px solid var(--card-line);border-radius:10px;flex:1 1 auto;min-height:140px;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;box-shadow:inset 0 0 32px rgba(0,0,0,.16);transition:border-color .15s,box-shadow .15s}
+.canvas.empty{background-image:repeating-linear-gradient(to right,var(--canvas-grid) 0 1px,transparent 1px 32px),repeating-linear-gradient(to bottom,var(--canvas-grid) 0 1px,transparent 1px 32px)}
+.canvas:hover{border-color:var(--accent);box-shadow:inset 0 0 32px rgba(0,0,0,.16),0 0 0 3px rgba(81,197,227,.08)}
+.canvas img{display:none;max-width:100%;max-height:100%;object-fit:contain}
+.canvas.has img{display:block}
+.canvas.has .holder{display:none}
+.holder{text-align:center;pointer-events:none;padding:20px;margin-top:-48px}
+.holder .t1{font-size:var(--fs-body);font-weight:bold;color:var(--ink);margin-top:10px}
+.holder .t2{font-size:var(--fs-small);color:var(--muted);margin-top:6px}
+.cap{position:absolute;left:0;right:0;bottom:0;padding:6px 12px;font-size:var(--fs-small);color:var(--ink);background:linear-gradient(transparent,rgba(23,28,36,.92));display:none}
+.canvas.has .cap{display:block}
+.meta{display:flex;justify-content:space-between;gap:12px;margin:8px 0 12px;font-size:var(--fs-small);color:var(--muted)}
+.meta span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.controls{padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
+.controls .full{grid-column:1 / -1}
+
+/* 图像 Tab 容器与摄像头 */
+.imgtab{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+.canvas.cam{cursor:default}
+.canvas.cam:hover{border-color:var(--card-line);box-shadow:inset 0 0 32px rgba(0,0,0,.16)}
+.canvas video{display:none;width:100%;height:100%;object-fit:contain;background:#0E1319}
+.canvas.cam.on video{display:block}
+.canvas.cam.on .holder{display:none}
+.cam-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}
+.cam-bar select{flex:1 1 150px;min-width:0}
+.cam-status{font-size:var(--fs-small);color:var(--muted);margin-top:9px;min-height:1.7em;line-height:1.6}
+.cam-hint{font-size:var(--fs-small);color:var(--muted);margin-top:8px;line-height:1.65;opacity:.9}
+
+/* 打印报告（导出 PDF 用） */
+.print-only{display:none}
+@media print{
+  body{background:#fff}
+  .app{max-width:none;padding:0;height:auto;display:block}
+  .topbar,.pager,.statusline,.progress,.footer,.toolbar,.filters,.controls,.cam-bar,
+  .tabhead,.pane,.composer,.tabs,#tabCamera,#tabBoard,.no-print{display:none !important}
+  .print-only{display:block}
+  .card,.canvas{border-color:#C7D0DA;background:#fff;box-shadow:none;color:#1B222B}
+  .section-title,.name,.score,.prediction,.summary,.table th,.table td{color:#1B222B !important}
+  .table th{background:#EEF2F6 !important}
+  .table td{border-color:#D5DCE4 !important}
+  .notice{color:#7A6A3A !important;border-color:#E0CFA0 !important}
+  svg{color-adjust:exact;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+/* 右栏（单图） */
+.right{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:auto}
+.result{padding:18px;margin-bottom:12px;background:linear-gradient(125deg,#273341 0%,#242C37 62%,#21333A 100%)}
+.inference{color:var(--muted);font-size:var(--fs-small);white-space:nowrap}
+.prediction{margin-top:10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.prediction .name{font-size:var(--fs-title);font-weight:bold;color:var(--ink);flex:1;min-width:200px}
+.prediction .cap-l{color:var(--muted);font-size:var(--fs-small)}
+.prediction .score{font-size:var(--fs-score);font-weight:bold;color:var(--score);font-variant-numeric:tabular-nums}
+.probs{display:none;margin-top:14px;padding-top:12px;border-top:1px solid var(--card-line)}
+.probs.show{display:block}
+.probs .hint{color:var(--muted);font-size:var(--fs-small);margin-bottom:10px}
+.grid2{display:grid;grid-auto-flow:column;grid-template-rows:repeat(4,auto);grid-template-columns:1fr 1fr;gap:8px 28px}
+.prow{display:flex;align-items:center;gap:8px}
+.prow .pn{font-size:var(--fs-small);color:var(--muted);flex:5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow .pb{flex:3;height:7px;background:var(--bar);border-radius:3px;overflow:hidden;min-width:60px}
+.prow .pb i{display:block;height:100%;width:0;background:var(--primary);border-radius:3px;transition:width .5s ease}
+.prow .pv{font-size:var(--fs-small);color:var(--muted);text-align:right;min-width:66px;font-variant-numeric:tabular-nums}
+.prow.top .pn{color:var(--ink);font-weight:bold}
+.prow.top .pv{color:var(--score);font-weight:bold}
+.notice{color:var(--notice);font-size:var(--fs-small);margin-top:14px;padding-top:10px;border-top:1px solid var(--card-line)}
+.tabhead{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:0 6px;border-bottom:1px solid var(--card-line)}
+.pages-sm{display:flex;gap:2px}
+.pages-sm button{background:var(--bg);border:none;border-bottom:3px solid transparent;color:var(--muted);padding:10px 16px;font-family:var(--font);font-size:var(--fs-body);cursor:pointer;border-radius:6px 6px 0 0}
+.pages-sm button:hover{color:#fff}
+.pages-sm button.on{color:var(--section);background:var(--card);border-bottom-color:var(--accent)}
+.reading{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:var(--fs-small);margin-left:auto}
+.pane{flex:1;display:none;padding:16px;min-height:0}
+.pane.on{display:flex;flex-direction:column}
+.advice{flex:1;background:var(--input);border:1px solid var(--btn-line);border-radius:7px;padding:14px;color:var(--ink);white-space:pre-wrap;min-height:120px;overflow:auto;font-size:18.7px;line-height:1.7}
+.chat-log{flex:1;background:var(--input);border:1px solid var(--btn-line);border-radius:7px;padding:14px;min-height:120px;overflow:auto;font-size:18.7px}
+.chat-log div{margin-bottom:10px}
+.chat-log .me{color:var(--section)}
+.chat-log .ai{color:var(--ink)}
+.chat-log .sys{color:var(--muted);font-size:var(--fs-small)}
+.composer{display:flex;gap:10px;margin-top:10px}
+.composer textarea{flex:1;resize:none;height:58px}
+
+/* 表格 */
+.table-wrap{overflow:auto;border:1px solid var(--card-line);border-radius:8px;max-height:clamp(260px,48vh,520px)}
+table{width:100%;border-collapse:collapse;font-size:var(--fs-small)}
+thead th{background:var(--head);color:var(--ink);padding:8px;text-align:left;font-weight:normal;position:sticky;top:0;z-index:1}
+tbody td{padding:9px 8px;border-bottom:1px solid var(--card-line);color:var(--muted);white-space:nowrap}
+tbody tr:nth-child(even) td{background:rgba(42,52,64,.58)}
+tbody tr:hover td{background:#35485E;color:var(--ink);cursor:pointer}
+tbody tr.sel td{background:#226F98;color:#fff}
+td.conf{color:var(--score);font-variant-numeric:tabular-nums}
+td.name{color:var(--ink)}
+.tag{display:inline-block;padding:2px 9px;border-radius:6px;background:#123145;color:var(--section);border:1px solid #40536B}
+.tag.normal{color:var(--score);border-color:#2f6b5c}
+.tag.fail{color:var(--notice);border-color:#5c4a22;background:#3a2f18}
+.blank{padding:30px;text-align:center;color:var(--muted);font-size:var(--fs-body)}
+.chart-box{padding:12px;overflow:auto}
+.chart-box svg{width:100%;height:auto;display:block}
+.detail{display:none;margin-top:10px;background:var(--input);border:1px solid var(--btn-line);border-radius:7px;padding:12px;font-size:var(--fs-small);color:var(--muted);white-space:pre-wrap;max-height:220px;overflow:auto}
+.detail.show{display:block}
+.footer-row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.page-label{color:var(--muted);font-size:var(--fs-small)}
+
+/* 设置页 */
+.kv{display:grid;grid-template-columns:minmax(160px,240px) 1fr;gap:10px 16px;font-size:var(--fs-small)}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;color:var(--ink);word-break:break-all}
+.statusbar{background:rgba(36,44,55,.92);border:1px solid var(--card-line);border-radius:8px;padding:6px 12px;font-size:var(--fs-small);color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.badge.preview{color:var(--section);background:#183445;border-color:#3A6172}
+
+/* 数据工作区：批量、历史和设置页共用完整高度与统一卡片层次 */
+#pageBatch,#pageHistory,#pageSettings{flex-direction:column;gap:10px}
+#pageBatch>.toolbar,#pageHistory>.toolbar,
+#pageBatch>.filters,#pageHistory>.filters{
+  margin:0;padding:10px 12px;background:rgba(36,44,55,.72);
+  border:1px solid var(--card-line);border-radius:10px
+}
+#pageBatch>.summary,#pageHistory>.summary{
+  margin:0;padding:6px 11px;color:var(--ink);background:rgba(81,197,227,.055);
+  border-left:3px solid var(--accent);border-radius:3px
+}
+#pageBatch>.split-wide,#pageHistory>.split-wide,#pageSettings>.split-wide{
+  flex:1;min-height:0;align-items:stretch
+}
+#pageBatch>.split-wide>div,#pageHistory>.split-wide>div{
+  display:flex;flex-direction:column;min-height:0;padding:10px;
+  background:rgba(29,36,45,.58);border:1px solid var(--card-line);border-radius:10px
+}
+#pageBatch .table-wrap,#pageHistory .table-wrap{flex:1;min-height:260px;max-height:none;background:rgba(23,28,36,.52)}
+#pageBatch .chart-box,#pageHistory .chart-box{flex:1;min-height:260px;display:flex;align-items:center;justify-content:center}
+#pageBatch .chart-box svg,#pageHistory .chart-box svg{max-height:100%}
+#pageBatch .split-wide>div:last-child>.filters,#pageHistory .split-wide>div:last-child>.filters{margin:0 0 8px}
+#pageSettings>.split-wide>.card{height:100%;overflow:auto;padding:20px!important}
+thead th{height:42px;border-bottom:1px solid #526171}
+tbody td{height:45px}
+/* 紧凑模式：窗口不足或系统缩放时整体降一档；高度由应用式布局（100vh 分栏内部滚动）接管 */
+@media (max-width:1280px){
+  :root{--fs-body:16px;--fs-small:14px;--fs-section:17px;--fs-title:21px;--fs-score:26px}
+  .advice{font-size:16px}
+  .chat-log{font-size:16px}
+}
+@media (max-width:1080px){
+  .grid2{grid-auto-flow:row;grid-template-rows:none;grid-template-columns:1fr}
+  .page-title{font-size:22px}
+  .badge{padding:6px 10px;font-size:15px}
+  .holder{margin-top:0}
+  .kv{grid-template-columns:minmax(120px,180px) 1fr}
+}
+@media (max-width:900px){
+  :root{--fs-body:15px;--fs-small:13px;--fs-section:16px;--fs-title:19px;--fs-score:24px}
+  html,body{height:auto;min-height:100%;overflow:auto}
+  .app{height:auto;min-height:100vh;min-height:100dvh;overflow:visible}
+  #pageSingle,#pageBatch,#pageHistory,#pageSettings{overflow:visible}
+  .split,.split-wide{flex-direction:column;flex-wrap:nowrap;height:auto;overflow:visible}
+  .split>.left,.split>.right,.split-wide>div:first-child,.split-wide>div:last-child{flex:none;width:100%;min-width:0}
+  .canvas{height:clamp(280px,55vw,480px);flex:none}
+  .right{overflow:visible}
+  .pane{min-height:360px}
+  #pageBatch,#pageHistory,#pageSettings{gap:8px}
+  #pageBatch>.split-wide>div,#pageHistory>.split-wide>div{min-height:360px}
+  #pageSettings>.split-wide>.card{height:auto}
+  .prow .pb{min-width:40px}
+  .prow .pv{min-width:52px}
+}
+@media (max-width:560px){
+  .controls{grid-template-columns:1fr}
+  .controls .full{grid-column:auto}
+  .toolbar .btn{flex:1}
+  .app{padding:14px 10px 10px}
+  .topbar{gap:8px}
+  .brand{width:36px;height:36px}
+  .page-title{font-size:18px}
+  .statusbar{align-items:flex-start}
+  .topbar .spacer{display:none}
+  .topbar .badge{margin-left:auto}
+  .topbar>a.btn{width:100%}
+  .filters input[style]{min-width:100%!important;width:100%}
+  .composer{flex-direction:column}
+  .composer .btn{align-self:stretch!important}
+}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+@media (max-height:760px) and (min-width:901px){
+  .app{padding:8px 12px}
+  .topbar{margin-bottom:8px}
+  .pages{margin-bottom:6px}
+  .pages button,.tabs button,.pages-sm button{padding-top:6px;padding-bottom:6px}
+  .statusline{margin-bottom:4px;min-height:22px}
+  .result{padding:12px 14px;margin-bottom:8px}
+  .controls{padding:10px;gap:7px}
+  .btn{min-height:36px;padding-top:5px;padding-bottom:5px}
+  .statusbar{margin-top:8px;padding-top:3px;padding-bottom:3px}
+}
+</style>
+</head>
+<body>
+
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="#83D8EA" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="8" cy="9" r="1.5"/><path d="m4 17 5-5 4 4 3-3 4 4"/></symbol>
+  <symbol id="i-analyze" viewBox="0 0 24 24" fill="none" stroke="#83D8EA" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/><circle cx="11" cy="11" r="4"/><path d="m14 14 4 4"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="#83D8EA" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="#242C37"/><circle cx="16" cy="17" r="3" fill="#242C37"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><g fill="none" stroke="#80d5e5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z M20 2v4m-2-2h4"/></g></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><g fill="none" stroke="#80d5e5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m3 3 18 9-18 9 3-9Z M6 12h15"/></g></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24" fill="none" stroke="#83D8EA" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></symbol>
+  <symbol id="i-batch" viewBox="0 0 24 24" fill="none" stroke="#83D8EA" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="14" height="14" rx="2"/><path d="M17 3H5a2 2 0 0 0-2 2v12"/></symbol>
+  <symbol id="i-erase" viewBox="0 0 24 24" fill="none" stroke="#83D8EA" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16M6 16l8-8 6 6-4 4H8Z"/></symbol>
+</svg>
+
+<div class="app">
+
+  <!-- 顶栏 -->
+  <div class="topbar">
+    <svg class="brand" viewBox="0 0 256 256" aria-label="品牌标识">
+      <defs><linearGradient id="g" x2="1" y2="1">
+        <stop stop-color="#51C5E3"/><stop offset="1" stop-color="#4DD6B4"/>
+      </linearGradient></defs>
+      <rect x="8" y="8" width="240" height="240" rx="58" fill="#142937"/>
+      <path d="M38 128Q128 28 218 128Q128 228 38 128Z" fill="none" stroke="url(#g)" stroke-width="13" stroke-linejoin="round"/>
+      <circle cx="128" cy="128" r="40" fill="none" stroke="#4DD6B4" stroke-width="10"/>
+      <circle cx="128" cy="128" r="18" fill="#E6FAFF"/>
+      <circle cx="142" cy="111" r="7" fill="#142937"/>
+      <path d="M128 37V50M128 206V219" stroke="#51C5E3" stroke-width="7" stroke-linecap="round"/>
+    </svg>
+    <h1 class="page-title">眼科图像分类辅助诊断系统</h1>
+    <span class="spacer"></span>
+    <span class="badge" id="runtimeBadge">模型状态检测中</span>
+    <a class="btn" href="/docs" target="_blank" rel="noopener"><svg class="ic"><use href="#i-settings"/></svg>接口文档</a>
+  </div>
+
+  <!-- 工作区分页 -->
+  <div class="pages">
+    <button class="on" data-page="single"><svg class="ic"><use href="#i-image"/></svg>单图分析</button>
+    <button data-page="batch"><svg class="ic"><use href="#i-batch"/></svg>批量分析</button>
+    <button data-page="history"><svg class="ic"><use href="#i-history"/></svg>历史记录</button>
+    <button data-page="settings"><svg class="ic"><use href="#i-settings"/></svg>系统设置</button>
+  </div>
+
+  <div class="statusline"><span class="status-text" id="statusText">导入一张图像开始分析</span></div>
+  <div class="progress" id="progress"><i></i></div>
+
+  <!-- ============ 单图分析 ============ -->
+  <div class="split" id="pageSingle">
+    <section class="left">
+      <div class="section-title">图像与操作</div>
+      <div class="tabs" id="imgTabs">
+        <button class="on" data-tab="local">本地图像</button>
+        <button data-tab="camera">本机摄像头</button>
+        <button data-tab="board">开发板摄像头</button>
+      </div>
+      <div class="imgtab" id="tabLocal">
+      <div class="canvas empty" id="canvas">
+        <div class="holder">
+          <svg width="96" height="72" viewBox="0 0 96 72">
+            <rect x="14" y="4" width="68" height="64" rx="20" fill="#173442"/>
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 24V14h10m56 0h10v10M10 48v10h10m56 0h10V48" stroke="#4b8093" stroke-width="2"/>
+              <path d="M23 36q25-29 50 0-25 29-50 0Z" stroke="#4ed5c7" stroke-width="3"/>
+              <circle cx="48" cy="36" r="11" stroke="#7bd8e9" stroke-width="2"/>
+              <path d="M48 8v7m0 42v7" stroke="#4ed5c7" stroke-width="2"/>
+            </g>
+            <circle cx="48" cy="36" r="5" fill="#d6f4f6"/>
+          </svg>
+          <div class="t1">拖入眼科图像</div>
+          <div class="t2">也可点击下方「加载图像」，或按 Ctrl + V 粘贴</div>
+        </div>
+        <img id="preview" alt="预览">
+        <div class="cap" id="cap"></div>
+        <input type="file" id="file" accept="image/jpeg,image/png,image/bmp" hidden>
+      </div>
+      <div class="meta"><span id="metaName">未选择图像</span><span id="metaSize">— × — px</span></div>
+      </div>
+
+      <div class="imgtab" id="tabCamera" style="display:none">
+        <div class="canvas empty cam" id="camCanvas">
+          <video id="camVideo" playsinline autoplay muted></video>
+          <div class="holder" id="camHolder">
+            <svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="#80d5e5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="3"/><path d="M9 8h6M9 12h6M10 17h4M2 8h3m14 0h3M2 16h3m14 0h3"/></g></svg>
+            <div class="t1">摄像头未打开</div>
+            <div class="t2">选择设备后点击「打开摄像头」</div>
+          </div>
+        </div>
+        <div class="cam-bar">
+          <select id="camDevices" aria-label="选择本机摄像头"><option>未发现摄像头</option></select>
+          <button class="btn sm" id="camRefresh">刷新设备</button>
+        </div>
+        <div class="cam-bar">
+          <button class="btn" id="camOpen">打开摄像头</button>
+          <button class="btn" id="camStop" disabled>关闭预览</button>
+          <button class="btn primary" id="camShot" disabled>拍照并载入</button>
+        </div>
+        <div class="cam-status" id="camStatus">选择本机摄像头后打开预览</div>
+        <div class="cam-hint">拍照后切换到本地图像，点击「开始分类」。普通摄像头无法替代眼底成像设备。</div>
+      </div>
+
+      <div class="imgtab" id="tabBoard" style="display:none">
+        <div class="canvas empty">
+          <div class="holder" style="margin-top:0">
+            <svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="#80d5e5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="16" rx="3"/><path d="M9 8h6M9 12h6M10 17h4M2 8h3m14 0h3M2 16h3m14 0h3"/></g></svg>
+            <div class="t1">摄像头未连接</div>
+            <div class="t2">连接开发板后显示实时画面</div>
+          </div>
+        </div>
+        <div class="cam-hint">开发板摄像头经局域网 UDP 5002 端口向本机推流。公网浏览器无法直接接收局域网内硬件的视频流，网页端保留与桌面端一致的占位；该硬件演示请使用桌面客户端。</div>
+      </div>
+
+      <div class="card controls">
+        <button class="btn" id="btnLoad"><svg class="ic"><use href="#i-image"/></svg>加载图像</button>
+        <button class="btn" id="btnClear"><svg class="ic"><use href="#i-erase"/></svg>清除图像</button>
+        <button class="btn full primary" id="btnPredict" disabled><svg class="ic"><use href="#i-analyze"/></svg>开始分类</button>
+        <button class="btn full" id="btnAdvice" disabled><svg class="ic"><use href="#i-spark"/></svg>生成辅助建议</button>
+      </div>
+    </section>
+
+    <section class="right">
+      <div class="card result">
+        <div class="row">
+          <span class="section-title" style="margin:0">分类结果</span>
+          <span class="grow"></span>
+          <button class="btn sm" id="btnToggleProbs">展开八类概率</button>
+          <span class="inference" id="inferenceTime">等待分析</span>
+        </div>
+        <div class="prediction">
+          <span class="name" id="predName">尚未分类</span>
+          <span class="cap-l">模型概率</span>
+          <span class="score" id="predScore">—</span>
+        </div>
+        <div class="probs" id="probs">
+          <div class="hint" id="probHint">八类概率 · 分类后显示实际结果</div>
+          <div class="grid2" id="probGrid"></div>
+        </div>
+        <div class="notice">概率未经校准，不代表诊断准确率；分类结果仅供辅助参考。</div>
+      </div>
+      <div class="tabhead">
+        <div class="pages-sm" id="rightTabs">
+          <button class="on" data-pane="advice">辅助建议</button>
+          <button data-pane="chat">多轮问答</button>
+        </div>
+        <label class="reading">阅读字号
+          <select id="readingSize">
+            <option>12</option><option selected>14</option><option>16</option>
+            <option>18</option><option>20</option><option>22</option><option>24</option>
+          </select>
+        </label>
+      </div>
+      <div class="card pane on" id="paneAdvice"><div class="advice" id="adviceBox"></div></div>
+      <div class="card pane" id="paneChat">
+        <div class="chat-log" id="chatLog"></div>
+        <div class="composer">
+          <textarea id="chatInput" placeholder="在此描述其他症状或向AI提问..."></textarea>
+          <button class="btn primary" id="btnSend" style="align-self:flex-end"><svg class="ic"><use href="#i-send"/></svg>发送提问</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ 批量分析 ============ -->
+  <div id="pageBatch" style="display:none">
+    <div class="toolbar">
+      <button class="btn" id="btnAddFiles"><svg class="ic"><use href="#i-image"/></svg>添加图像</button>
+      <button class="btn" id="btnRemoveSel"><svg class="ic"><use href="#i-erase"/></svg>移除所选</button>
+      <button class="btn primary" id="btnBatchStart" disabled><svg class="ic"><use href="#i-analyze"/></svg>开始分类</button>
+      <button class="btn" id="btnBatchRetry" disabled>重试失败项</button>
+      <button class="btn" id="batchExport" disabled>导出当前范围</button>
+      <button class="btn" id="batchBundle" disabled>导出完整包</button>
+      <input type="file" id="batchFiles" accept="image/jpeg,image/png,image/bmp" multiple hidden>
+    </div>
+    <div class="filters">
+      <input type="text" id="batchSearch" placeholder="按图像路径或文件名搜索" style="flex:1;min-width:220px">
+      <select id="batchCategory"></select>
+      <select id="batchState">
+        <option>全部状态</option><option>分类成功</option><option>分类失败</option><option>保存失败</option><option>待处理</option>
+      </select>
+    </div>
+    <div class="summary" id="batchSummary">尚无数据</div>
+    <div class="split-wide">
+      <div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>图像</th><th>类别</th><th>概率</th><th>分类状态</th><th>保存状态</th><th>时间 / 批次</th></tr></thead>
+            <tbody id="batchBody"></tbody>
+          </table>
+        </div>
+        <div class="footer-row">
+          <button class="btn sm" id="batchPrev">上一页</button>
+          <span class="page-label" id="batchPageLabel"></span>
+          <button class="btn sm" id="batchNext">下一页</button>
+        </div>
+        <div class="detail" id="batchDetail"></div>
+      </div>
+      <div>
+        <div class="filters">
+          <select id="batchChart">
+            <option>柱状图 · 类别数量</option><option>饼图 · 类别占比</option>
+          </select>
+        </div>
+        <div class="card chart-box" id="batchChartBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 历史记录 ============ -->
+  <div id="pageHistory" style="display:none">
+    <div class="toolbar">
+      <label class="row" style="gap:6px">开始日期<input type="date" id="histStart"></label>
+      <label class="row" style="gap:6px">结束日期<input type="date" id="histEnd"></label>
+      <input type="text" id="histBatch" placeholder="批次编号（可选）" style="flex:1;min-width:180px">
+      <button class="btn" id="btnHistRefresh">筛选 / 刷新</button>
+      <button class="btn" id="histExport" disabled>导出当前范围</button>
+      <button class="btn" id="histBundle" disabled>导出完整包</button>
+    </div>
+    <div class="filters">
+      <input type="text" id="histSearch" placeholder="按图像路径或文件名搜索" style="flex:1;min-width:220px">
+      <select id="histCategory"></select>
+    </div>
+    <div class="summary" id="histSummary">尚无数据</div>
+    <div class="split-wide">
+      <div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>图像</th><th>类别</th><th>概率</th><th>分类状态</th><th>保存状态</th><th>时间 / 批次</th></tr></thead>
+            <tbody id="histBody"></tbody>
+          </table>
+        </div>
+        <div class="footer-row">
+          <button class="btn sm" id="histPrev">上一页</button>
+          <span class="page-label" id="histPageLabel"></span>
+          <button class="btn sm" id="histNext">下一页</button>
+          <button class="btn sm" id="histDelete" disabled>删除所选记录</button>
+        </div>
+        <div class="detail" id="histDetail"></div>
+      </div>
+      <div>
+        <div class="filters">
+          <select id="histChart">
+            <option>柱状图 · 类别数量</option><option>饼图 · 类别占比</option><option>趋势图 · 每日数量</option>
+          </select>
+        </div>
+        <div class="card chart-box" id="histChartBox"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 系统设置 ============ -->
+  <div id="pageSettings" style="display:none">
+    <div class="split-wide">
+      <div class="card" style="padding:16px">
+        <div class="section-title">模型信息</div>
+        <dl class="kv" id="setModel"></dl>
+        <div class="section-title" style="margin-top:20px">服务信息</div>
+        <dl class="kv" id="setService"></dl>
+      </div>
+      <div class="card" style="padding:16px">
+        <div class="section-title">接口清单</div>
+        <dl class="kv" id="setApi"></dl>
+        <div class="section-title" style="margin-top:20px">说明</div>
+        <div class="summary" style="margin:0">
+          服务端为课程设计部署入口：不加载 PyTorch 与 PyQt5，分类走 ONNX Runtime；
+          未配置 DEEPSEEK_API_KEY 时，辅助建议返回本地静态参考并标注来源。
+        </div>
+        <div class="footer-row">
+          <button class="btn" id="btnSetRefresh">刷新</button>
+          <a class="btn" href="/docs" target="_blank" rel="noopener">接口文档</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statusbar">
+    <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
+    <span id="barRight">v2026-10-13.9 · 输出结果不构成医学诊断依据</span>
+  </div>
+</div>
+
+<script>
+const SHORT = {
+  "AMD":"黄斑变性","Cataract":"白内障","Diabetic Retinopathy":"糖尿病视网膜病变",
+  "Glaucoma":"青光眼","Hypertensive Retinopathy":"高血压性视网膜病变",
+  "Myopia":"近视性黄斑病变","Normal":"正常","Other":"其他"
+};
+const FULL = {
+  "AMD":"年龄相关性黄斑变性","Cataract":"白内障","Diabetic Retinopathy":"糖尿病视网膜病变",
+  "Glaucoma":"青光眼","Hypertensive Retinopathy":"高血压性视网膜病变",
+  "Myopia":"近视性黄斑病变","Normal":"正常","Other":"其他"
+};
+const COLORS = ['#4DD6B4','#51C5E3','#A49AE8','#E8B96B','#75B8A4','#DA91B3','#8AA6D1','#B8C580'];
+const GUIDE = "开始使用\n" +
+  "1. 导入图像：点击左侧「加载图像」，也可拖入图片或按 Ctrl + V 粘贴。\n" +
+  "2. 开始分类：模型就绪后点击「开始分类」。\n" +
+  "3. 查看建议：分类完成后，点击「生成辅助建议」。\n" +
+  "4. 继续交流：切换到「多轮问答」，输入问题并发送。\n" +
+  "可用右上角「阅读字号」调整文字大小。";
+const GUIDE_DONE = "分类已完成，接下来可以\n" +
+  "1. 点击「生成辅助建议」，查看当前图像的结果说明。\n" +
+  "2. 切换到「多轮问答」，补充情况或继续提问。\n" +
+  "3. 使用「阅读字号」调整文字大小。\n" +
+  "未配置 DEEPSEEK_API_KEY 时返回本地静态参考。";
+
+const el = id => document.getElementById(id);
+const IS_LOCAL_PREVIEW = location.protocol === "file:";
+const pct = value => (value === null || value === undefined || isNaN(value)) ? "—" : (value * 100).toFixed(1) + "%";
+const esc = text => String(text === null || text === undefined ? "" : text)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+let current = null;
+let currentFile = null;
+let health = null;
+const serverReady = () => !IS_LOCAL_PREVIEW && health && health.status === "ok";
+
+function setStatus(text, kind){
+  el("statusText").textContent = text;
+  el("statusText").className = "status-text" + (kind ? " " + kind : "");
+}
+function busy(on){
+  el("progress").className = on ? "progress run" : "progress";
+}
+
+/* ================= 健康检查 ================= */
+async function loadHealth(){
+  if(IS_LOCAL_PREVIEW){
+    health = null;
+    el("runtimeBadge").className = "badge preview";
+    el("runtimeBadge").textContent = "●  本地界面预览";
+    el("barLeft").textContent = "请通过服务器地址访问以使用分类、历史与问答功能";
+    setStatus("当前为界面预览模式；启动服务器后从 http://服务器地址:8000 访问。", "note");
+    return;
+  }
+  try{
+    health = await (await fetch("/api/health")).json();
+    const ok = health.status === "ok";
+    const badge = el("runtimeBadge");
+    badge.className = "badge" + (ok ? "" : " off");
+    const model = health.model || {};
+    const providers = model.providers || [];
+    const device = providers.some(p => String(p).indexOf("CUDA") >= 0) ? "GPU" : "CPU";
+    badge.textContent = ok ? "●  模型就绪  ·  " + device : "●  模型不可用";
+    el("btnPredict").disabled = !ok || !currentFile;
+    el("btnBatchStart").disabled = !ok || !pending.some(row => row.status === "pending");
+    el("barLeft").textContent = ok
+      ? "onnxruntime " + (model.runtime || "-") + " · 输入 " + (model.image_size || "512") +
+        " · " + String(model.weight_path || "-").split(/[\\/]/).pop()
+      : "模型未就绪：" + (health.model_error || "未知原因");
+  }catch(e){
+    health = null;
+    el("runtimeBadge").className = "badge off";
+    el("runtimeBadge").textContent = "●  服务未响应";
+  }
+}
+
+/* ================= 图表 ================= */
+function chartSvg(mode, counts, daily){
+  const items = Object.entries(counts || {}).sort((a, b) => b[1] - a[1]);
+  const total = items.reduce((sum, item) => sum + item[1], 0);
+  const width = 480;
+  let height = 220;
+  let body = "";
+  if(mode === 2){
+    const days = Object.keys(daily || {}).sort();
+    if(!days.length){
+      return '<svg viewBox="0 0 ' + width + ' 160"><rect width="' + width + '" height="160" fill="#242C37"/>' +
+             '<text x="18" y="32" fill="#EEF2F6" font-size="16">每日记录数量</text>' +
+             '<text x="18" y="75" fill="#EEF2F6" font-size="16">当前范围暂无日期数据</text></svg>';
+    }
+    const values = days.map(day => daily[day]);
+    const peak = Math.max(1, Math.max.apply(null, values));
+    const left = 60, top = 75, w = width - 85, h = 210;
+    height = 350;
+    for(let i = 0; i < 5; i++){
+      const y = top + h * i / 4;
+      body += '<line x1="' + left + '" y1="' + y + '" x2="' + (left + w) + '" y2="' + y + '" stroke="#394451"/>';
+      body += '<text x="8" y="' + (y + 5) + '" fill="#ADB8C7" font-size="13">' + Math.round(peak * (1 - i / 4)) + '</text>';
+    }
+    const points = values.map((v, i) => [left + i * w / Math.max(1, days.length - 1), top + h * (1 - v / peak)]);
+    body += '<polyline fill="none" stroke="#4DD6B4" stroke-width="2" points="' +
+            points.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '"/>';
+    points.forEach(p => { body += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3" fill="#4DD6B4"/>'; });
+    body += '<text x="18" y="' + (height - 38) + '" fill="#EEF2F6" font-size="13">' + esc(days[0]) + '</text>';
+    body += '<text x="18" y="' + (height - 12) + '" fill="#EEF2F6" font-size="13">至 ' + esc(days[days.length - 1]) + '</text>';
+    body = '<text x="18" y="32" fill="#EEF2F6" font-size="16">每日记录数量</text>' + body;
+  }else if(!total){
+    return '<svg viewBox="0 0 ' + width + ' 160"><rect width="' + width + '" height="160" fill="#242C37"/>' +
+           '<text x="18" y="75" fill="#EEF2F6" font-size="16">暂无分类结果</text></svg>';
+  }else if(mode === 1){
+    const cx = width / 2, cy = 145, r = 90;
+    let angle = -Math.PI / 2;
+    items.forEach((item, index) => {
+      const span = item[1] / total * Math.PI * 2;
+      const x1 = cx + r * Math.cos(angle), y1 = cy + r * Math.sin(angle);
+      const x2 = cx + r * Math.cos(angle + span), y2 = cy + r * Math.sin(angle + span);
+      const large = span > Math.PI ? 1 : 0;
+      body += '<path d="M ' + cx + ' ' + cy + ' L ' + x1.toFixed(1) + ' ' + y1.toFixed(1) +
+              ' A ' + r + ' ' + r + ' 0 ' + large + ' 1 ' + x2.toFixed(1) + ' ' + y2.toFixed(1) +
+              ' Z" fill="' + COLORS[index % 8] + '" stroke="#242C37" stroke-width="2"/>';
+      angle += span;
+    });
+    items.forEach((item, index) => {
+      const y = 270 + index * 30;
+      body += '<rect x="18" y="' + (y - 12) + '" width="12" height="12" fill="' + COLORS[index % 8] + '"/>';
+      body += '<text x="40" y="' + y + '" fill="#EEF2F6" font-size="14">' +
+              esc(SHORT[item[0]] || item[0]) + "  " + item[1] + " (" + (item[1] / total * 100).toFixed(1) + "%)</text>";
+    });
+    height = 280 + items.length * 30;
+    body = '<text x="18" y="32" fill="#EEF2F6" font-size="16">分类分布 · ' + total + ' 张</text>' + body;
+  }else{
+    const maximum = Math.max.apply(null, items.map(item => item[1]));
+    const barWidth = width - 36;
+    const rowHeight = 44;
+    items.forEach((item, index) => {
+      const y = 65 + index * rowHeight;
+      const value = String(item[1]);
+      body += '<text x="18" y="' + y + '" fill="#EEF2F6" font-size="14">' + esc(SHORT[item[0]] || item[0]) + '</text>';
+      body += '<text x="' + (width - 18) + '" y="' + y + '" fill="#EEF2F6" font-size="14" text-anchor="end">' + value + '</text>';
+      body += '<rect x="18" y="' + (y + 10) + '" width="' + barWidth + '" height="10" rx="3" fill="#394451"/>';
+      body += '<rect x="18" y="' + (y + 10) + '" width="' + Math.round(barWidth * item[1] / maximum) +
+              '" height="10" rx="3" fill="' + COLORS[index % 8] + '"/>';
+    });
+    height = 90 + items.length * rowHeight;
+    body = '<text x="18" y="32" fill="#EEF2F6" font-size="16">分类分布 · ' + total + ' 张</text>' + body;
+  }
+  return '<svg viewBox="0 0 ' + width + ' ' + height + '" font-family="Microsoft YaHei, sans-serif">' +
+         '<rect width="' + width + '" height="' + height + '" fill="#242C37"/>' + body + '</svg>';
+}
+
+/* ================= 通用表格 ================= */
+const HEADS = ["图像", "类别", "概率", "分类状态", "保存状态", "时间 / 批次"];
+const STATE_TEXT = { "success": "成功", "failed": "失败", "pending": "待处理" };
+const SAVE_TEXT = { "saved": "已保存", "failed": "保存失败", "pending": "—" };
+
+function drawTable(scope){
+  const view = views[scope];
+  const tbody = el(scope + "Body");
+  tbody.innerHTML = "";
+  const start = view.page * 100;
+  const pageRows = view.rows.slice(start, start + 100);
+  if(!pageRows.length){
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    td.className = "blank";
+    td.textContent = "暂无记录";
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  pageRows.forEach((row, index) => {
+    const tr = document.createElement("tr");
+    tr.dataset.index = start + index;
+    if(view.selected.has(start + index)) tr.className = "sel";
+    const name = String(row.path || row.image_path || "");
+    const cells = [
+      { text: name.split(/[\\/]/).pop() || "—", title: name },
+      { text: SHORT[row.disease_name] || row.disease_name || "—", tag: true },
+      { text: pct(row.confidence), conf: true },
+      { text: STATE_TEXT[row.status] || "成功" },
+      { text: SAVE_TEXT[row.save_status] || "已保存" },
+      { text: (row.timestamp || "") + (row.batch_id ? "  " + row.batch_id : "") }
+    ];
+    cells.forEach(c => {
+      const td = document.createElement("td");
+      if(c.conf) td.className = "conf";
+      if(c.tag){
+        td.className = "name";
+        const tag = document.createElement("span");
+        const failed = row.status === "failed" || row.save_status === "failed";
+        tag.className = "tag" + (failed ? " fail" : (row.disease_name === "Normal" ? " normal" : ""));
+        tag.textContent = c.text;
+        td.appendChild(tag);
+      }else{
+        td.textContent = c.text;
+      }
+      if(c.title) td.title = c.title;
+      tr.appendChild(td);
+    });
+    tr.addEventListener("click", () => {
+      const key = start + index;
+      if(view.selected.has(key)) view.selected.delete(key); else view.selected.add(key);
+      tr.classList.toggle("sel");
+      const deleteButton = el(scope + "Delete");
+      if(deleteButton) deleteButton.disabled = view.selected.size === 0;
+      showDetail(scope, row);
+    });
+    tbody.appendChild(tr);
+  });
+  el(scope + "PageLabel").textContent = "第 " + (view.page + 1) + " 页 · 当前范围 " + view.rows.length + " 条";
+  el(scope + "Prev").disabled = view.page === 0;
+  el(scope + "Next").disabled = (view.page + 1) * 100 >= view.rows.length;
+  el(scope + "Export").disabled = view.rows.length === 0;
+  const bundleButton = el(scope + "Bundle");
+  if(bundleButton) bundleButton.disabled = view.rows.length === 0;
+  el(scope + "ChartBox").innerHTML = chartSvg(view.chart, view.counts, view.daily);
+}
+
+function showDetail(scope, row){
+  const box = el(scope + "Detail");
+  box.textContent = "图像路径：" + (row.path || row.image_path || "-") + "\n" +
+    "类别：" + (FULL[row.disease_name] || row.disease_name || "-") + "\n" +
+    "概率：" + pct(row.confidence) + "\n" +
+    "时间：" + (row.timestamp || "-") + (row.batch_id ? " · 批次 " + row.batch_id : "") + "\n" +
+    "错误：" + (row.error || "无") + "\n" +
+    "模型信息：" + (typeof row.model_info === "string" ? row.model_info : JSON.stringify(row.model_info || {}));
+  box.classList.add("show");
+}
+
+function downloadCsv(filename, rows){
+  const lines = [HEADS.join(",")];
+  rows.forEach(row => {
+    lines.push([
+      (row.path || row.image_path || ""),
+      (SHORT[row.disease_name] || row.disease_name || ""),
+      pct(row.confidence),
+      (STATE_TEXT[row.status] || "成功"),
+      (SAVE_TEXT[row.save_status] || "已保存"),
+      (row.timestamp || "")
+    ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(","));
+  });
+  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+async function fetchRows(scope){
+  if(scope === "batch") return batchFiltered();
+  const params = new URLSearchParams();
+  params.set("limit", "200");
+  params.set("page", "0");
+  if(el("histStart").value) params.set("start", el("histStart").value);
+  if(el("histEnd").value) params.set("end", el("histEnd").value);
+  if(el("histBatch").value.trim()) params.set("batch", el("histBatch").value.trim());
+  if(el("histCategory").value) params.set("disease", el("histCategory").value);
+  if(el("histSearch").value.trim()) params.set("search", el("histSearch").value.trim());
+  const data = await (await fetch("/api/history?" + params.toString())).json();
+  return (data.rows || []).map(row => Object.assign({}, row, {
+    path: row.image_path, status: row.status || "success", save_status: row.save_status || "saved"
+  }));
+}
+async function exportCsv(scope){
+  let rows;
+  try{ rows = await fetchRows(scope); }
+  catch(e){ setStatus("导出失败：" + e, "err"); return; }
+  if(!rows.length){ setStatus("当前范围没有可导出的记录。", "err"); return; }
+  downloadCsv(scope === "hist" ? "历史记录.csv" : "批量分析结果.csv", rows);
+  setStatus("已导出 " + rows.length + " 条记录。", "ok");
+}
+
+/* 完整导出包：results.csv + statistics.csv + scope.json + distribution.png + report.html
+   全部在浏览器端生成，直接保存到用户电脑本地，对标桌面端 result_export.export_bundle() */
+function escHtml(v){
+  return String(v === null || v === undefined ? "" : v)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function bundleCounts(rows){
+  const eng = {}, cn = {}, sum = {};
+  rows.forEach(row => {
+    const key = row.disease_name || "";
+    const label = SHORT[key] || key || "未分类";
+    eng[key] = (eng[key] || 0) + 1;
+    cn[label] = (cn[label] || 0) + 1;
+    sum[label] = (sum[label] || 0) + (Number(row.confidence) || 0);
+  });
+  return { eng:eng, cn:cn, sum:sum };
+}
+function reportHtml(scope, rows, stat, filters, tag){
+  const total = rows.length;
+  const ok = rows.filter(r => (r.status || "success") === "success").length;
+  const statRows = Object.keys(stat.cn).sort((a, b) => stat.cn[b] - stat.cn[a]).map(k =>
+    "<tr><td>" + escHtml(k) + "</td><td>" + stat.cn[k] + "</td><td>" +
+    (stat.cn[k] / total * 100).toFixed(1) + "%</td><td>" + pct(stat.sum[k] / stat.cn[k]) + "</td></tr>").join("");
+  const detail = rows.slice(0, 200).map(r =>
+    "<tr><td>" + escHtml((r.path || "").split(/[\\/]/).pop()) + "</td><td>" +
+    escHtml(SHORT[r.disease_name] || r.disease_name || "") + "</td><td>" + pct(r.confidence) + "</td><td>" +
+    escHtml(STATE_TEXT[r.status] || "成功") + "</td><td>" + escHtml(r.timestamp || "") + "</td></tr>").join("");
+  const chart = chartSvg(0, stat.eng, views[scope].daily || {});
+  return "<!DOCTYPE html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">" +
+    "<title>眼科图像分类" + (scope === "hist" ? "历史" : "批量") + "分析报告 " + escHtml(tag) + "</title>" +
+    "<style>body{font-family:'Microsoft YaHei',sans-serif;color:#1B222B;margin:36px;background:#fff}" +
+    "h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:26px 0 10px}" +
+    ".sub{color:#5A6673;font-size:14px;margin-bottom:18px}" +
+    "table{border-collapse:collapse;width:100%;font-size:14px}" +
+    "th,td{border:1px solid #C7D0DA;padding:7px 10px;text-align:left}th{background:#EEF2F6}" +
+    ".note{margin-top:24px;padding:12px 14px;background:#FFF8E6;border:1px solid #E0CFA0;color:#7A6A3A;font-size:13px;line-height:1.7}" +
+    ".chart{margin:10px 0}@media print{body{margin:18px}}</style></head><body>" +
+    "<h1>眼科图像分类" + (scope === "hist" ? "历史记录" : "批量分析") + "报告</h1>" +
+    "<div class=\"sub\">导出时间 " + escHtml(new Date().toLocaleString("zh-CN")) + " · 记录 " + total + " 条 · 成功 " + ok +
+    " 条 · 失败 " + (total - ok) + " 条 · 筛选条件 " + escHtml(JSON.stringify(filters)) + "</div>" +
+    "<h2>一、分类分布</h2><div class=\"chart\">" + chart + "</div>" +
+    "<h2>二、类别统计</h2><table><thead><tr><th>类别</th><th>记录数</th><th>占比</th><th>平均概率</th></tr></thead><tbody>" +
+    (statRows || "<tr><td colspan=\"4\">暂无数据</td></tr>") + "</tbody></table>" +
+    "<h2>三、记录明细（最多 200 条）</h2><table><thead><tr><th>图像</th><th>类别</th><th>概率</th><th>状态</th><th>时间</th></tr></thead><tbody>" +
+    (detail || "<tr><td colspan=\"5\">暂无数据</td></tr>") + "</tbody></table>" +
+    "<div class=\"note\">概率未经校准，不代表诊断准确率；本报告由辅助诊断系统自动生成，仅供辅助参考，不构成医疗诊断依据。</div>" +
+    "</body></html>";
+}
+async function exportBundle(scope){
+  const label = scope === "hist" ? "历史记录" : "批量分析";
+  let rows;
+  try{ rows = await fetchRows(scope); }
+  catch(e){ setStatus("导出失败：" + e, "err"); return; }
+  if(!rows.length){ setStatus("当前范围没有可导出的记录。", "err"); return; }
+  const tag = stamp();
+  const filters = scope === "hist"
+    ? { start: el("histStart").value || null, end: el("histEnd").value || null,
+        batch: el("histBatch").value.trim() || null, disease: el("histCategory").value || null,
+        search: el("histSearch").value.trim() || null }
+    : { search: el("batchSearch").value.trim() || null, disease: el("batchCategory").value || null,
+        state: el("batchState").value };
+  const ok = rows.filter(r => (r.status || "success") === "success").length;
+  const stat = bundleCounts(rows);
+  setStatus("正在生成导出包…");
+
+  const head = ["图像路径", "时间", "批次", "类别", "概率", "分类状态", "保存状态", "错误信息", "推理耗时(s)", "模型信息"];
+  const body = rows.map(r => [
+    r.path || "", r.timestamp || "", r.batch_id || "",
+    SHORT[r.disease_name] || r.disease_name || "", pct(r.confidence),
+    STATE_TEXT[r.status] || "成功", SAVE_TEXT[r.save_status] || "已保存",
+    r.error || "", (r.seconds === undefined || r.seconds === null ? "" : r.seconds),
+    (typeof r.model_info === "string" ? r.model_info : JSON.stringify(r.model_info || {}))
+  ]);
+  downloadText("results_" + tag + ".csv", toCsv([head].concat(body)), "text/csv");
+
+  const lines = [["类别", "记录数", "占比", "平均概率"]];
+  Object.keys(stat.cn).sort((a, b) => stat.cn[b] - stat.cn[a]).forEach(k => {
+    lines.push([k, stat.cn[k], (stat.cn[k] / rows.length * 100).toFixed(1) + "%", pct(stat.sum[k] / stat.cn[k])]);
+  });
+  lines.push(["合计", rows.length, "100.0%",
+    pct(rows.reduce((a, r) => a + (Number(r.confidence) || 0), 0) / rows.length)]);
+  downloadText("statistics_" + tag + ".csv", toCsv(lines), "text/csv");
+
+  downloadText("scope_" + tag + ".json", JSON.stringify({
+    scope: scope, batch_id: (scope === "hist" ? (el("histBatch").value.trim() || null) : null),
+    filters: filters, total: rows.length, success: ok, failed: rows.length - ok,
+    exported_at: new Date().toISOString(),
+    note: "概率未经校准，不代表诊断准确率；分类结果仅供辅助参考，不构成医疗诊断。"
+  }, null, 2), "application/json");
+
+  downloadText("report_" + tag + ".html", reportHtml(scope, rows, stat, filters, tag), "text/html");
+
+  let png = false;
+  try{
+    const blob = await svgToPng(chartSvg(0, stat.eng, views[scope].daily || {}), 2);
+    downloadBlob("distribution_" + tag + ".png", blob);
+    png = true;
+  }catch(e){ /* 图表导出失败不影响其余文件 */ }
+
+  setStatus("已导出 " + rows.length + " 条记录的完整包到本机下载目录（" +
+    (png ? "5" : "4") + " 个文件）。若浏览器询问是否允许下载多个文件，请选择允许。", "ok");
+}
+
+const views = {
+  batch: { rows: [], page: 0, selected: new Set(), counts: {}, daily: {}, chart: 0 },
+  hist:  { rows: [], page: 0, selected: new Set(), counts: {}, daily: {}, chart: 0 }
+};
+
+/* ================= 批量分析 ================= */
+let pending = [];
+
+function batchFiltered(){
+  const view = views.batch;
+  const search = el("batchSearch").value.trim().toLowerCase();
+  const disease = el("batchCategory").value;
+  const state = el("batchState").selectedIndex;
+  const rows = pending.filter(row => {
+    const name = String(row.path || "").toLowerCase();
+    if(search && name.indexOf(search) < 0) return false;
+    if(disease && disease !== row.disease_name) return false;
+    if(state === 1 && row.status !== "success") return false;
+    if(state === 2 && row.status !== "failed") return false;
+    if(state === 3 && row.save_status !== "failed") return false;
+    if(state === 4 && row.status !== "pending") return false;
+    return true;
+  });
+  view.rows = rows;
+  view.selected.clear();
+  view.counts = {};
+  rows.forEach(row => {
+    if(row.status === "success") view.counts[row.disease_name] = (view.counts[row.disease_name] || 0) + 1;
+  });
+  view.page = Math.min(view.page, Math.max(0, Math.ceil(rows.length / 100) - 1));
+  const done = rows.filter(r => r.status === "success").length;
+  el("batchSummary").textContent = rows.length
+    ? "共 " + rows.length + " 项 · 已分类 " + done + " · 待处理 " +
+      rows.filter(r => r.status === "pending").length + " · 失败 " +
+      rows.filter(r => r.status === "failed").length
+    : "尚无数据";
+  drawTable("batch");
+  const hasPending = pending.some(r => r.status === "pending");
+  const hasFailed = pending.some(r => r.status === "failed" || r.save_status === "failed");
+  el("btnBatchStart").disabled = !hasPending || !serverReady();
+  el("btnBatchRetry").disabled = !hasFailed;
+}
+
+el("btnAddFiles").addEventListener("click", () => el("batchFiles").click());
+el("batchFiles").addEventListener("change", e => {
+  Array.prototype.forEach.call(e.target.files, file => {
+    pending.push({ path: file.name, file: file, status: "pending", save_status: "pending" });
+  });
+  e.target.value = "";
+  setStatus("已添加 " + pending.length + " 项，可点击「开始分类」。", "ok");
+  batchFiltered();
+});
+el("btnRemoveSel").addEventListener("click", () => {
+  const remove = new Set();
+  views.batch.selected.forEach(i => { if(views.batch.rows[i]) remove.add(views.batch.rows[i]); });
+  pending = pending.filter(row => !remove.has(row));
+  views.batch.selected.clear();
+  el("batchDetail").classList.remove("show");
+  batchFiltered();
+});
+
+async function runBatch(onlyFailed){
+  if(IS_LOCAL_PREVIEW){ setStatus("本地文件仅供预览，请从服务器地址打开后执行批量分类。", "note"); return; }
+  const targets = pending.filter(row => onlyFailed
+    ? (row.status === "failed" || row.save_status === "failed") : row.status === "pending");
+  if(!targets.length) return;
+  busy(true);
+  setStatus("正在批量分类 " + targets.length + " 张…");
+  const form = new FormData();
+  targets.forEach(row => form.append("files", row.file, row.path));
+  try{
+    const data = await (await fetch("/api/predict/batch", { method: "POST", body: form })).json();
+    if(!data.success){
+      setStatus("批量分类失败：" + (data.error || "未知原因"), "err");
+      return;
+    }
+    (data.results || []).forEach((result, index) => {
+      Object.assign(targets[index], result, { path: result.image_path || targets[index].path });
+    });
+    setStatus("批量分类完成：" + data.done + " 成功 / " + data.failed + " 失败，总耗时 " +
+              data.latency_ms + " 毫秒。", data.failed ? "err" : "ok");
+    views.batch.selected.clear();
+    batchFiltered();
+    loadHistoryPage();
+  }catch(error){
+    setStatus("请求失败：" + error, "err");
+  }finally{
+    busy(false);
+  }
+}
+el("btnBatchStart").addEventListener("click", () => runBatch(false));
+el("btnBatchRetry").addEventListener("click", () => runBatch(true));
+el("batchExport").addEventListener("click", () => exportCsv("batch"));
+el("batchBundle").addEventListener("click", () => exportBundle("batch"));
+el("batchSearch").addEventListener("input", batchFiltered);
+el("batchCategory").addEventListener("change", batchFiltered);
+el("batchState").addEventListener("change", batchFiltered);
+el("batchChart").addEventListener("change", e => { views.batch.chart = e.target.selectedIndex; drawTable("batch"); });
+el("batchPrev").addEventListener("click", () => { views.batch.page--; drawTable("batch"); });
+el("batchNext").addEventListener("click", () => { views.batch.page++; drawTable("batch"); });
+
+/* ================= 历史记录 ================= */
+async function loadHistoryPage(){
+  if(IS_LOCAL_PREVIEW){
+    el("histSummary").textContent = "本地预览不读取服务器历史记录";
+    views.hist.rows = []; views.hist.counts = {}; views.hist.daily = {};
+    drawTable("hist"); return;
+  }
+  const view = views.hist;
+  const params = new URLSearchParams();
+  params.set("limit", "100");
+  params.set("page", String(view.page));
+  if(el("histStart").value) params.set("start", el("histStart").value);
+  if(el("histEnd").value) params.set("end", el("histEnd").value);
+  if(el("histBatch").value.trim()) params.set("batch", el("histBatch").value.trim());
+  if(el("histCategory").value) params.set("disease", el("histCategory").value);
+  if(el("histSearch").value.trim()) params.set("search", el("histSearch").value.trim());
+  try{
+    const data = await (await fetch("/api/history?" + params.toString())).json();
+    if(!data.success){
+      el("histSummary").textContent = data.error || "历史不可用";
+      view.rows = []; view.counts = {}; view.daily = {};
+      drawTable("hist");
+      return;
+    }
+    view.rows = (data.rows || []).map(row => Object.assign({}, row, {
+      path: row.image_path, status: row.status || "success", save_status: row.save_status || "saved"
+    }));
+    view.page = data.page || 0;
+    view.counts = data.counts || {};
+    view.daily = data.daily || {};
+    view.selected.clear();
+    el("histDelete").disabled = true;
+    el("histSummary").textContent = data.total
+      ? "当前筛选 " + data.total + " 条记录（排除标注演示）· 图表与导出范围一致"
+      : "当前范围暂无记录";
+    el("histExport").disabled = false;
+    drawTable("hist");
+  }catch(e){
+    el("histSummary").textContent = "历史加载失败";
+  }
+}
+el("btnHistRefresh").addEventListener("click", () => { views.hist.page = 0; loadHistoryPage(); });
+el("histSearch").addEventListener("input", () => { views.hist.page = 0; loadHistoryPage(); });
+el("histCategory").addEventListener("change", () => { views.hist.page = 0; loadHistoryPage(); });
+el("histChart").addEventListener("change", e => { views.hist.chart = e.target.selectedIndex; drawTable("hist"); });
+el("histPrev").addEventListener("click", () => { if(views.hist.page > 0){ views.hist.page--; loadHistoryPage(); } });
+el("histNext").addEventListener("click", () => { views.hist.page++; loadHistoryPage(); });
+el("histExport").addEventListener("click", () => exportCsv("hist"));
+el("histBundle").addEventListener("click", () => exportBundle("hist"));
+el("histDelete").addEventListener("click", async () => {
+  const view = views.hist;
+  const targets = [];
+  view.selected.forEach(i => { if(view.rows[i] && view.rows[i].record_id) targets.push(view.rows[i].record_id); });
+  if(!targets.length){ setStatus("所选记录缺少编号，无法删除。", "err"); return; }
+  if(!confirm("确认删除所选 " + targets.length + " 条记录？该操作不可撤销。")) return;
+  busy(true);
+  try{
+    for(const recordId of targets){
+      await fetch("/api/history/" + encodeURIComponent(recordId), { method: "DELETE" });
+    }
+    setStatus("已删除 " + targets.length + " 条记录。", "ok");
+    view.selected.clear();
+    el("histDetail").classList.remove("show");
+    loadHistoryPage();
+  }catch(error){
+    setStatus("删除失败：" + error, "err");
+  }finally{
+    busy(false);
+  }
+});
+
+/* ================= 系统设置 ================= */
+function fillSettings(){
+  const model = (health && health.model) || {};
+  const rows = [
+    ["权重路径", model.weight_path || "-"],
+    ["推理引擎", "onnxruntime " + (model.runtime || "-")],
+    ["执行提供者", (model.providers || []).join("、") || "-"],
+    ["输入尺寸", (model.image_size || "-") + " × " + (model.image_size || "-")],
+    ["类别数", ((model.classes || []).length || "-") + " 类"],
+    ["输出处理", model.output_logits ? "logits 已在服务端 softmax" : "权重直接输出概率"]
+  ];
+  el("setModel").innerHTML = rows
+    .map(row => "<dt>" + esc(row[0]) + "</dt><dd>" + esc(row[1]) + "</dd>").join("");
+  const service = [
+    ["服务状态", health ? health.status : "-"],
+    ["历史库", (health && health.history_db) || "-"],
+    ["历史可用", health && health.history_ready ? "是" : "否"],
+    ["在线问答", health && health.llm_enabled ? "已配置 DEEPSEEK_API_KEY" : "未配置，返回本地静态参考"],
+    ["类别清单", ((health && health.classes) || []).map(name => SHORT[name] || name).join("、") || "-"]
+  ];
+  el("setService").innerHTML = service
+    .map(row => "<dt>" + esc(row[0]) + "</dt><dd>" + esc(row[1]) + "</dd>").join("");
+  const api = [
+    ["GET /api/health", "服务与模型状态"],
+    ["POST /api/predict", "单图分类"],
+    ["POST /api/predict/batch", "批量分类（≤100 张）"],
+    ["POST /api/chat", "辅助建议与多轮问答"],
+    ["GET /api/history", "历史查询与统计"],
+    ["DELETE /api/history/{id}", "删除指定记录"]
+  ];
+  el("setApi").innerHTML = api
+    .map(row => "<dt>" + esc(row[0]) + "</dt><dd>" + esc(row[1]) + "</dd>").join("");
+}
+el("btnSetRefresh").addEventListener("click", async () => { await loadHealth(); fillSettings(); });
+
+/* ================= 单图分析 ================= */
+function buildProbRows(){
+  const grid = el("probGrid");
+  grid.innerHTML = "";
+  for(let i = 0; i < 8; i++){
+    const row = document.createElement("div");
+    row.className = "prow";
+    const n = document.createElement("span"); n.className = "pn"; n.textContent = "—";
+    const b = document.createElement("span"); b.className = "pb";
+    const fill = document.createElement("i"); b.appendChild(fill);
+    const v = document.createElement("span"); v.className = "pv"; v.textContent = "—";
+    row.appendChild(n); row.appendChild(b); row.appendChild(v);
+    grid.appendChild(row);
+  }
+}
+function renderProbs(probabilities){
+  const map = probabilities || {};
+  const ranked = Object.keys(map).length
+    ? Object.entries(map).sort((a, b) => b[1] - a[1])
+    : Object.keys(SHORT).map(name => [name, null]);
+  const rows = el("probGrid").children;
+  for(let i = 0; i < rows.length; i++){
+    const row = rows[i];
+    const item = ranked[i];
+    if(!item){ row.style.visibility = "hidden"; continue; }
+    row.style.visibility = "";
+    const [disease, value] = item;
+    row.className = "prow" + (i === 0 && Object.keys(map).length ? " top" : "");
+    row.children[0].textContent = SHORT[disease] || disease;
+    row.children[0].title = disease + " / " + (SHORT[disease] || disease);
+    row.children[2].textContent = pct(value);
+    const fill = row.children[1].firstChild;
+    requestAnimationFrame(() => { fill.style.width = Math.max((value || 0) * 100, 0.5) + "%"; });
+  }
+  el("probHint").textContent = Object.keys(map).length
+    ? "八类概率 · 按模型概率排序" : "八类概率 · 分类后显示实际结果";
+}
+function useFile(file){
+  if(!file) return;
+  if(!/^image\//.test(file.type)){ setStatus("请选择图片文件。", "err"); return; }
+  currentFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    el("preview").src = e.target.result;
+    el("canvas").classList.add("has");
+    el("cap").textContent = file.name;
+    el("metaName").textContent = file.name;
+    const img = new Image();
+    img.onload = () => { el("metaSize").textContent = img.naturalWidth + " × " + img.naturalHeight + " px"; };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  el("metaSize").textContent = "正在读取…";
+  setStatus("图像已就绪", "ok");
+  el("btnPredict").disabled = !serverReady();
+  el("btnAdvice").disabled = true;
+  clearPrediction();
+}
+function clearPrediction(){
+  current = null;
+  el("predName").textContent = "尚未分类";
+  el("predScore").textContent = "—";
+  el("inferenceTime").textContent = "等待分析";
+  renderProbs({});
+  el("adviceBox").textContent = GUIDE;
+}
+el("canvas").addEventListener("click", () => el("file").click());
+el("btnLoad").addEventListener("click", () => el("file").click());
+el("file").addEventListener("change", e => useFile(e.target.files[0]));
+el("btnClear").addEventListener("click", () => {
+  currentFile = null;
+  el("file").value = "";
+  el("preview").removeAttribute("src");
+  el("canvas").classList.remove("has");
+  el("metaName").textContent = "未选择图像";
+  el("metaSize").textContent = "— × — px";
+  el("btnPredict").disabled = true;
+  el("btnAdvice").disabled = true;
+  clearPrediction();
+  setStatus("导入一张图像开始分析");
+});
+["dragenter","dragover"].forEach(t =>
+  el("canvas").addEventListener(t, e => { e.preventDefault(); el("canvas").style.borderColor = "#51C5E3"; }));
+["dragleave","drop"].forEach(t =>
+  el("canvas").addEventListener(t, e => { e.preventDefault(); el("canvas").style.borderColor = ""; }));
+el("canvas").addEventListener("drop", e => {
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f) useFile(f);
+});
+document.addEventListener("paste", e => {
+  const items = (e.clipboardData && e.clipboardData.items) || [];
+  for(const item of items){
+    if(item.type && item.type.indexOf("image") === 0){ useFile(item.getAsFile()); break; }
+  }
+});
+
+/* ============ 本机摄像头：浏览器直接调用用户电脑的摄像头 ============ */
+const cam = { stream:null, devices:[], ready:false };
+function camStatus(text){ el("camStatus").textContent = text; }
+function camSupported(){ return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia); }
+function camGuard(){
+  if(!camSupported()){
+    camStatus("当前浏览器不支持摄像头采集（需支持 getUserMedia 的现代浏览器）。");
+    return false;
+  }
+  if(!window.isSecureContext){
+    camStatus("浏览器只在 HTTPS 或 localhost 下开放摄像头。当前页面不是安全上下文，请改用 https:// 访问该站点。");
+    return false;
+  }
+  return true;
+}
+async function camRefresh(){
+  if(!camGuard()) return;
+  try{
+    const list = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput");
+    cam.devices = list;
+    const sel = el("camDevices");
+    sel.innerHTML = "";
+    if(!list.length){
+      const o = document.createElement("option");
+      o.textContent = "未发现摄像头";
+      sel.appendChild(o);
+      camStatus("未发现摄像头；请连接设备，并检查浏览器与系统的摄像头权限。");
+      return;
+    }
+    list.forEach((d,i) => {
+      const o = document.createElement("option");
+      o.value = d.deviceId || "";
+      o.textContent = d.label || ("摄像头 " + (i + 1));
+      sel.appendChild(o);
+    });
+    camStatus("已发现 " + list.length + " 个摄像头，点击「打开摄像头」开始预览。");
+  }catch(error){
+    camStatus("刷新设备失败：" + error);
+  }
+}
+async function camOpen(){
+  if(!camGuard()) return;
+  const id = el("camDevices").value;
+  camStatus("正在打开摄像头…");
+  try{
+    const video = id ? { deviceId:{ exact:id }, width:{ideal:1280}, height:{ideal:720} } : { width:{ideal:1280}, height:{ideal:720} };
+    const stream = await navigator.mediaDevices.getUserMedia({ video:video, audio:false });
+    cam.stream = stream;
+    const v = el("camVideo");
+    v.srcObject = stream;
+    await new Promise(done => { v.onloadedmetadata = done; setTimeout(done, 5000); });
+    try{ await v.play(); }catch(_){}
+    el("camCanvas").classList.add("on");
+    el("camStop").disabled = false;
+    el("camShot").disabled = false;
+    cam.ready = true;
+    const track = stream.getVideoTracks()[0];
+    const s = (track && track.getSettings) ? track.getSettings() : {};
+    camStatus("摄像头预览已打开" + (s.width ? "（" + s.width + " × " + s.height + "）" : "") + "；就绪后可拍照并载入");
+  }catch(error){
+    camStop();
+    const n = (error && error.name) || "";
+    if(n === "NotAllowedError") camStatus("摄像头打开失败：权限被拒绝，请点击地址栏的权限图标允许使用摄像头。");
+    else if(n === "NotFoundError" || n === "OverconstrainedError") camStatus("摄像头打开失败：未找到该设备，请刷新设备后重新选择。");
+    else if(n === "NotReadableError") camStatus("摄像头打开失败：设备被其他程序占用，请关闭占用摄像头的软件后重试。");
+    else camStatus("摄像头打开失败：" + ((error && error.message) || error));
+  }
+}
+function camStop(){
+  if(cam.stream){ cam.stream.getTracks().forEach(t => t.stop()); }
+  cam.stream = null;
+  cam.ready = false;
+  const v = el("camVideo");
+  try{ v.pause(); }catch(_){}
+  v.srcObject = null;
+  el("camCanvas").classList.remove("on");
+  el("camStop").disabled = true;
+  el("camShot").disabled = true;
+  camStatus("预览已关闭");
+}
+function camShot(){
+  if(!cam.ready){ camStatus("请先打开摄像头预览。"); return; }
+  const v = el("camVideo");
+  const w = v.videoWidth || 0, h = v.videoHeight || 0;
+  if(!w || !h){ camStatus("拍照失败：尚未取得视频帧，请稍候重试。"); return; }
+  const board = document.createElement("canvas");
+  board.width = w; board.height = h;
+  board.getContext("2d").drawImage(v, 0, 0, w, h);
+  const t = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const name = "camera_" + t.getFullYear() + pad(t.getMonth() + 1) + pad(t.getDate()) + "_" +
+               pad(t.getHours()) + pad(t.getMinutes()) + pad(t.getSeconds()) + ".jpg";
+  board.toBlob(blob => {
+    if(!blob){ camStatus("拍照失败：图像编码失败。"); return; }
+    switchImgTab("local");
+    useFile(new File([blob], name, { type:"image/jpeg" }));
+    setStatus("已拍照并载入：" + name, "ok");
+  }, "image/jpeg", 0.92);
+}
+function switchImgTab(which){
+  document.querySelectorAll("#imgTabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === which));
+  ["local","camera","board"].forEach(k => {
+    el("tab" + k.charAt(0).toUpperCase() + k.slice(1)).style.display = (k === which ? "" : "none");
+  });
+  if(which !== "camera" && cam.stream) camStop();
+  if(which === "camera" && !cam.devices.length && camSupported() && window.isSecureContext) camRefresh();
+}
+document.querySelectorAll("#imgTabs button").forEach(b => b.addEventListener("click", () => switchImgTab(b.dataset.tab)));
+el("camRefresh").addEventListener("click", camRefresh);
+el("camOpen").addEventListener("click", camOpen);
+el("camStop").addEventListener("click", camStop);
+el("camShot").addEventListener("click", camShot);
+window.addEventListener("pagehide", () => { if(cam.stream) camStop(); });
+if(!camSupported()) camStatus("当前浏览器不支持摄像头采集（需支持 getUserMedia 的现代浏览器）。");
+else if(!window.isSecureContext) camStatus("浏览器只在 HTTPS 或 localhost 下开放摄像头。当前页面不是安全上下文，请改用 https:// 访问该站点。");
+else camRefresh();
+
+/* ============ 完整导出包（对标桌面端 export_bundle，全部落在用户电脑本地） ============ */
+const stamp = () => {
+  const t = new Date(), p = n => String(n).padStart(2, "0");
+  return t.getFullYear() + p(t.getMonth() + 1) + p(t.getDate()) + "_" + p(t.getHours()) + p(t.getMinutes()) + p(t.getSeconds());
+};
+function downloadText(filename, text, mime){
+  const blob = new Blob(["\ufeff" + text], { type:(mime || "text/plain") + ";charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+function csvCell(v){
+  const s = (v === null || v === undefined) ? "" : String(v);
+  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function toCsv(rows){
+  return rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+}
+function svgToPng(svgText, scale){
+  return new Promise((resolve, reject) => {
+    const box = /viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/.exec(svgText);
+    if(!box){ reject(new Error("图表尺寸解析失败")); return; }
+    const k = scale || 2;
+    const w = Math.round(parseFloat(box[1]) * k);
+    const h = Math.round(parseFloat(box[2]) * k);
+    const doc = svgText.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '"');
+    const img = new Image();
+    const url = URL.createObjectURL(new Blob([doc], { type:"image/svg+xml;charset=utf-8" }));
+    img.onload = () => {
+      const board = document.createElement("canvas");
+      board.width = w; board.height = h;
+      const ctx = board.getContext("2d");
+      ctx.fillStyle = "#242C37"; ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      board.toBlob(b => b ? resolve(b) : reject(new Error("PNG 编码失败")), "image/png");
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("图表渲染失败")); };
+    img.src = url;
+  });
+}
+function downloadBlob(filename, blob){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+el("btnPredict").addEventListener("click", async () => {
+  if(IS_LOCAL_PREVIEW){ setStatus("本地文件仅供预览，请从服务器地址打开后执行分类。", "note"); return; }
+  const file = currentFile;
+  if(!file){ setStatus("请先加载图像。", "err"); return; }
+  el("btnPredict").disabled = true;
+  busy(true);
+  setStatus("正在分析图像…");
+  el("inferenceTime").textContent = "推理中";
+  const form = new FormData();
+  form.append("file", file);
+  try{
+    const res = await fetch("/api/predict", { method: "POST", body: form });
+    const data = await res.json();
+    if(!data.success){
+      setStatus("分类失败：" + (data.error || data.detail || "请检查图像或模型"), "err");
+      el("inferenceTime").textContent = "等待分析";
+      clearPrediction();
+      return;
+    }
+    current = data;
+    el("predName").textContent = FULL[data.disease] || data.disease;
+    el("predScore").textContent = pct(data.confidence);
+    el("inferenceTime").textContent = "本次推理 " + (data.latency_ms / 1000).toFixed(2) + "s";
+    renderProbs(data.probabilities || {});
+    el("probs").classList.add("show");
+    el("btnToggleProbs").textContent = "收起八类概率";
+    el("btnAdvice").disabled = false;
+    el("adviceBox").textContent = GUIDE_DONE;
+    setStatus("分析完成", "ok");
+  }catch(error){
+    setStatus("请求失败：" + error, "err");
+    el("inferenceTime").textContent = "等待分析";
+  }finally{
+    el("btnPredict").disabled = !serverReady();
+    busy(false);
+  }
+});
+el("btnToggleProbs").addEventListener("click", () => {
+  const box = el("probs");
+  const show = !box.classList.contains("show");
+  box.classList.toggle("show", show);
+  el("btnToggleProbs").textContent = show ? "收起八类概率" : "展开八类概率";
+});
+el("btnAdvice").addEventListener("click", async () => {
+  if(!current) return;
+  el("btnAdvice").disabled = true;
+  setStatus("正在生成辅助建议…");
+  try{
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ disease: current.disease, confidence: current.confidence })
+    });
+    const data = await res.json();
+    el("adviceBox").textContent = data.success
+      ? "来源：" + (data.source || "-") + "\n\n" + data.content
+      : "获取失败：" + (data.error || "未知原因");
+    setStatus(data.success ? "辅助建议已生成。" : "辅助建议获取失败。", data.success ? "ok" : "err");
+  }catch(error){
+    setStatus("请求失败：" + error, "err");
+  }finally{
+    el("btnAdvice").disabled = false;
+  }
+});
+function pushChat(cls, text){
+  const line = document.createElement("div");
+  line.className = cls;
+  line.textContent = text;
+  el("chatLog").appendChild(line);
+  el("chatLog").scrollTop = el("chatLog").scrollHeight;
+}
+el("btnSend").addEventListener("click", async () => {
+  const text = el("chatInput").value.trim();
+  if(!text) return;
+  el("chatInput").value = "";
+  pushChat("me", "我：" + text);
+  el("btnSend").disabled = true;
+  try{
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question: text })
+    });
+    const data = await res.json();
+    pushChat(data.success ? "ai" : "sys",
+             (data.success ? "AI：" : "") + (data.content || data.error || "无返回内容"));
+  }catch(error){
+    pushChat("sys", "请求失败：" + error);
+  }finally{
+    el("btnSend").disabled = false;
+  }
+});
+el("chatInput").addEventListener("keydown", e => {
+  if(e.ctrlKey && e.key === "Enter") el("btnSend").click();
+});
+el("readingSize").addEventListener("change", e => {
+  const px = (parseInt(e.target.value, 10) * 4 / 3).toFixed(1) + "px";
+  el("adviceBox").style.fontSize = px;
+  el("chatLog").style.fontSize = px;
+});
+
+/* ================= 分页切换 ================= */
+const PAGES = ["single", "batch", "history", "settings"];
+document.querySelectorAll(".pages button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".pages button").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    const target = btn.dataset.page;
+    const ids = { single: "pageSingle", batch: "pageBatch", history: "pageHistory", settings: "pageSettings" };
+    PAGES.forEach(name => {
+      const node = el(ids[name]);
+      if(!node) return;
+      node.style.display = name === target ? "" : "none";
+    });
+    if(target === "history") loadHistoryPage();
+    if(target === "settings") fillSettings();
+  });
+});
+document.querySelectorAll("#rightTabs button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#rightTabs button").forEach(b => b.classList.remove("on"));
+    btn.classList.add("on");
+    document.querySelectorAll(".pane").forEach(p => p.classList.remove("on"));
+    el("pane" + btn.dataset.pane.charAt(0).toUpperCase() + btn.dataset.pane.slice(1)).classList.add("on");
+  });
+});
+
+/* ================= 初始化 ================= */
+function updateViewport(){
+  const width = document.documentElement.clientWidth;
+  const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
+  el("barRight").textContent = "v2026-10-13.9 · 视口 " + width + "px · 缩放 " + ratio +
+    "x · 输出结果不构成医学诊断依据";
+}
+window.addEventListener("resize", updateViewport);
+function fillCategorySelects(){
+  const options = '<option value="">全部类别</option>' +
+    Object.keys(SHORT).map(key => '<option value="' + key + '">' + SHORT[key] + "</option>").join("");
+  el("batchCategory").innerHTML = options;
+  el("histCategory").innerHTML = options;
+}
+fillCategorySelects();
+if(IS_LOCAL_PREVIEW){
+  document.querySelectorAll('a[href="/docs"]').forEach(link => {
+    link.removeAttribute("href"); link.title = "启动服务器后可访问接口文档";
+  });
+}
+buildProbRows();
+clearPrediction();
+drawTable("batch");
+drawTable("hist");
+updateViewport();
+loadHealth().then(fillSettings);
+</script>
+</body>
+</html>

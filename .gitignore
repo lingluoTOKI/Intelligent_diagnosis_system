@@ -276,3 +276,14 @@ saved_api_key.txt
 /configs/app_config.json
 /tests/text/
 /tests/voice/batch_results.csv
+
+!assets/brand/*.png
+!assets/brand/*.ico
+*.lnk
+
+# Local package-install scratch directories and generated launchers
+/pip-build-env-*/
+/pip-build-tracker-*/
+/pip-unpack-*/
+/tmp*cacert.pem
+/眼科图像分类辅助诊断系统.exe

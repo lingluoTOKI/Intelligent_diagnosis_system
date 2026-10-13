@@ -1,9 +1,9 @@
 """Image-first desktop layout and inexpensive native Qt probability displays."""
 from pathlib import Path
 from PyQt5.QtCore import Qt, QRectF, pyqtSignal
-from PyQt5.QtGui import QColor, QPainter, QPen, QPixmap, QFont, QFontDatabase
+from PyQt5.QtGui import QColor, QPainter, QPen, QPixmap, QFont, QFontDatabase, QIcon
 from PyQt5.QtWidgets import (QWidget, QLabel, QPushButton, QVBoxLayout, QHBoxLayout,
-                            QFrame, QProgressBar, QSizePolicy, QSplitter, QStackedWidget, QScrollArea, QComboBox, QGroupBox, QGridLayout, QTabWidget, QTextEdit, QFileDialog)
+                            QLayout, QFrame, QProgressBar, QSizePolicy, QSplitter, QStackedWidget, QScrollArea, QComboBox, QGroupBox, QGridLayout, QTabWidget, QTextEdit, QFileDialog)
 
 NAMES = {"AMD": "黄斑变性", "Cataract": "白内障", "Diabetic Retinopathy": "糖尿病视网膜病变",
          "Glaucoma": "青光眼", "Hypertensive Retinopathy": "高血压性视网膜病变",
@@ -16,6 +16,7 @@ class ImageCanvas(QLabel):
 
     def __init__(self):
         super().__init__()
+        self._brand = QIcon(str(Path(__file__).resolve().parents[2]/"assets/brand/scan-eye.svg")).pixmap(96,72)
         self._image = QPixmap()
         self._scaled = QPixmap()
         self._cache_key = None
@@ -49,8 +50,7 @@ class ImageCanvas(QLabel):
             for y in range(0, self.height(), 32): painter.drawLine(0, y, self.width(), y)
             cx, cy = self.width() / 2, self.height() / 2 - 48
             painter.setPen(QPen(QColor("#51C5E3"), 2))
-            painter.drawEllipse(QRectF(cx-29, cy-20, 58, 40))
-            painter.drawEllipse(QRectF(cx-9, cy-9, 18, 18))
+            painter.drawPixmap(int(cx-48),int(cy-36),self._brand)
             painter.setFont(QFont("Microsoft YaHei", self.font().pointSize()+1, QFont.Bold))
             painter.setPen(QColor("#EEF2F6"))
             painter.drawText(QRectF(0, cy+38, self.width(), 32), Qt.AlignCenter, "拖入眼科图像")
@@ -96,6 +96,9 @@ def build_workbench(window, config):
     root_layout.setContentsMargins(20,16,20,12)
     root_layout.setSpacing(16)
     header = QHBoxLayout()
+    brand_path=Path(__file__).resolve().parents[2]/"assets"/"brand"
+    brand=QLabel();brand.setPixmap(QIcon(str(brand_path/"app.svg")).pixmap(44,44));brand.setFixedSize(48,48);header.addWidget(brand)
+    window.setWindowIcon(QIcon(str(brand_path/"app-windows.ico")))
     header.addWidget(label("眼科图像分类辅助诊断系统", "pageTitle"))
     header.addStretch()
     window.font_family_combo=QComboBox()
@@ -150,7 +153,7 @@ def build_workbench(window, config):
     window.image_tab_widget.currentChanged.connect(lambda index:window.local_camera_page.stop() if index!=1 else None)
     window.image_tab_widget.setCurrentIndex(0)
     window.image_tab_widget.setMinimumWidth(0)
-    window.image_tab_widget.setMaximumHeight(520)
+    window.image_tab_widget.setMaximumHeight(16777215)
     ll.addWidget(window.image_tab_widget,1)
     controls=QFrame();controls.setObjectName("card")
     grid=QGridLayout(controls);grid.setContentsMargins(14,14,14,14);grid.setSpacing(10)
@@ -182,8 +185,11 @@ def build_workbench(window, config):
     split.addWidget(left)
     right=QWidget();right.setMinimumWidth(540)
     rl=QVBoxLayout(right);rl.setContentsMargins(0,0,0,0);rl.setSpacing(12)
+    rl.setSizeConstraint(QLayout.SetMinimumSize)
     result=QFrame();result.setObjectName("card");window.result_card=result
     result_layout=QVBoxLayout(result);result_layout.setContentsMargins(20,16,20,16);result_layout.setSpacing(12)
+    result_layout.setSizeConstraint(QLayout.SetMinimumSize)
+    result.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
     summary=QHBoxLayout()
     summary.addWidget(label("分类结果","sectionTitle"));summary.addStretch()
     window.inference_time_label=label("等待分析","muted");summary.addWidget(window.inference_time_label)
@@ -197,8 +203,9 @@ def build_workbench(window, config):
     result_layout.addLayout(prediction)
     details=QWidget();details_layout=QVBoxLayout(details);details_layout.setContentsMargins(0,0,0,0)
     window.probability_details=details
-    window.probability_toggle=QPushButton("收起八类概率")
-    window.probability_toggle.setCheckable(True);window.probability_toggle.setChecked(True)
+    details_layout.setSizeConstraint(QLayout.SetMinimumSize)
+    window.probability_toggle=QPushButton("展开八类概率")
+    window.probability_toggle.setCheckable(True);window.probability_toggle.setChecked(False)
     summary.addWidget(window.probability_toggle)
     def toggle_details(checked):
         details.setVisible(checked)
@@ -206,6 +213,7 @@ def build_workbench(window, config):
         window.workbench_splitter.setMinimumHeight(round((560 if checked else 400)*size/14))
         window.probability_toggle.setText("收起八类概率" if checked else "展开八类概率")
     window.probability_toggle.toggled.connect(toggle_details)
+    details.hide()
     window.probability_hint=label("八类概率 · 分类后显示实际结果","muted");details_layout.addWidget(window.probability_hint)
     probabilities=QGridLayout();probabilities.setHorizontalSpacing(28);probabilities.setVerticalSpacing(8)
     window.probability_rows=[]
@@ -222,6 +230,7 @@ def build_workbench(window, config):
     result_layout.addWidget(details)
     notice=label("概率未经校准，不代表诊断准确率；分类结果仅供辅助参考。","notice")
     notice.setWordWrap(True)
+    window.classification_notice=notice
     result_layout.addWidget(notice)
     rl.addWidget(result)
     # Original three tabs remain familiar; settings gain a scroll container.
@@ -274,7 +283,8 @@ def build_workbench(window, config):
     window.advice_button.setText("生成辅助建议");window.advice_button.setEnabled(False)
     window.fullscreen_advice_btn.setText("展开阅读")
     window.toggle_password_button.setText("显示")
-    window.advice_text.setPlainText("完成分类后，点击「生成辅助建议」查看当前图像的说明。可在「多轮问答」继续提问，在顶部「设置」配置在线服务和语音。")
+    from .rich_text import advice_guide
+    window.advice_text.setHtml(advice_guide())
     window.voice_input_button.setText("语音输入")
     window.voice_chat_enabled.setText("自动朗读回复")
     for button in (window.voice_input_button,window.voice_chat_enabled):button.setVisible(True);button.setEnabled(config.enable_voice)
@@ -290,6 +300,7 @@ def build_workbench(window, config):
     window.workspace_pages.addTab(single_scroll,"单图分析")
     settings_button=QPushButton("系统设置")
     settings_button.clicked.connect(window.show_runtime_settings)
+    settings_button.setIcon(QIcon(str(brand_path/"settings.svg")))
     header.addWidget(settings_button)
     from .analysis_pages import AnalysisPage
     import sys
@@ -302,6 +313,14 @@ def build_workbench(window, config):
     window.workspace_pages.currentChanged.connect(lambda index:window.history_page.refresh() if index==2 else None)
     window.batch_output=QTextEdit();window.batch_output.hide()
     root_layout.insertWidget(1,window.workspace_pages,1)
+    for button,name in ((window.image_button,"image"),(window.model_button,"model"),(window.detect_button,"analyze")):
+        button.setIcon(QIcon(str(brand_path/(name+".svg"))))
+    for index,name in enumerate(("image","batch","history")):
+        window.workspace_pages.setTabIcon(index,QIcon(str(brand_path/(name+".svg"))))
+    for button,name in ((window.connect_camera_button,"device"),(window.capture_from_camera_button,"image"),(window.board_interaction_button,"device"),(window.board_voice_button,"voice"),
+                        (window.advice_button,"spark"),(window.fullscreen_advice_btn,"expand"),
+                        (window.send_chat_button,"send"),(window.voice_input_button,"voice")):
+        button.setIcon(QIcon(str(brand_path/(name+".svg"))))
     window.setCentralWidget(root)
     from configs.runtime_config import PROJECT_ROOT
     window._ui_preferences_path=PROJECT_ROOT/"configs"/"ui_preferences.json"

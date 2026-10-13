@@ -222,7 +222,8 @@ class WorkbenchJobs:
         self.results_button.setEnabled(True)
         self.advice_button.setEnabled(True)
         self.task_status_label.setText("分析完成" if not warning else "分析完成，历史保存失败")
-        self.advice_text.setPlainText("分类已完成。点击「生成辅助建议」查看当前图像的辅助参考，或切换到「多轮问答」继续提问。")
+        from .rich_text import advice_guide
+        self.advice_text.setHtml(advice_guide(classified=True))
         self.status_bar.showMessage(warning or "分类完成；可查看全部概率或生成辅助说明")
 
     def test_network_and_show_result(self):

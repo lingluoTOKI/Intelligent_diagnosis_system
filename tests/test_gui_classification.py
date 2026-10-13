@@ -308,6 +308,8 @@ def test_workspace_pages_reuse_history_and_hide_duplicate_results(window):
 
 def test_chat_collapses_probabilities_and_keeps_summary(window):
     w, _ = window
+    assert not w.probability_toggle.isChecked()
+    w.probability_toggle.setChecked(True)
     assert w.probability_toggle.isChecked()
     w.right_tab_widget.setCurrentIndex(1)
     assert w.probability_details.isHidden()

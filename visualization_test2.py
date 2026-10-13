@@ -943,6 +943,10 @@ class MainWindow(WorkbenchJobs, QMainWindow):
         
         # 设置窗口属性
         self.setWindowTitle("眼科图像分类辅助诊断系统")
+        self.setWindowIcon(QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "brand", "app-windows.ico")))
+        if os.name == "nt":
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("EyeClassification.Desktop")
         self.setGeometry(100, 100, 1400, 800)
         
         # 初始化摄像头接收器
@@ -1097,7 +1101,8 @@ class MainWindow(WorkbenchJobs, QMainWindow):
                 self.inference_time_label.setText("等待分析")
         self.prediction_output = ""
         if hasattr(self, "advice_text"):
-            self.advice_text.setPlainText("等待有效分类结果；尚未生成当前图像的辅助建议")
+            from src.visualization.rich_text import advice_guide
+            self.advice_text.setHtml(advice_guide())
         self.all_classes_confidence = {}
         if self.result_processor is not None:
             self.result_processor.current_disease = None
@@ -1559,7 +1564,8 @@ class MainWindow(WorkbenchJobs, QMainWindow):
         board_layout.setSpacing(12)
 
         # 摄像头预览区 — 不再限制最大尺寸，自适应空间
-        self.camera_preview_label = QLabel("📱 摄像头未连接\n\n点击下方「连接开发板」开始实时预览")
+        from src.visualization.camera_placeholder import CameraPreview
+        self.camera_preview_label = CameraPreview()
         self.camera_preview_label.setAlignment(Qt.AlignCenter)
         self.camera_preview_label.setMinimumSize(200, 150)
         self.camera_preview_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -1579,7 +1585,8 @@ class MainWindow(WorkbenchJobs, QMainWindow):
         info_layout = QHBoxLayout()
         info_layout.setSpacing(15)
 
-        self.board_camera_status = QLabel("🔴 未连接")
+        self.board_camera_status = QLabel("○ 未连接")
+        self.board_camera_status.setObjectName("muted")
         self.board_camera_status.setStyleSheet(f"""
             font-weight: bold;
             color: #E53E3E;
@@ -1590,9 +1597,11 @@ class MainWindow(WorkbenchJobs, QMainWindow):
         """)
 
         self.board_resolution_label = QLabel("分辨率: --")
+        self.board_resolution_label.setObjectName("muted")
         self.board_resolution_label.setStyleSheet(f"color: #81A1C1; font-size: 11pt;")
 
         self.board_fps_label = QLabel("帧率: --")
+        self.board_fps_label.setObjectName("muted")
         self.board_fps_label.setStyleSheet(f"color: #81A1C1; font-size: 11pt;")
 
         info_layout.addWidget(self.board_camera_status)
@@ -1603,8 +1612,8 @@ class MainWindow(WorkbenchJobs, QMainWindow):
 
         # 控制按钮栏
         cam_ctrl_layout = QHBoxLayout()
-        self.connect_camera_button = QPushButton("🔗 连接开发板")
-        self.capture_from_camera_button = QPushButton("📸 截取并诊断")
+        self.connect_camera_button = QPushButton("连接开发板")
+        self.capture_from_camera_button = QPushButton("截取并分析")
         self.capture_from_camera_button.setEnabled(False)
 
         cam_btn_style = f"QPushButton {{ background-color: {self.success_color}; color: white; padding: 12px 24px; border-radius: 6px; font-weight: bold; font-size: 13pt; }} QPushButton:hover {{ background-color: #2F855A; }} QPushButton:disabled {{ background-color: #4A5568; color: #A0AEC0; }}"
@@ -1622,8 +1631,9 @@ class MainWindow(WorkbenchJobs, QMainWindow):
         board_layout.addLayout(cam_ctrl_layout)
 
         # 提示标签
-        hint_label = QLabel("💡 提示：请确保 PC 与开发板在同一局域网，并已启动开发板端摄像头服务")
-        hint_label.setAlignment(Qt.AlignCenter)
+        hint_label = QLabel("将设备接入同一局域网，并启动开发板摄像头服务。")
+        hint_label.setObjectName("muted")
+        hint_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         hint_label.setStyleSheet(f"color: #616E88; font-size: 10pt; padding: 4px;")
         hint_label.setWordWrap(True)
         board_layout.addWidget(hint_label)
@@ -4531,7 +4541,7 @@ class MainWindow(WorkbenchJobs, QMainWindow):
             self.camera_receiver.start_receiving()
             # 更新开发板摄像头连接状态
             if hasattr(self, 'board_camera_status'):
-                self.board_camera_status.setText("🟢 已连接")
+                self.board_camera_status.setText("● 已连接")
             
             # 同时启动命令监听器
             if not hasattr(self, 'command_listener'):
@@ -5169,28 +5179,29 @@ class MainWindow(WorkbenchJobs, QMainWindow):
         """切换摄像头连接状态"""
         if not self.camera_receiver.is_receiving:
             self.camera_receiver.start_receiving()
-            self.connect_camera_button.setText("🔌 断开")
+            self.connect_camera_button.setText("断开连接")
         else:
             self.camera_receiver.stop_receiving()
-            self.connect_camera_button.setText("🔗 连接")
-            self.camera_preview_label.setText("摄像头未连接\\n点击连接开始预览")
+            self.connect_camera_button.setText("连接开发板")
+            self.camera_preview_label.setText("摄像头未连接")
             self.capture_from_camera_button.setEnabled(False)
     
     def update_camera_status(self, connected):
         """更新摄像头连接状态"""
         if connected:
-            self.connect_camera_button.setText("🔌 断开")
+            self.connect_camera_button.setText("断开连接")
             self.capture_from_camera_button.setEnabled(True)
             self.camera_preview_label.setText("正在接收视频流...")
             # 更新开发板摄像头连接状态
             if hasattr(self, 'board_camera_status'):
-                self.board_camera_status.setText("🟢 已连接")
+                self.board_camera_status.setText("● 已连接")
         else:
-            self.connect_camera_button.setText("🔗 连接")
+            self.connect_camera_button.setText("连接开发板")
             self.capture_from_camera_button.setEnabled(False)
             # 更新开发板摄像头连接状态
             if hasattr(self, 'board_camera_status'):
-                self.board_camera_status.setText("🔴 未连接")
+                self.board_camera_status.setText("○ 未连接")
+            self.camera_preview_label.setText("摄像头未连接")
     
     def update_camera_preview(self, frame):
         """更新摄像头预览"""
@@ -5261,7 +5272,11 @@ class MainWindow(WorkbenchJobs, QMainWindow):
 if __name__ == "__main__":
     QApplication.setAttribute(Qt.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, True)
+    if os.name == "nt":
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("EyeClassification.Desktop")
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "brand", "app-windows.ico")))
     font = QFont("Microsoft YaHei", 11)
     app.setFont(font)
     # 全局统一字体：QSS 中未指定 font-family 时回退到微软雅黑

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>访问验证 · 眼科图像分类辅助诊断系统</title>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#171C24;--card:#242C37;--card-line:#394451;--ink:#EEF2F6;--muted:#ADB8C7;
+  --section:#83D8EA;--primary:#4DD6B4;--accent:#51C5E3;--input:#1D242D;
+  --btn:#303B49;--btn-line:#465362;--notice:#F1B761;
+  --font:"Microsoft YaHei","DengXian","PingFang SC","Noto Sans SC",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:
+  radial-gradient(circle at 12% 0%,rgba(81,197,227,.10),transparent 30%),
+  radial-gradient(circle at 88% 100%,rgba(77,214,180,.07),transparent 28%),
+  var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.6;
+  display:flex;align-items:center;justify-content:center;padding:20px;-webkit-font-smoothing:antialiased}
+.card{width:100%;max-width:420px;padding:28px 26px;background:linear-gradient(160deg,rgba(40,50,62,.98),rgba(33,41,51,.98));
+  border:1px solid var(--card-line);border-radius:14px;
+  box-shadow:0 18px 50px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.05)}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.brand svg{width:40px;height:40px;flex:none;filter:drop-shadow(0 0 14px rgba(81,197,227,.32))}
+.brand b{font-size:19px;font-weight:bold;background:linear-gradient(90deg,#F4F7FA,#9FD9EA);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.brand span{display:block;font-size:13px;color:var(--muted);font-weight:normal}
+h1{font-size:20px;margin:0 0 6px;color:var(--ink)}
+.tip{color:var(--muted);font-size:14px;margin-bottom:18px}
+label{display:block;color:var(--muted);font-size:14px;margin-bottom:8px}
+input[type=password],input[type=text]{width:100%;background:var(--input);color:var(--ink);
+  border:1px solid var(--btn-line);border-radius:9px;padding:12px 14px;font-family:var(--font);font-size:16px}
+input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(77,214,180,.14)}
+.btn{width:100%;margin-top:16px;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(135deg,#66E5C5,#3ECBAA);border:1px solid #76E8CD;color:#102A24;font-weight:bold;
+  border-radius:9px;padding:12px;min-height:46px;font-family:var(--font);font-size:16px;cursor:pointer;
+  white-space:nowrap;box-shadow:0 6px 20px rgba(77,214,180,.22);transition:transform .15s,box-shadow .15s}
+.btn:hover{background:linear-gradient(135deg,#74EACA,#4BD6B6);box-shadow:0 8px 26px rgba(77,214,180,.34);transform:translateY(-1px)}
+.btn:disabled{background:#252D37;color:#6E7C8C;border-color:var(--card-line);box-shadow:none;cursor:not-allowed;transform:none}
+.err{min-height:22px;margin-top:12px;color:#FC8181;font-size:14px}
+.err.ok{color:var(--primary)}
+.note{margin-top:18px;padding-top:14px;border-top:1px solid var(--card-line);color:#5C6875;font-size:13px;line-height:1.7}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <svg viewBox="0 0 96 72" aria-hidden="true">
+        <rect x="14" y="4" width="68" height="64" rx="20" fill="#173442"/>
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 24V14h10m56 0h10v10M10 48v10h10m56 0h10V48" stroke="#4b8093" stroke-width="2"/>
+          <path d="M23 36q25-29 50 0-25 29-50 0Z" stroke="#4ed5c7" stroke-width="3"/>
+          <circle cx="48" cy="36" r="11" stroke="#7bd8e9" stroke-width="2"/>
+        </g>
+        <circle cx="48" cy="36" r="5" fill="#d6f4f6"/>
+      </svg>
+      <div>
+        <b>眼科图像分类辅助诊断系统</b>
+        <span>服务端部署入口</span>
+      </div>
+    </div>
+    <h1>访问验证</h1>
+    <div class="tip">请输入服务端访问口令，验证通过后即可使用分类与历史功能。</div>
+    <form id="form" autocomplete="off">
+      <label for="code">访问口令</label>
+      <input id="code" type="password" placeholder="请输入口令" autofocus>
+      <button class="btn" id="btn" type="submit">进入系统</button>
+      <div class="err" id="err"></div>
+    </form>
+    <div class="note">输出结果不构成医学诊断依据。忘记口令请联系服务部署者，或在服务器环境变量 EYE_ACCESS_CODE 中查看。</div>
+  </div>
+<script>
+var form = document.getElementById("form");
+var input = document.getElementById("code");
+var button = document.getElementById("btn");
+var err = document.getElementById("err");
+form.addEventListener("submit", function(e){
+  e.preventDefault();
+  err.className = "err"; err.textContent = "";
+  button.disabled = true; button.textContent = "验证中…";
+  fetch("/api/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: input.value })
+  }).then(function(r){ return r.json().then(function(d){ return { ok: r.ok, data: d }; }); })
+    .then(function(res){
+      if(res.ok && res.data && res.data.success){ err.className = "err ok"; err.textContent = "验证通过，正在进入…"; location.replace("/"); }
+      else { err.textContent = (res.data && res.data.error) || "口令不正确"; button.disabled = false; button.textContent = "进入系统"; input.select(); }
+    })
+    .catch(function(){ err.textContent = "网络请求失败，请检查服务是否运行"; button.disabled = false; button.textContent = "进入系统"; });
+});
+</script>
+</body>
+</html>

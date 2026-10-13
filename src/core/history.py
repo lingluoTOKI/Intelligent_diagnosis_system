@@ -83,6 +83,28 @@ class HistoryDB:
             conn.row_factory=sqlite3.Row
             return [dict(r) for r in conn.execute("SELECT * FROM batches ORDER BY created DESC LIMIT 200")]
 
+    def batch_stats(self):
+        """批次列表：登记张数、实际入库张数、状态与创建时间。
+
+        失败项不写 records，因此 planned 与 saved 的差值即为失败或跳过的张数。
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT b.batch_id AS batch_id, b.created AS created, b.state AS state,"
+                " (SELECT COUNT(*) FROM batch_items i WHERE i.batch_id = b.batch_id) AS planned,"
+                " (SELECT COUNT(*) FROM records r WHERE r.batch_id = b.batch_id) AS saved"
+                " FROM batches b ORDER BY b.created DESC, b.batch_id DESC LIMIT 200"
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def delete_batch(self, batch_id):
+        """删除批次登记与批次项；已入库的记录保留，避免误删历史。"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("DELETE FROM batch_items WHERE batch_id = ?", (batch_id,))
+            conn.execute("DELETE FROM batches WHERE batch_id = ?", (batch_id,))
+            conn.commit()
+
     def batch_items(self, batch_id):
         with sqlite3.connect(self.db_path) as conn:
             return [json.loads(r[0]) for r in conn.execute("SELECT payload FROM batch_items WHERE batch_id=? ORDER BY position",(batch_id,))]

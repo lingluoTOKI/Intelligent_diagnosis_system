@@ -11,10 +11,13 @@
     EYE_SERVER_WEIGHTS   ONNX 权重路径，默认 models/custom/AKConv_best_moudle/best.onnx
     EYE_HISTORY_DB       历史库路径，默认 ~/EyeDiseaseDetectorHistory/server_history.db
     EYE_MAX_UPLOAD_MB    单张上传上限，默认 12
+    EYE_ACCESS_CODE      访问口令，留空则关闭口令校验（本机开发默认关闭，部署时建议设置）
     DEEPSEEK_API_KEY     可选，未配置时问答接口返回本地静态参考
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
 import sys
 import time
@@ -28,8 +31,8 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from typing import List  # noqa: E402
 
-from fastapi import FastAPI, File, HTTPException, UploadFile  # noqa: E402
-from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile  # noqa: E402
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
@@ -65,6 +68,56 @@ class ChatRequest(BaseModel):
     question: str = Field(default="", min_length=0, max_length=2000)
     disease: str = ""
     confidence: float = 0.0
+
+
+class KeyRequest(BaseModel):
+    """运行时下发到服务端的 DeepSeek 密钥；为空字符串表示清除。"""
+    key: str = Field(default="", max_length=200)
+
+
+class LoginRequest(BaseModel):
+    code: str = Field(default="", min_length=0, max_length=128)
+
+
+class TTSRequest(BaseModel):
+    """自然语音合成请求，语速与前端阅读设置保持一致。"""
+    text: str = Field(min_length=1, max_length=5000)
+    lang: str = Field(default="zh-CN", max_length=16)
+    rate: float = Field(default=1.0, ge=0.7, le=1.3)
+
+
+# ---------------- 访问口令（可选，留空即关闭） ----------------
+ACCESS_CODE = os.getenv("EYE_ACCESS_CODE", "").strip()
+COOKIE_NAME = "eye_access"
+COOKIE_MAX_AGE = 7 * 24 * 3600
+LOGIN_PAGE = STATIC_DIR / "login.html"
+# 简单的失败限流：同一来源 60 秒内连续错 10 次即冷却，防暴力试口令
+_FAILED_ATTEMPTS: dict[str, list] = {}
+_MAX_FAILS = 10
+_FAIL_WINDOW = 60.0
+
+
+def access_token(code: str) -> str:
+    """由口令派生 Cookie 值，Cookie 中不保存明文口令。"""
+    return hmac.new(code.encode("utf-8"), b"eye-diagnosis-access-v1", hashlib.sha256).hexdigest()
+
+
+def is_authorized(request: Request) -> bool:
+    if not ACCESS_CODE:
+        return True
+    token = request.cookies.get(COOKIE_NAME, "")
+    return hmac.compare_digest(token, access_token(ACCESS_CODE))
+
+
+def client_key(request: Request) -> str:
+    return (request.client.host if request.client else "unknown")
+
+
+def throttled(key: str) -> bool:
+    now = time.time()
+    hits = [t for t in _FAILED_ATTEMPTS.get(key, []) if now - t < _FAIL_WINDOW]
+    _FAILED_ATTEMPTS[key] = hits
+    return len(hits) >= _MAX_FAILS
 
 
 class ServerState:
@@ -115,6 +168,49 @@ def on_startup():
     state.startup()
 
 
+@app.middleware("http")
+async def access_gate(request: Request, call_next):
+    """口令门：未设置 EYE_ACCESS_CODE 时完全放行，保持本机开发体验不变。"""
+    path = request.url.path
+    if is_authorized(request) or path in ("/api/login", "/api/logout"):
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"success": False, "error": "未授权，请先输入访问口令"}, status_code=401)
+    if LOGIN_PAGE.is_file():
+        return HTMLResponse(LOGIN_PAGE.read_text(encoding="utf-8"), status_code=200)
+    return JSONResponse({"error": "未授权"}, status_code=401)
+
+
+@app.post("/api/login")
+def login(payload: LoginRequest, request: Request):
+    if not ACCESS_CODE:
+        return {"success": True, "required": False}
+    key = client_key(request)
+    if throttled(key):
+        return JSONResponse({"success": False, "error": "尝试过于频繁，请稍后再试"}, status_code=429)
+    if not hmac.compare_digest(payload.code, ACCESS_CODE):
+        _FAILED_ATTEMPTS.setdefault(key, []).append(time.time())
+        return JSONResponse({"success": False, "error": "口令不正确"}, status_code=401)
+    _FAILED_ATTEMPTS.pop(key, None)
+    response = JSONResponse({"success": True})
+    response.set_cookie(COOKIE_NAME, access_token(ACCESS_CODE), max_age=COOKIE_MAX_AGE,
+                        httponly=True, samesite="lax", path="/")
+    return response
+
+
+@app.post("/api/logout")
+def logout():
+    response = JSONResponse({"success": True})
+    response.delete_cookie(COOKIE_NAME, path="/")
+    return response
+
+
+@app.get("/api/access")
+def access_state():
+    """前端用于判断是否需要口令；不泄露口令本身。"""
+    return {"required": bool(ACCESS_CODE)}
+
+
 @app.get("/api/health")
 def health():
     return {
@@ -124,7 +220,7 @@ def health():
         "history_ready": state.history is not None,
         "history_error": state.history_error or None,
         "history_db": str(state.history.db_path) if state.history else None,
-        "llm_enabled": state.llm is not None,
+        "llm_enabled": bool(state.llm is not None and state.llm.api_key.strip()),
         "classes": list(DISEASES),
     }
 
@@ -203,7 +299,71 @@ def chat(request: ChatRequest):
             "error": "缺少疾病名称或提问内容"}
 
 
-def _classify_one(data: bytes, name: str) -> dict:
+@app.post("/api/tts")
+async def text_to_speech(payload: TTSRequest):
+    """用 Edge Neural Voice 生成 MP3，并按文本、语言和语速缓存。"""
+    try:
+        import edge_tts
+    except ImportError as error:
+        raise HTTPException(status_code=503, detail="服务端未安装 edge-tts") from error
+
+    clean = " ".join(payload.text.split()).strip()
+    if not clean:
+        raise HTTPException(status_code=400, detail="没有可朗读的文字")
+    voice = "en-US-JennyNeural" if payload.lang.lower().startswith("en") \
+        else "zh-CN-XiaoxiaoNeural"
+    rate_percent = max(-30, min(30, round((payload.rate - 1.0) * 100)))
+    cache_key = hashlib.sha256(
+        f"{voice}|{rate_percent}|{clean}".encode("utf-8")
+    ).hexdigest()
+    cache_dir = Path(os.getenv("EYE_TTS_CACHE", PROJECT_ROOT / "runtime" / "tts_cache"))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    target = cache_dir / f"{cache_key}.mp3"
+    if not target.is_file() or target.stat().st_size == 0:
+        temporary = cache_dir / f".{cache_key}.{uuid.uuid4().hex}.tmp.mp3"
+        try:
+            communicator = edge_tts.Communicate(
+                clean, voice=voice, rate=f"{rate_percent:+d}%"
+            )
+            await communicator.save(str(temporary))
+            if not temporary.is_file() or temporary.stat().st_size == 0:
+                raise RuntimeError("语音服务未返回有效音频")
+            os.replace(temporary, target)
+        except Exception as error:  # noqa: BLE001 - 供前端明确降级
+            temporary.unlink(missing_ok=True)
+            raise HTTPException(status_code=502, detail=f"语音生成失败: {error}") from error
+    return FileResponse(target, media_type="audio/mpeg", filename="speech.mp3",
+                        headers={"Cache-Control": "private, max-age=86400",
+                                 "X-TTS-Voice": voice})
+
+
+@app.post("/api/set-key")
+def set_key(request: KeyRequest):
+    """允许已登录用户将 DeepSeek 密钥下发到服务端运行内存。
+
+    密钥不落服务器磁盘，只保存在调用方的本机浏览器（localStorage）；
+    服务端重启后若未配置环境变量，需要浏览器重新提交一次。
+    """
+    key = (request.key or "").strip()
+    if state.llm is None:
+        state.llm = DeepSeekAPI(api_key=key)
+    else:
+        state.llm.set_api_key(key)
+    enabled = bool(state.llm and state.llm.api_key.strip())
+    masked = ("sk-****" + state.llm.api_key[-4:]) if enabled else ""
+    return {"success": True, "llm_enabled": enabled, "masked": masked}
+
+
+def new_batch_id() -> str:
+    """可读批次号：B + 日期时间 + 4 位随机后缀，例如 B20261013-194930-7f3a。
+
+    一次「开始分类」对应一个批次号，写入 records.batch_id 并登记到 batches 表，
+    便于在历史记录页按批次回看整批结果。
+    """
+    return "B" + datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:4]
+
+
+def _classify_one(data: bytes, name: str, batch_id: str = "") -> dict:
     """对单张图像执行推理并写库，失败项如实标注，不生成占位结果。"""
     item = {"image_path": name, "status": "pending", "save_status": "pending", "error": ""}
     try:
@@ -228,7 +388,7 @@ def _classify_one(data: bytes, name: str) -> dict:
             record_id = uuid.uuid4().hex
             state.history.add(record_id, datetime.now().isoformat(timespec="seconds"), name,
                               prediction.disease, prediction.confidence, prediction.probabilities,
-                              state.classifier.model_info())
+                              state.classifier.model_info(), batch_id=batch_id or None)
             item["record_id"] = record_id
             saved = True
         except Exception as error:  # noqa: BLE001
@@ -244,18 +404,67 @@ async def predict_batch(files: List[UploadFile] = File(...)):
     if len(files) > MAX_BATCH_FILES:
         return JSONResponse({"success": False, "error": f"一次最多提交 {MAX_BATCH_FILES} 张"},
                             status_code=413)
+    batch_id = new_batch_id()
+    model_info = state.classifier.model_info()
+    if state.history is not None:
+        try:
+            state.history.create_batch(batch_id, [(upload.filename or "upload") for upload in files],
+                                       model_info)
+        except Exception as error:  # noqa: BLE001 - 登记失败不应中断分类
+            print(f"[警告] 批次登记失败: {error}")
+
     started = time.perf_counter()
     results = []
-    for upload in files:
+    for index, upload in enumerate(files):
+        name = upload.filename or "upload"
         if upload.content_type and upload.content_type not in ALLOWED_CONTENT_TYPES:
-            results.append({"image_path": upload.filename or "upload", "status": "failed",
-                            "save_status": "failed", "error": f"不支持的文件类型: {upload.content_type}"})
-            continue
-        results.append(_classify_one(await upload.read(), upload.filename or "upload"))
+            item = {"image_path": name, "status": "failed", "save_status": "failed",
+                    "error": f"不支持的文件类型: {upload.content_type}"}
+        else:
+            item = _classify_one(await upload.read(), name, batch_id)
+        item["batch_id"] = batch_id
+        results.append(item)
+        if state.history is not None:
+            try:
+                state.history.save_batch_item(batch_id, index, item)
+            except Exception as error:  # noqa: BLE001
+                print(f"[警告] 批次项写入失败: {error}")
+
     latency_ms = round((time.perf_counter() - started) * 1000, 2)
     done = sum(1 for item in results if item["status"] == "success")
-    return {"success": True, "count": len(results), "done": done,
-            "failed": len(results) - done, "results": results, "latency_ms": latency_ms}
+    failed = len(results) - done
+    if state.history is not None:
+        try:
+            state.history.finish_batch(batch_id, "done" if failed == 0 else "done_with_errors")
+        except Exception as error:  # noqa: BLE001
+            print(f"[警告] 批次收尾失败: {error}")
+    return {"success": True, "batch_id": batch_id, "count": len(results), "done": done,
+            "failed": failed, "results": results, "latency_ms": latency_ms}
+
+
+@app.get("/api/batches")
+def list_batches():
+    """近期批次列表（含登记张数与入库张数），供前端下拉回看。"""
+    if state.history is None:
+        return JSONResponse({"success": False, "error": state.history_error or "历史库不可用"},
+                            status_code=503)
+    try:
+        return {"success": True, "batches": state.history.batch_stats()}
+    except Exception as error:  # noqa: BLE001
+        return JSONResponse({"success": False, "error": str(error)}, status_code=500)
+
+
+@app.get("/api/batches/{batch_id}")
+def batch_detail(batch_id: str):
+    """单个批次的逐项结果，含失败项的错误原因。"""
+    if state.history is None:
+        return JSONResponse({"success": False, "error": state.history_error or "历史库不可用"},
+                            status_code=503)
+    try:
+        items = state.history.batch_items(batch_id)
+    except Exception as error:  # noqa: BLE001
+        return JSONResponse({"success": False, "error": str(error)}, status_code=500)
+    return {"success": True, "batch_id": batch_id, "count": len(items), "items": items}
 
 
 @app.get("/api/history")

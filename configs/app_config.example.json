@@ -1,0 +1,17 @@
+{
+  "model_path": "models/custom/AKConv_best_moudle/best.pt",
+  "framework_path": "ultralytics-main",
+  "device": "auto",
+  "image_size": 224,
+  "image_dir": "medical_images",
+  "history_db": "~/EyeDiseaseDetectorHistory/history.db",
+  "api_endpoint": "https://api.deepseek.com/v1/chat/completions",
+  "api_model": "deepseek-chat",
+  "api_connect_timeout": 5,
+  "api_read_timeout": 30,
+  "api_attempts": 2,
+  "chat_turns": 6,
+  "auto_load_model": true,
+  "enable_voice": false,
+  "enable_board": false
+}

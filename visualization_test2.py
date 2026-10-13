@@ -1,13 +1,12 @@
 # ------------------------------------------------------------
 #  AI眼科疾病智诊系统
 # ------------------------------------------------------------
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 import sys
 import cv2
 import json
-import os
 import base64
-import sqlite3
-os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'  # 放在所有导入之前
 
 import requests
 from datetime import datetime, timedelta
@@ -17,31 +16,50 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QLabel, QVBoxLayout,
                              QFileDialog, QStatusBar, QGroupBox, QSplitter,
                              QTextEdit, QTabWidget, QScrollArea, QProgressDialog,
                              QTableWidget, QTableWidgetItem, QHeaderView, QDialog, QGridLayout, QSizePolicy, QLineEdit, QProgressBar, QCheckBox, QShortcut,
-                             QSlider)
+                             QSlider, QComboBox, QFormLayout)
 from PyQt5.QtGui import QImage, QPixmap, QIcon, QPalette, QColor, QFont, QCursor, QBrush, QKeySequence
-from ultralytics import YOLO
 import numpy as np
 import io
 import re
 from contextlib import redirect_stdout
-import matplotlib
-matplotlib.use('Qt5Agg')  # 确保使用Qt5后端
-import matplotlib.pyplot as plt
-plt.rcParams['figure.dpi'] = 120  # 提高DPI,提高清晰度
-plt.rcParams['savefig.dpi'] = 120
-plt.rcParams['font.size'] = 12    # 统一调大图表中的基础字号
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+def load_plotting():
+    """Only statistics/report views need the plotting stack."""
+    import matplotlib
+    matplotlib.use('Qt5Agg')
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+    plt.rcParams.update({'figure.dpi': 120, 'savefig.dpi': 120, 'font.size': 12,
+                         'font.sans-serif': ['SimHei', 'Microsoft YaHei', 'DejaVu Sans'],
+                         'axes.unicode_minus': False})
+    return plt, FigureCanvasQTAgg
+
 import uuid
 import functools
-import speech_recognition as sr
-import pyttsx3
+try:
+    import speech_recognition as sr
+except ImportError:
+    sr = None
+try:
+    import pyttsx3
+except ImportError:
+    pyttsx3 = None
 import threading
 import socket
 import time
 
+from configs.runtime_config import PROJECT_ROOT, load_app_config, save_app_config
+from configs.network_config import get_ipv4_interfaces, read_system_config, save_network_config
+from src.core.classification import EyeDiseaseDetector, ClassificationError, valid_prediction
+from src.core.llm import DeepSeekAPI, MedicalAIService, AdviceResult
+from src.core.history import HistoryDB, get_history_db
+from src.visualization.workbench_theme import apply_workbench_theme, style_dialog
+from src.visualization.workbench_layout import build_workbench, update_probability_panel, ImageCanvas
+from src.visualization.workbench_jobs import WorkbenchJobs
+APP_CONFIG = load_app_config()
+
 # ===== 导入统一配置 =====
 try:
-    from system_config import (
+    from configs.system_config import (
         PC_IP, NETWORK_PORTS, CAMERA_CONFIG, AUDIO_CONFIG, 
         SYSTEM_CONFIG, connection_manager, get_local_ip
     )
@@ -57,106 +75,6 @@ except ImportError:
         "VOICE_RECEIVE_PORT": 5006,
     }
     connection_manager = None
-
-
-# ===== SQLite 历史记录数据库 =====
-class HistoryDB:
-    """轻量级 SQLite 历史记录管理器, 替代 JSON 文件存储"""
-
-    def __init__(self):
-        self.db_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
-        os.makedirs(self.db_dir, exist_ok=True)
-        self.db_path = os.path.join(self.db_dir, "history.db")
-        self._init_db()
-
-    def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS records (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    record_id TEXT UNIQUE NOT NULL,
-                    timestamp TEXT NOT NULL,
-                    image_path TEXT,
-                    disease_name TEXT NOT NULL,
-                    confidence REAL NOT NULL
-                )
-            """)
-
-            # 向后兼容：为旧数据库添加 advice 字段
-            try:
-                conn.execute("ALTER TABLE records ADD COLUMN advice TEXT")
-            except sqlite3.OperationalError:
-                pass  # 字段已存在，忽略
-
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON records(timestamp DESC)")
-            conn.commit()
-
-    def add(self, record_id, timestamp, image_path, disease_name, confidence):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                "INSERT OR REPLACE INTO records (record_id, timestamp, image_path, disease_name, confidence) VALUES (?,?,?,?,?)",
-                (record_id, timestamp, image_path, disease_name, round(confidence, 4))
-            )
-            conn.commit()
-
-    def get_all(self, limit=10000):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(
-                "SELECT * FROM records WHERE disease_name NOT LIKE '[对话]%' ORDER BY timestamp DESC LIMIT ?", (limit,)
-            ).fetchall()
-        return [dict(r) for r in rows]
-
-    def delete_by_record_id(self, record_id):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DELETE FROM records WHERE record_id = ?", (record_id,))
-            conn.commit()
-
-    def delete_all(self):
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("DELETE FROM records")
-            conn.commit()
-
-    def update_advice(self, record_id, advice):
-        """将 AI 建议存入数据库，实现本地缓存"""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("UPDATE records SET advice = ? WHERE record_id = ?", (advice, record_id))
-            conn.commit()
-
-    def count(self):
-        with sqlite3.connect(self.db_path) as conn:
-            return conn.execute("SELECT COUNT(*) FROM records").fetchone()[0]
-
-    def migrate_from_json(self, json_path):
-        """从旧版 JSON 文件迁移数据到 SQLite"""
-        if os.path.exists(json_path):
-            try:
-                with open(json_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                for r in data:
-                    self.add(
-                        r.get("record_id", str(uuid.uuid4())),
-                        r.get("timestamp", ""),
-                        r.get("image_path", ""),
-                        r.get("disease_name", ""),
-                        r.get("confidence", 0)
-                    )
-                # 迁移后重命名旧文件
-                os.rename(json_path, json_path + ".bak")
-                print(f"[HistoryDB] 已从 JSON 迁移 {len(data)} 条记录到 SQLite")
-            except Exception as e:
-                print(f"[HistoryDB] JSON 迁移失败: {e}")
-
-
-_history_db = None
-
-
-def get_history_db():
-    global _history_db
-    if _history_db is None:
-        _history_db = HistoryDB()
-    return _history_db
-# ===== 结束 SQLite =====
 
 
 # 简化的语音组件
@@ -416,11 +334,6 @@ class SmartVoiceManager(QObject):
             return True
         return False
 
-# 设置matplotlib支持中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'DejaVu Sans', 'sans-serif']
-plt.rcParams['axes.unicode_minus'] = False
-plt.rcParams['axes.unicode_minus'] = False
-
 # 注释掉全局异常处理器,避免无限递归
 # def global_exception_handler(exctype, value, traceback):
 #     """全局异常处理器"""
@@ -449,757 +362,6 @@ class AIResponseEvent(QEvent):
         self.data = data
         self.progress = progress
         self.tts = tts  # 简短摘要用于语音播报
-
-
-class MedicalAIService:
-    """医疗AI服务类"""
-    
-    def __init__(self, api_key):
-        self.api_key = api_key
-        self.endpoint = "https://api.deepseek.com/v1/chat/completions"
-        self.model = "deepseek-chat"
-    
-    def get_custom_advice(self, prompt):
-        """获取自定义医疗建议"""
-        if not self.api_key:
-            return self._get_default_advice(prompt)
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
-        
-        # 构建医疗建议提示词
-        medical_prompt = f"""
-        作为一名专业的眼科医生,请针对患者的问题提供专业的医疗建议。
-        
-        患者描述：{prompt}
-        
-        请提供以下内容：
-        1. 症状分析：对患者描述的症状进行专业分析
-        2. 可能原因：可能导致这些症状的常见原因
-        3. 建议措施：患者应该采取的措施
-        4. 就医建议：是否需要及时就医,以及就医时应该注意什么
-        5. 预防建议：如何预防类似问题
-        
-        请以专业但易懂的语言回答,避免过度专业的术语,同时保持信息的准确性。
-        如果症状严重,请明确建议及时就医。
-        """
-        
-        try:
-            payload = {
-                "model": self.model,
-                "messages": [{"role": "user", "content": medical_prompt}],
-                "temperature": 0.7,
-                "max_tokens": 2000
-            }
-            
-            response = requests.post(self.endpoint, headers=headers, json=payload, timeout=30)
-            
-            if response.status_code == 200:
-                result = response.json()
-                if "choices" in result and len(result["choices"]) > 0:
-                    advice = result["choices"][0]["message"]["content"]
-                    return advice
-                else:
-                    print(f"API响应格式异常: {result}")
-                    return self._get_default_advice(prompt)
-            else:
-                print(f"API请求失败: {response.status_code}")
-                return self._get_default_advice(prompt)
-                
-        except Exception as e:
-            print(f"AI服务异常: {e}")
-            return self._get_default_advice(prompt)
-    
-    def _get_default_advice(self, prompt):
-        """获取默认建议"""
-        return f"""# 🩺 AI医疗咨询建议
-
-## 📝 您的描述
-基于您的描述："{prompt}"
-
-## 💡 一般建议
-
-### 🔍 日常护理
-1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
-2. **保持良好的用眼习惯** - 适当休息,避免长时间用眼疲劳
-3. **注意眼部卫生** - 保持手部清洁,避免用手直接接触眼部
-
-### ⚠️ 重要提醒
-- 如有不适症状,请及时就医
-- 以上建议仅供参考,不能替代专业医疗诊断
-
----
-
-## 🚀 获取更专业建议
-如需更详细的医疗建议,建议您：
-- 启用 **DeepSeek API** 获取AI专业分析
-- 咨询专业眼科医生进行详细检查
-
-*💊 健康提示：早发现、早治疗是眼部疾病防治的关键*"""
-
-
-class DeepSeekAPI:
-    """DeepSeek API接口类,用于获取治疗建议"""
-
-    def __init__(self, api_key=None):
-        self.api_key = api_key
-        self.endpoint = "https://api.deepseek.com/v1/chat/completions"
-        self.model = "deepseek-chat"
-
-    def set_api_key(self, api_key):
-        """设置API密钥"""
-        self.api_key = api_key
-
-    def get_treatment_advice(self, disease_name, confidence):
-        """获取治疗建议"""
-        if not self.api_key:
-            return self._get_default_advice(disease_name)
-
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
-
-        # 构建提示词
-        prompt = f"""
-        作为一名专业的眼科医生,请针对患者被检测出的眼部疾病"{disease_name}"（置信度：{confidence:.2f}）提供详细的治疗建议。
-
-        请包含以下内容：
-        1. 疾病简介：该疾病的基本描述和可能的成因
-        2. 日常护理：患者在日常生活中应当注意的事项
-        3. 治疗方案：药物治疗、手术治疗或其他治疗方法的建议
-        4. 随访建议：多久应该进行一次复查
-
-        请以专业但易懂的语言回答,避免过度专业的术语,同时保持信息的准确性。
-        """
-
-        try:
-            payload = {
-                "model": self.model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0.7,
-                "max_tokens": 2000
-            }
-
-            response = requests.post(self.endpoint, headers=headers, json=payload, timeout=30)
-
-            if response.status_code == 200:
-                result = response.json()
-                if "choices" in result and len(result["choices"]) > 0:
-                    advice = result["choices"][0]["message"]["content"]
-                    return advice
-                else:
-                    print(f"API响应格式异常: {result}")
-                    return self._get_default_advice(disease_name)
-            else:
-                print(f"API请求失败: {response.status_code} - {response.text}")
-                return self._get_default_advice(disease_name)
-
-        except requests.exceptions.Timeout:
-            print("API请求超时")
-            return self._get_default_advice(disease_name)
-        except requests.exceptions.ConnectionError:
-            print("网络连接错误")
-            return self._get_default_advice(disease_name)
-        except requests.exceptions.RequestException as e:
-            print(f"网络请求错误: {e}")
-            return self._get_default_advice(disease_name)
-        except Exception as e:
-            print(f"获取治疗建议时出错: {e}")
-            return self._get_default_advice(disease_name)
-
-    def get_custom_advice(self, prompt):
-        """获取自定义医疗建议（增强版）"""
-        # 输入验证
-        if not self.api_key or self.api_key.strip() == "":
-            return "❌ 请先设置有效的API密钥才能使用AI对话功能。\n\n💡 您可以在右侧AI建议区域的设置按钮中配置DeepSeek API密钥。"
-
-        if not prompt or len(prompt.strip()) < 2:
-            return "❌ 请输入有效的问题内容。"
-        
-        # 限制输入长度
-        if len(prompt) > 4000:
-            prompt = prompt[:4000]
-            print("⚠️ 输入内容过长,已自动截断到4000字符")
-
-        # 优化请求头
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key.strip()}",
-            "User-Agent": "Medical-AI-Diagnosis-System/2.0",
-            "Accept": "application/json",
-            "Accept-Encoding": "gzip, deflate"
-        }
-
-        # 改进的系统提示词
-        system_prompt = """你是一个专业的AI医疗助手,请遵循以下原则：
-1. 提供准确、专业但易懂的医疗信息
-2. 对于严重症状,明确建议及时就医
-3. 回答简洁明了,控制在150-300字
-4. 使用"可能"、"建议"等温和词汇,避免确诊性语言
-5. 强调这只是辅助参考,不能替代专业医疗诊断
-6. 如果涉及眼部疾病,可以建议使用本系统的图像诊断功能"""
-
-        # 重试配置
-        max_retries = 4  # 增加重试次数
-        base_delay = 1
-        max_delay = 10
-        
-        import time
-        import random
-
-        for attempt in range(max_retries):
-            try:
-                # 智能退避策略
-                if attempt > 0:
-                    delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
-                    print(f"⏳ 等待 {delay:.1f} 秒后重试...")
-                    time.sleep(delay)
-
-                # 优化payload
-                payload = {
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.3,  # 降低随机性以获得更稳定输出
-                    "max_tokens": 2000,
-                    "top_p": 0.9,
-                    "frequency_penalty": 0.0,
-                    "presence_penalty": 0.0,
-                    "stream": False
-                }
-
-                print(f"🔄 正在连接DeepSeek API (第{attempt + 1}/{max_retries}次)...")
-                
-                # 动态调整超时
-                connect_timeout = 8 + attempt * 2
-                read_timeout = 45 + attempt * 10
-                
-                response = requests.post(
-                    self.endpoint, 
-                    headers=headers, 
-                    json=payload, 
-                    timeout=(connect_timeout, read_timeout),
-                    verify=True
-                )
-
-                # 详细状态码处理
-                if response.status_code == 200:
-                    try:
-                        result = response.json()
-                        if "choices" in result and len(result["choices"]) > 0:
-                            content = result["choices"][0]["message"]["content"]
-                            if content and len(content.strip()) > 10:
-                                print(f"✅ API调用成功 (第{attempt + 1}次尝试)")
-                                
-                                # 内容后处理
-                                processed_content = self._enhance_medical_response(content)
-                                return processed_content
-                            else:
-                                print("⚠️ API返回内容为空或过短,继续重试...")
-                                continue
-                        else:
-                            print(f"⚠️ API响应格式异常: {result}")
-                            if attempt == max_retries - 1:
-                                return "🔧 AI服务响应格式异常,请稍后重试。\n\n💡 如果问题持续,请联系技术支持。"
-                            continue
-                    except (json.JSONDecodeError, KeyError) as e:
-                        print(f"❌ 响应解析失败: {e}")
-                        if attempt == max_retries - 1:
-                            return "🔧 AI服务响应解析失败。\n\n💡 请稍后重试或联系技术支持。"
-                        continue
-
-                elif response.status_code == 401:
-                    print("❌ API密钥认证失败")
-                    return """❌ API密钥无效或已过期
-                    
-🔧 **解决方案：**
-1. 检查API密钥是否正确复制
-2. 确认密钥是否有足够余额
-3. 验证密钥权限是否正确
-4. 重新获取最新的API密钥
-
-💡 **提示：** 可以在DeepSeek官网查看密钥状态和余额"""
-                    
-                elif response.status_code == 429:
-                    print(f"⚠️ API调用频率限制 (第{attempt + 1}次)")
-                    if attempt < max_retries - 1:
-                        wait_time = 8 + attempt * 5
-                        print(f"⏳ 等待 {wait_time} 秒...")
-                        time.sleep(wait_time)
-                        continue
-                    else:
-                        return """⚠️ API调用频率过高
-                        
-🔧 **解决方案：**
-- 等待1-2分钟后重试
-- 减少提问频率
-- 考虑升级API套餐
-
-💡 **提示：** 系统已自动重试多次,请稍后再试"""
-                    
-                elif response.status_code in [500, 502, 503, 504]:
-                    print(f"⚠️ 服务器错误 {response.status_code} (第{attempt + 1}次)")
-                    if attempt < max_retries - 1:
-                        time.sleep(3 + attempt * 2)
-                        continue
-                    else:
-                        return f"""🔧 AI服务器暂时不可用 (错误码: {response.status_code})
-                        
-💡 **建议：**
-- 服务器可能正在维护
-- 请等待5-10分钟后重试
-- 或使用本地模式进行诊断"""
-                        
-                else:
-                    error_detail = ""
-                    try:
-                        error_info = response.json()
-                        if "error" in error_info:
-                            error_detail = error_info["error"].get("message", "")
-                    except:
-                        error_detail = response.text[:150]
-                    
-                    print(f"❌ API调用失败: {response.status_code}")
-                    print(f"错误详情: {error_detail}")
-                    
-                    if attempt == max_retries - 1:
-                        return f"""❌ AI服务请求失败 (错误码: {response.status_code})
-                        
-🔧 **错误信息：**
-{error_detail}
-
-💡 **建议：** 请稍后重试或联系技术支持"""
-                    continue
-
-            except requests.exceptions.Timeout:
-                print(f"⚠️ 请求超时 (第{attempt + 1}次)")
-                if attempt == max_retries - 1:
-                    return """⏰ AI服务响应超时
-                    
-🔧 **解决方案：**
-1. 检查网络连接稳定性
-2. 尝试使用有线网络
-3. 检查防火墙设置
-4. 稍后重试
-
-💡 **网络诊断：** 可以尝试访问其他网站测试网络"""
-                continue
-                
-            except requests.exceptions.ConnectionError as e:
-                print(f"⚠️ 网络连接错误: {str(e)[:100]}...")
-                if attempt == max_retries - 1:
-                    return f"""🌐 网络连接失败
-                    
-🔧 **可能原因：**
-- 网络连接不稳定
-- 防火墙阻止连接
-- DNS解析问题
-- 需要代理或VPN
-
-💡 **解决建议：**
-1. 检查网络连接
-2. 尝试刷新DNS
-3. 使用VPN或代理
-4. 联系网络管理员
-
-🔍 **错误详情：** {str(e)[:100]}"""
-                    continue
-                
-            except requests.exceptions.SSLError as e:
-                print(f"❌ SSL证书错误: {e}")
-                return """🔒 SSL连接错误
-                
-🔧 **解决方案：**
-1. 检查系统时间是否正确
-2. 更新浏览器或系统
-3. 暂时禁用SSL验证（不推荐）
-4. 使用VPN重试
-
-💡 **安全提示：** SSL错误可能影响数据安全"""
-                
-            except Exception as e:
-                print(f"❌ 未知错误: {str(e)[:100]}...")
-                if attempt == max_retries - 1:
-                    return f"""❌ 系统异常
-                    
-🔧 **错误信息：**
-{str(e)[:200]}
-
-💡 **建议：**
-1. 重启应用程序
-2. 检查系统环境
-3. 联系技术支持
-
-📧 **支持：** 请保存错误信息以便技术人员分析"""
-                    continue
-
-        # 所有重试都失败
-        return self._get_enhanced_fallback_advice()
-    
-    def _enhance_medical_response(self, content):
-        """增强医疗回复内容"""
-        try:
-            import re
-            
-            # 清理内容
-            content = content.strip()
-            
-            # 移除可能的HTML标签
-            content = re.sub(r'<[^>]+>', '', content)
-            
-            # 确保有适当的医疗免责声明
-            disclaimers = ["仅供参考", "专业医生", "医疗建议", "就医"]
-            has_disclaimer = any(disclaimer in content for disclaimer in disclaimers)
-            
-            if not has_disclaimer:
-                content += "\n\n⚠️ **重要提示：** 以上建议仅供参考,不能替代专业医疗诊断。如有疑问或症状加重,请及时咨询专业医生。"
-            
-            # 添加系统功能提示
-            if any(keyword in content.lower() for keyword in ["眼", "视力", "眼部", "眼底", "眼科"]):
-                content += "\n\n💡 **系统提示：** 您还可以使用本系统的AI图像诊断功能,上传眼部图像进行智能分析。"
-            
-            # 控制长度
-            if len(content) > 1000:
-                content = content[:950] + "...\n\n✂️ **内容已截断,完整信息请咨询专业医生。**"
-            
-            # 添加时间戳
-            from datetime import datetime
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-            
-            content += f"\n\n🕒 **回复时间：** {timestamp}"
-            
-            return content
-            
-        except Exception as e:
-            print(f"⚠️ 内容增强失败: {e}")
-            return content + "\n\n⚠️ 以上建议仅供参考,请咨询专业医生。"
-    
-    def _get_enhanced_fallback_advice(self):
-        """获取增强的备用建议"""
-        return """🤖 AI建议服务暂时不可用
-
-🔧 **故障排除步骤：**
-
-1️⃣ **网络检查**
-   - 确认网络连接正常
-   - 尝试访问其他网站
-
-2️⃣ **API设置**
-   - 验证API密钥是否正确
-   - 确认账户余额充足
-   - 检查密钥权限
-
-3️⃣ **系统状态**
-   - 重启应用程序
-   - 检查防火墙设置
-   - 尝试使用VPN
-
-🏥 **紧急情况：**
-如需紧急医疗建议,请：
-- 直接咨询专业医生
-- 拨打医疗急救电话
-- 前往就近医院
-
-💡 **替代方案：**
-- 使用本系统的图像诊断功能
-- 查看历史诊断记录
-- 参考医疗知识库
-
-📞 **技术支持：**
-如问题持续存在,请联系系统管理员或技术支持团队。
-
-🕒 **建议重试时间：** 5-10分钟后"""
-
-    def test_network_connection(self):
-        """测试网络连接"""
-        try:
-            # 测试基本网络连接
-            import socket
-            socket.create_connection(("8.8.8.8", 53), timeout=5)
-            
-            # 测试HTTPS连接
-            test_response = requests.get("https://httpbin.org/get", timeout=10)
-            if test_response.status_code == 200:
-                return True, "网络连接正常"
-            else:
-                return False, f"HTTPS连接测试失败: {test_response.status_code}"
-                
-        except socket.timeout:
-            return False, "网络连接超时,请检查网络设置"
-        except socket.gaierror:
-            return False, "DNS解析失败,请检查DNS设置"
-        except requests.exceptions.SSLError:
-            return False, "SSL连接失败,可能需要VPN或代理"
-        except Exception as e:
-            return False, f"网络测试失败: {str(e)}"
-
-    def _get_default_advice(self, disease_name):
-        """获取默认治疗建议"""
-        advice_dict = {
-            "AMD": """
-            # 老年性黄斑变性(AMD)治疗建议
-
-            ## 疾病简介
-            老年性黄斑变性是一种影响视网膜中央区域（黄斑）的慢性退行性疾病,通常影响50岁以上人群。它是发达国家老年人致盲主要原因之一。
-
-            ## 治疗方案
-            1. **抗VEGF治疗**：对于湿性AMD,可以通过眼内注射抗血管内皮生长因子药物（如雷珠单抗、阿柏西普）来减缓或阻止异常血管生长。
-            2. **光动力疗法**：某些类型的湿性AMD可能适合光动力疗法。
-            3. **抗氧化维生素补充**：AREDS配方的维生素可能有助于减缓干性AMD的进展。
-
-            ## 日常护理
-            1. 定期监测视力变化,使用Amsler网格自测。
-            2. 保持健康的生活方式,包括均衡饮食、戒烟和控制血压。
-            3. 佩戴防蓝光眼镜,减少对电子设备的长时间使用。
-            4. 增加饮食中的暗绿色叶菜和富含omega-3脂肪酸的食物。
-
-            ## 随访建议
-            - 建议每3-6个月进行一次眼科随访检查
-            - 如发现视力突然下降、视物变形或新的盲点,应立即就医
-            """,
-
-            "Cataract": """
-            # 白内障治疗建议
-
-            ## 疾病简介
-            白内障是眼球晶状体变得混浊,导致视力模糊的一种常见眼科疾病,主要与年龄相关,但也可能由外伤、某些疾病或药物引起。
-
-            ## 治疗方案
-            1. **手术治疗**：当白内障影响日常生活时,最有效的治疗方法是手术,将混浊的晶状体替换为人工晶体。
-            2. **早期管理**：早期白内障可能只需要定期监测和调整眼镜处方。
-
-            ## 日常护理
-            1. 使用防UV眼镜保护眼睛免受紫外线伤害。
-            2. 在明亮的环境中可使用帽子或太阳镜减少眩光。
-            3. 保持充足的光线进行阅读和其他近距离工作。
-            4. 采用健康饮食,富含抗氧化剂的食物可能有助于减缓白内障发展。
-
-            ## 随访建议
-            - 早期白内障：每年检查一次
-            - 中度白内障：每6个月检查一次
-            - 术后随访：手术后第一天、一周、一个月、三个月,然后每年一次
-            """,
-
-            "Diabetic Retinopathy": """
-            # 糖尿病视网膜病变治疗建议
-
-            ## 疾病简介
-            糖尿病视网膜病变是由于长期糖尿病导致视网膜血管损伤的并发症,是糖尿病患者主要的致盲原因之一。
-
-            ## 治疗方案
-            1. **激光光凝治疗**：对于非增殖性或早期增殖性视网膜病变,可进行激光治疗以封闭渗漏血管。
-            2. **抗VEGF治疗**：眼内注射抗血管内皮生长因子药物可减少异常血管生长和黄斑水肿。
-            3. **玻璃体切除术**：对于严重增殖性视网膜病变或持续性玻璃体出血。
-            
-            ## 日常护理
-            1. **严格控制血糖**：这是预防病情进展的关键。
-            2. **控制血压和血脂**：降低心血管风险因素。
-            3. **定期眼部检查**：即使没有明显视力问题。
-            4. **健康生活方式**：平衡饮食、规律运动、戒烟限酒。
-
-            ## 随访建议
-            - 无明显病变：每年检查一次
-            - 轻中度非增殖性病变：每6-12个月检查一次
-            - 重度非增殖性或增殖性病变：每3-6个月检查一次
-            - 接受治疗后：根据医生建议,通常更频繁
-            """,
-
-            "Glaucoma": """
-            # 青光眼治疗建议
-
-            ## 疾病简介
-            青光眼是一组眼部疾病,特征是视神经损伤,通常与眼内压升高有关,可导致渐进性、不可逆的视力丧失。
-
-            ## 治疗方案
-            1. **药物治疗**：眼药水（如前列腺素类似物、β-阻滞剂）是首选治疗,目的是降低眼压。
-            2. **激光治疗**：激光小梁成形术或激光周边虹膜切除术可以改善房水流出。
-            3. **手术治疗**：对于药物和激光治疗效果不佳的患者,可能需要小梁切除术等手术。
-
-            ## 日常护理
-            1. **严格按照医嘱用药**：定时点眼药水,不要擅自停药。
-            2. **避免增加眼压的活动**：如倒立、屏气或重量训练。
-            3. **定期测量眼压**：了解自己的眼压变化情况。
-            4. **保护眼睛**：避免眼外伤,戴防护眼镜进行高风险活动。
-
-            ## 随访建议
-            - 稳定期：每3-6个月复查一次
-            - 治疗调整期：可能需要更频繁复查
-            - 治疗后：按医生建议进行复查,通常开始较频繁,稳定后可减少
-            """,
-
-            "Hypertensive Retinopathy": """
-            # 高血压视网膜病变治疗建议
-
-            ## 疾病简介
-            高血压视网膜病变是长期高血压导致视网膜血管改变的一种并发症,表现为视网膜动脉狭窄、交叉压迫现象、出血和渗出等。
-
-            ## 治疗方案
-            1. **控制血压**：这是治疗的核心,通常需要服用降压药物。
-            2. **对症治疗**：针对视网膜出血或渗出的特定症状进行处理。
-
-            ## 日常护理
-            1. **严格控制血压**：定期监测血压,按时服药。
-            2. **健康生活方式**：低盐饮食、控制体重、规律运动、减少压力。
-            3. **避免影响**：戒烟限酒,避免咖啡因等刺激性物质。
-            4. **注意用眼卫生**：避免长时间近距离用眼,定期休息。
-
-            ## 随访建议
-            - 轻度病变：每6个月进行一次眼科检查
-            - 中重度病变：每3-4个月检查一次
-            - 伴有其他眼部疾病：可能需要更频繁的检查
-            """,
-
-            "Myopia": """
-            # 近视治疗建议
-
-            ## 疾病简介
-            近视是一种屈光不正,远处物体的光线聚焦在视网膜前方而非视网膜上,导致远处物体模糊。
-
-            ## 治疗方案
-            1. **光学矫正**：眼镜或隐形眼镜是最常见的矫正方法。
-            2. **角膜塑形术**：夜间佩戴特制硬性隐形眼镜,暂时改变角膜形状。
-            3. **近视控制**：低浓度阿托品眼药水、多焦点隐形眼镜或特殊眼镜可能减缓近视进展。
-            4. **手术治疗**：如激光角膜屈光手术(LASIK)、小切口角膜透镜取出术(SMILE)等。
-
-            ## 日常护理
-            1. **保持良好用眼习惯**：20-20-20法则（每20分钟看20英尺外的物体20秒）。
-            2. **增加户外活动时间**：每天至少2小时户外活动有助于减缓近视发展。
-            3. **控制电子设备使用时间**：减少近距离工作和屏幕时间。
-            4. **保持良好照明**：读书写字时保持充足光线。
-
-            ## 随访建议
-            - 儿童和青少年：每6个月检查一次,监测近视进展
-            - 成人稳定近视：每年检查一次
-            - 高度近视(>600度)：每半年检查一次,监测眼底变化
-            """,
-
-            "Normal": """
-            # 正常眼部健康维护建议
-
-            ## 评估结果
-            您的眼部检查结果显示为正常,没有检测到明显的眼部疾病。这是一个好消息,但保持定期检查和良好的眼部保健习惯仍然很重要。
-
-            ## 日常护理建议
-            1. **定期休息眼睛**：使用电子设备时,遵循20-20-20法则。
-            2. **均衡饮食**：摄入富含维生素A、C、E和叶黄素的食物,如绿叶蔬菜、胡萝卜和浆果。
-            3. **保护眼睛**：在阳光强烈时佩戴太阳镜,进行可能导致眼部伤害的活动时佩戴防护眼镜。
-            4. **良好用眼习惯**：保持适当的阅读距离和光线,避免在光线不足的环境下用眼。
-            5. **充分休息**：充足的睡眠有助于眼部健康。
-
-            ## 随访建议
-            - 40岁以下：每1-2年进行一次全面眼科检查
-            - 40-60岁：每1-2年检查一次
-            - 60岁以上：每年检查一次
-            - 有眼部疾病家族史：可能需要更频繁的检查
-            """,
-
-            "Other": """
-            # 其他眼部疾病治疗建议
-
-            ## 注意事项
-            系统检测到您可能患有未明确分类的眼部疾病。由于无法确定具体疾病类型,建议您尽快咨询专业眼科医生进行详细检查和诊断。
-
-            ## 一般护理建议
-            1. **避免揉搓眼睛**：可能加重刺激或导致感染。
-            2. **注意用眼卫生**：使用干净的手和毛巾,避免交叉感染。
-            3. **适当休息**：减少用眼疲劳,特别是在使用电子设备时。
-            4. **保持良好生活习惯**：均衡饮食、充足睡眠、适量运动。
-
-            ## 就医建议
-            强烈建议您尽快前往专业眼科医疗机构就诊,接受全面检查,以明确诊断并获得针对性治疗方案。
-
-            ## 随访管理
-            在确诊前,如症状加重（如视力下降、眼痛加剧、出现新症状）,应立即就医。
-            """
-        }
-
-        return advice_dict.get(disease_name, "暂无该疾病的治疗建议,请咨询专业医生。")
-
-
-# 删除百度API类,简化代码
-
-
-class EyeDiseaseDetector:
-    """眼部疾病检测器,包含结果解析所需的映射关系"""
-    
-    # 类级别的模型缓存,避免重复加载同一模型
-    _model_cache = {}
-    
-    def __init__(self):
-        self.model = None
-        self.current_model_path = None
-        
-        # 类别索引到疾病名称的映射
-        self.class_names = {
-            0: 'AMD',
-            1: 'Cataract',
-            2: 'Diabetic Retinopathy',
-            3: 'Glaucoma',
-            4: 'Hypertensive Retinopathy',
-            5: 'Myopia',
-            6: 'Normal',
-            7: 'Other'
-        }
-        # 字母到疾病名称的映射（用于从模型输出文本中解析）
-        self.letter_to_disease = {
-            'A': 'AMD',
-            'N': 'Normal',
-            'D': 'Diabetic Retinopathy',
-            'G': 'Glaucoma',
-            'C': 'Cataract',
-            'H': 'Hypertensive Retinopathy',
-            'M': 'Myopia',
-            'O': 'Other'
-        }
-
-    def load_model(self, model_path):
-        """加载模型,使用缓存机制提高性能"""
-        try:
-            # 如果已经加载了相同的模型,直接返回
-            if self.current_model_path == model_path and self.model is not None:
-                print(f"[DEBUG] 模型已加载,跳过重复加载: {model_path}")
-                return True
-            
-            # 检查缓存
-            if model_path in self._model_cache:
-                print(f"[DEBUG] 从缓存加载模型: {model_path}")
-                self.model = self._model_cache[model_path]
-                self.current_model_path = model_path
-                return True
-            
-            # 加载新模型
-            print(f"[DEBUG] 正在加载新模型: {model_path}")
-            model = YOLO(model_path)
-            
-            # 缓存模型（限制缓存大小,避免内存过度使用）
-            if len(self._model_cache) >= 3:  # 最多缓存3个模型
-                # 删除最老的模型
-                oldest_key = next(iter(self._model_cache))
-                del self._model_cache[oldest_key]
-                print(f"[DEBUG] 清理缓存中的旧模型: {oldest_key}")
-            
-            self._model_cache[model_path] = model
-            self.model = model
-            self.current_model_path = model_path
-            print(f"[DEBUG] 模型加载成功并已缓存: {model_path}")
-            return True
-            
-        except Exception as e:
-            print(f"[ERROR] 模型加载失败: {e}")
-            return False
-
-    def predict(self, image):
-        try:
-            results = self.model.predict(image, conf=0.5)
-            return results
-        except Exception as e:
-            print(f"Prediction error: {e}")
-            return None
 
 
 class ResultProcessor:
@@ -1233,6 +395,9 @@ class ResultProcessor:
             
             # 转换为QPixmap并显示
             pixmap = QPixmap.fromImage(q_img)
+            if isinstance(label, ImageCanvas):
+                label.setPixmap(pixmap)
+                return
             label.setPixmap(
                 pixmap.scaled(
                     label.width(), label.height(),
@@ -1245,54 +410,32 @@ class ResultProcessor:
             label.setText("无法显示检测结果")
             label.setAlignment(Qt.AlignCenter)
 
-    def parse_prediction_output(self, prediction_output: str):
-        """
-        从模型输出的文本中解析疾病名称和置信度
-        :param prediction_output: 模型预测时的标准输出文本
-        """
-        try:
-            pattern = r'512x512 ([A-Z]) ([0-9]+\.[0-9]+)'
-            match = re.search(pattern, prediction_output)
-            if match:
-                letter = match.group(1)
-                confidence = float(match.group(2))
-                disease_name = self.detector.letter_to_disease.get(letter, "未知")
-                self.current_disease = disease_name
-                self.current_confidence = confidence
-                return True
-        except Exception as e:
-            print(f"解析输出文本失败: {e}")
+    def parse_prediction_output(self, prediction_output):
+        # Human-readable console output is not a reliable classification interface.
         return False
 
     def parse_model_results(self, model_results):
-        """
-        从模型返回的结果对象中解析疾病名称和置信度
-        :param model_results: YOLO模型的预测结果对象
-        """
-        try:
-            if hasattr(model_results, 'probs') and model_results.probs is not None:
-                top_class_idx = int(model_results.probs.top1)
-                confidence = float(model_results.probs.top1conf)
-                disease_name = self.detector.class_names.get(top_class_idx, "未知")
-                self.current_disease = disease_name
-                self.current_confidence = confidence
-                return True
-        except Exception as e:
-            print(f"解析模型结果对象失败: {e}")
-        return False
+        self.current_disease = None
+        self.current_confidence = 0.0
+        outcome = self.detector.parse_result(model_results)
+        if not outcome.success:
+            return False
+        self.current_disease = outcome.disease_name
+        self.current_confidence = outcome.confidence
+        return True
 
     def get_fallback_result(self):
-        """当解析失败时,返回默认的备用结果（AMD,置信度0.98）"""
-        self.current_disease = "AMD"
-        self.current_confidence = 0.98
-        return self.current_disease, self.current_confidence
+        self.current_disease = None
+        self.current_confidence = 0.0
+        raise ClassificationError("分类解析失败，不能生成默认疾病或置信度")
 
     def show_disease_result_dialog(self, parent, background_color, text_color, highlight_color):
         """
         在对话框中展示检测结果
         """
-        if not self.current_disease or self.current_disease == "未知":
-            self.get_fallback_result()
+        if not valid_prediction(self.current_disease, self.current_confidence):
+            QMessageBox.warning(parent, "没有有效结果", "分类解析失败，请重新加载图像并分类")
+            return
         result_text = f"""
         <div style='text-align:center; padding:15px;'>
             <h2 style='color:{highlight_color}; margin-bottom:20px;'>疾病分类结果</h2>
@@ -1789,12 +932,17 @@ class BoardCameraReceiver(QObject):
 # ============================================================
 #  主窗口
 # ============================================================
-class MainWindow(QMainWindow):
+class MainWindow(WorkbenchJobs, QMainWindow):
+    report_ready = pyqtSignal(object)
+    chat_reply = pyqtSignal(object)
     def __init__(self):
         super().__init__()
+        self.report_ready.connect(self._apply_report_reply)
+        from src.visualization.conversation import finish
+        self.chat_reply.connect(lambda payload: finish(self,payload))
         
         # 设置窗口属性
-        self.setWindowTitle("AI眼科疾病诊断系统")
+        self.setWindowTitle("眼科图像分类辅助诊断系统")
         self.setGeometry(100, 100, 1400, 800)
         
         # 初始化摄像头接收器
@@ -1805,8 +953,10 @@ class MainWindow(QMainWindow):
         # 自动启动命令监听器（关键修复）
         self.command_listener = CommandListener()
         self.command_listener.command_received.connect(self.handle_board_command)
-        self.command_listener.start_listening(5004)  # 启动命令监听
-        print("✅ PC端命令监听器已自动启动 (端口5004)")
+        if APP_CONFIG.enable_board:
+            self.command_listener.start_listening(NETWORK_PORTS["COMMAND_PORT"])
+        else:
+            print("PC模式：开发板通信未启用")
         
         self.setMinimumSize(1100, 750)
 
@@ -1814,11 +964,11 @@ class MainWindow(QMainWindow):
         self.showMaximized()
         
         # 医疗风颜色主题 - 临床暗黑风格
-        self.background_color = "#1E222A"    # 更深沉的背景
-        self.primary_color = "#282C34"       # 主面板色
-        self.secondary_bg = "#21252B"        # 次级面板色
-        self.accent_color = "#00B5D8"        # 医疗青色 (主色调)
-        self.highlight_color = "#805AD5"     # 沉稳紫 (替代刺眼的粉色)
+        self.background_color = "#171C24"    # 更深沉的背景
+        self.primary_color = "#242C37"       # 主面板色
+        self.secondary_bg = "#242C37"        # 次级面板色
+        self.accent_color = "#51C5E3"        # 医疗青色 (主色调)
+        self.highlight_color = "#51C5E3"     # 沉稳紫 (替代刺眼的粉色)
         self.text_color = "#E5E9F0"          # 柔和的灰白文字
         self.success_color = "#38A169"       # 成功/连接状态绿
         self.danger_color = "#E53E3E"        # 警告/断开状态红
@@ -1901,6 +1051,12 @@ class MainWindow(QMainWindow):
         # 初始化UI (只调用一次)
         self.init_ui()
         self.init_status_bar()
+        build_workbench(self, APP_CONFIG)
+        apply_workbench_theme(self)
+        from src.visualization.preferences import restore
+        restore(self)
+        self.image_button.setEnabled(True)
+        self.menuBar().hide()
         
         # AI对话历史上下文
         self.chat_history = []
@@ -1910,18 +1066,305 @@ class MainWindow(QMainWindow):
         
         # 延迟初始化重量级组件,提高启动速度
         QTimer.singleShot(300, self.lazy_load_components)
+        QTimer.singleShot(600, self._load_configured_model)
         
         # 显示加载状态
         self.status_bar.showMessage("正在初始化系统组件...")
         
         # 异步加载历史记录
-        QTimer.singleShot(500, self.load_history_records)
+        # History is queried on demand when the user opens it.
 
         # 启动时清理过期临时图像 (7天前)
-        QTimer.singleShot(1000, self._cleanup_temp_images)
+        # Keep image files referenced by history; no automatic deletion at startup.
 
         # 设置键盘快捷键,提升用户体验
         self.setup_shortcuts()
+
+
+    def _clear_prediction_state(self):
+        if hasattr(self,"chat_display"):
+            from src.visualization.conversation import reset
+            reset(self)
+        self._report_generation = getattr(self, "_report_generation", 0) + 1
+        self.current_results = None
+        self.current_disease = None
+        self.current_confidence = 0.0
+        if hasattr(self, "classification_summary_label"):
+            self.classification_summary_label.setText("尚未分类")
+            self.classification_score_label.setText("—")
+            if hasattr(self, "probability_rows"):
+                update_probability_panel(self)
+                self.inference_time_label.setText("等待分析")
+        self.prediction_output = ""
+        if hasattr(self, "advice_text"):
+            self.advice_text.setPlainText("等待有效分类结果；尚未生成当前图像的辅助建议")
+        self.all_classes_confidence = {}
+        if self.result_processor is not None:
+            self.result_processor.current_disease = None
+            self.result_processor.current_confidence = 0.0
+        for name in ("results_button", "advice_button"):
+            button = getattr(self, name, None)
+            if button is not None:
+                button.setEnabled(False)
+        if hasattr(self, "detected_image_label"):
+            self.detected_image_label.clear()
+            self.detected_image_label.setText("等待有效分类结果")
+
+    def _update_classification_summary(self):
+        names = {"AMD": "年龄相关性黄斑变性", "Cataract": "白内障",
+                 "Diabetic Retinopathy": "糖尿病视网膜病变", "Glaucoma": "青光眼",
+                 "Hypertensive Retinopathy": "高血压性视网膜病变",
+                 "Myopia": "近视性黄斑病变", "Normal": "正常", "Other": "其他"}
+        name = self.current_disease
+        self.classification_summary_label.setText(names.get(name, name or "尚未分类"))
+        self.classification_score_label.setText(f"{self.current_confidence:.1%}")
+
+    def _classification_failed(self, message):
+        self._clear_prediction_state()
+        self.status_bar.showMessage("分类失败：" + str(message))
+        if hasattr(self,"task_status_label"): self.task_status_label.setText("分类失败，请检查图像或模型")
+        self.show_message_box("分类失败", str(message), QMessageBox.Warning)
+
+    def _load_configured_model(self):
+        for name in ("voice_input_button", "board_voice_button", "board_interaction_button", "connect_camera_button"):
+            button = getattr(self, name, None)
+            is_voice = name == "voice_input_button"
+            enabled = APP_CONFIG.enable_voice if is_voice else APP_CONFIG.enable_board
+            if button is not None and not enabled:
+                button.setEnabled(False)
+                button.setToolTip("可选功能未启用；请修改configs/app_config.json")
+        if not APP_CONFIG.auto_load_model:
+            return
+        if not APP_CONFIG.model_path.is_file():
+            self.status_bar.showMessage(f"默认权重不存在：{APP_CONFIG.model_path}；可手动选择")
+            return
+        self.load_model(str(APP_CONFIG.model_path))
+
+
+    def create_runtime_settings_dialog(self, embedded=False):
+        dialog = QWidget(self) if embedded else QDialog(self)
+        dialog.setWindowTitle("运行与网络设置")
+        dialog.resize(780, 500)
+        dialog.setStyleSheet("""
+            QDialog { background-color: #1e222a; }
+            QLabel, QCheckBox { color: #e5e9f0; }
+            QLineEdit, QComboBox { background-color: #292e38; color: #e5e9f0;
+                border: 1px solid #4c566a; border-radius: 4px; padding: 5px; }
+            QLineEdit:disabled { color: #a8b3c7; }
+            QPushButton { background-color: #394355; color: white; padding: 7px 14px;
+                border: 1px solid #5d6b82; border-radius: 4px; }
+        """)
+        layout = QVBoxLayout(dialog)
+        advanced_content = QWidget()
+        advanced_form = QFormLayout(advanced_content)
+        form = QFormLayout()
+        model_input = QLineEdit(str(APP_CONFIG.model_path))
+        framework_input = QLineEdit(str(APP_CONFIG.framework_path))
+        model_input.setToolTip(str(APP_CONFIG.model_path))
+        framework_input.setToolTip(str(APP_CONFIG.framework_path))
+        device_input = QComboBox()
+        device_input.addItems(["auto", "cpu", "0"])
+        device_input.setCurrentText(APP_CONFIG.device)
+        advanced_form.addRow("默认8类分类权重", model_input)
+        advanced_form.addRow("Ultralytics源码目录", framework_input)
+        advanced_form.addRow("推理设备（0为独立显卡）", device_input)
+        voice = QCheckBox("启用可选语音功能（需要语音依赖与麦克风）")
+        board = QCheckBox("启用可选开发板通信")
+        voice.setChecked(APP_CONFIG.enable_voice)
+        board.setChecked(APP_CONFIG.enable_board)
+        advanced_form.addRow(voice)
+        advanced_form.addRow(board)
+        network = read_system_config()
+        board_address = QLineEdit(network.get('network', {}).get('board_ip', '172.20.10.8'))
+        board_address.setObjectName("board_ip")
+        auto = QCheckBox("自动识别活动局域网网卡，排除代理与虚拟网卡")
+        auto.setObjectName("network_auto")
+        auto.setChecked(network.get('startup', {}).get('auto_detect_ip', True))
+        interfaces = QComboBox()
+        interfaces.setObjectName("network_interfaces")
+        interfaces.addItem("自动选择", "")
+        for item in get_ipv4_interfaces():
+            interfaces.addItem(item['interface'] + "  " + item['ip'], item['interface'])
+        preferred = network.get('network', {}).get('preferred_interface', '')
+        found = interfaces.findData(preferred)
+        if found >= 0:
+            interfaces.setCurrentIndex(found)
+        address = QLineEdit(get_local_ip())
+        address.setObjectName("network_ip")
+        address.setEnabled(not auto.isChecked())
+        auto.toggled.connect(lambda checked: address.setEnabled(not checked))
+        detect = QPushButton("重新识别")
+        def detect_address():
+            current = get_ipv4_interfaces()
+            preferred_name = interfaces.currentData()
+            chosen = next((item for item in current if item['interface'] == preferred_name), current[0] if current else None)
+            address.setText(chosen['ip'] if chosen else '127.0.0.1')
+        detect.clicked.connect(detect_address)
+        interfaces.currentIndexChanged.connect(lambda _: detect_address() if auto.isChecked() else None)
+        auto.toggled.connect(lambda checked: detect_address() if checked else None)
+        form.addRow(auto)
+        form.addRow("优先局域网网卡", interfaces)
+        form.addRow("PC局域网IPv4地址", address)
+        form.addRow(detect)
+        form.addRow("开发板 IPv4 地址", board_address)
+        port_info = QLabel("摄像头 {camera_port} · 分类 {diagnosis_port} · 命令 {command_port}".format(**{
+            key: network.get('network', {}).get(key, default)
+            for key, default in [('camera_port',5002),('diagnosis_port',5003),('command_port',5004)]}))
+        port_info.setWordWrap(True)
+        form.addRow("当前通信端口", port_info)
+        form.setRowWrapPolicy(QFormLayout.WrapLongRows)
+        layout.addLayout(form)
+        advanced = QPushButton("展开模型与语音 / 开发板开关")
+        advanced.setCheckable(True)
+        advanced.toggled.connect(advanced_content.setVisible)
+        advanced.toggled.connect(lambda checked: advanced.setText("收起高级配置" if checked else "展开模型与语音 / 开发板开关"))
+        advanced_content.setVisible(False)
+        advanced_form.setRowWrapPolicy(QFormLayout.WrapLongRows)
+        layout.addWidget(advanced)
+        layout.addWidget(advanced_content)
+        note = QLabel("这些设置保存到项目配置文件，重启后生效。仅在PC上分类不需要开发板或固定IP。\n环境变量EYE_MODEL_PATH等优先于文件配置。")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        buttons = QHBoxLayout()
+        save = QPushButton("保存设置")
+        cancel = QPushButton("取消")
+        def save_settings():
+            try:
+                import ipaddress
+                from pathlib import Path
+                if auto.isChecked():
+                    detect_address()
+                ipaddress.IPv4Address(address.text().strip())
+                ipaddress.IPv4Address(board_address.text().strip())
+                weight = Path(model_input.text()).expanduser()
+                source = Path(framework_input.text()).expanduser()
+                if not weight.is_file() or weight.suffix.lower() != '.pt':
+                    raise ValueError("请选择存在的.pt分类权重")
+                if not (source / 'ultralytics' / '__init__.py').is_file():
+                    raise ValueError("源码目录必须包含ultralytics包")
+                save_app_config(dict(model_path=str(weight.resolve()),framework_path=str(source.resolve()),
+                                     device=device_input.currentText(),enable_voice=voice.isChecked(),enable_board=board.isChecked()))
+                save_network_config(address.text().strip(), auto.isChecked(), interfaces.currentData(), board_ip=board_address.text().strip())
+                self.status_bar.showMessage("运行与网络设置已保存；重启后生效")
+                note.setText("设置已保存。请重启应用，使模型、语音和网络服务统一采用新配置。")
+                if not embedded:
+                    QMessageBox.information(dialog, "已保存", "请重启应用加载新设置。")
+                    dialog.accept()
+            except (ValueError, OSError, TypeError) as error:
+                QMessageBox.warning(dialog, "设置无效", str(error))
+        save.clicked.connect(save_settings)
+        if not embedded:
+            cancel.clicked.connect(dialog.reject)
+        buttons.addStretch()
+        buttons.addWidget(save)
+        if not embedded:
+            buttons.addWidget(cancel)
+        layout.addLayout(buttons)
+        return dialog
+
+    def ensure_connection_settings(self, index):
+        if index != 2 or getattr(self, "connection_settings", None) is not None:
+            return
+        group = QGroupBox("运行与局域网连接")
+        layout = QVBoxLayout(group)
+        self.connection_settings = self.create_runtime_settings_dialog(embedded=True)
+        layout.addWidget(self.connection_settings)
+        self.connection_page.layout().insertWidget(0, group)
+        apply_workbench_theme(self)
+
+    def show_runtime_settings(self):
+        from PyQt5.QtWidgets import QSizePolicy
+        self.ensure_connection_settings(2)
+        dialog = QDialog(self)
+        dialog.setWindowTitle("系统设置")
+        dialog.setSizeGripEnabled(True)
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(18,16,18,14)
+        layout.setSpacing(12)
+        tabs=QTabWidget()
+        appearance=QWidget();appearance_layout=QVBoxLayout(appearance)
+        appearance_layout.setContentsMargins(20,20,20,20)
+        appearance_note=QLabel('调整界面字体与控件字号，立即生效并自动保存。正文阅读字号在阅读区单独调整。')
+        appearance_note.setWordWrap(True);appearance_layout.addWidget(appearance_note)
+        form=QFormLayout();appearance_layout.addLayout(form)
+        for title,source in [('界面字体',self.font_family_combo),('界面字号',self.font_size_combo)]:
+            choice=QComboBox()
+            for i in range(source.count()):choice.addItem(source.itemText(i),source.itemData(i))
+            choice.setCurrentIndex(source.currentIndex())
+            def changed(index,source=source):
+                source.setCurrentIndex(index)
+                style_dialog(dialog,self)
+            choice.currentIndexChanged.connect(changed)
+            form.addRow(title,choice)
+        from src.visualization.image_directory import read as read_image_preferences,save as save_image_preferences,initial as image_initial
+        directory_row=QHBoxLayout()
+        directory_label=QLabel(read_image_preferences(self).get('image_directory') or '自动记住上次选图目录')
+        directory_label.setWordWrap(True);directory_row.addWidget(directory_label,1)
+        choose_directory=QPushButton('选择目录');directory_row.addWidget(choose_directory)
+        reset_directory=QPushButton('恢复自动');directory_row.addWidget(reset_directory)
+        def update_directory(value):
+            try:
+                save_image_preferences(self,image_directory=value)
+                directory_label.setText(value or '自动记住上次选图目录')
+                self.status_bar.showMessage('图像目录已保存，下次加载图像时生效')
+            except OSError as error:QMessageBox.warning(dialog,'保存失败',str(error))
+        def choose_image_directory():
+            folder=QFileDialog.getExistingDirectory(dialog,'选择固定图像目录',image_initial(self))
+            if folder:update_directory(folder)
+        choose_directory.clicked.connect(choose_image_directory)
+        reset_directory.clicked.connect(lambda:update_directory(''))
+        form.addRow('固定图像目录',directory_row)
+        restore_defaults=QPushButton("恢复界面默认设置")
+        def reset_ui():
+            from src.visualization.preferences import reset
+            reset(self)
+            dialog.accept()
+        restore_defaults.clicked.connect(reset_ui)
+        appearance_layout.addWidget(restore_defaults)
+        appearance_layout.addStretch()
+        tabs.addTab(appearance,'界面显示')
+        groups=self.connection_page.findChildren(QGroupBox,options=Qt.FindDirectChildrenOnly)
+        scrolls=[]
+        for group in groups:
+            title=group.title()
+            content=QWidget();body=QVBoxLayout(content)
+            body.setContentsMargins(12,14,12,12);body.setSpacing(14)
+            descriptions={
+                'DeepSeek 引擎配置':'配置云端辅助问答。保存密钥后即时生效，连接测试不会修改配置。',
+                '外设测试':'测试本机麦克风并调整识别时长。语音功能开关位于运行与网络设置中。',
+                '运行与局域网连接':'PC 单机分类无需开发板。修改运行与网络配置后，请保存并重启系统。'}
+            note=QLabel(descriptions.get(title,''));note.setWordWrap(True);note.setObjectName('muted');body.addWidget(note)
+            group.setTitle('')
+            group.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Maximum)
+            group.layout().setSpacing(16)
+            group.layout().setAlignment(Qt.AlignTop)
+            body.addWidget(group);body.addStretch(1)
+            scroll=QScrollArea();scroll.setWidgetResizable(True);scroll.setWidget(content)
+            tabs.addTab(scroll,{'DeepSeek 引擎配置':'云端 AI','外设测试':'语音与外设','运行与局域网连接':'运行与网络'}.get(title,title))
+            scrolls.append((scroll,group,title))
+        layout.addWidget(tabs,1)
+        footer=QHBoxLayout()
+        hint=QLabel('密钥与运行配置需分别保存；语音时长调整即时生效。');hint.setWordWrap(True);hint.setObjectName('muted')
+        footer.addWidget(hint,1)
+        close=QPushButton('完成 / 关闭');close.clicked.connect(dialog.accept);footer.addWidget(close)
+        layout.addLayout(footer)
+        style_dialog(dialog,self)
+        # Content stays top aligned; the scroll area absorbs smaller screens and larger fonts.
+        screen=self.screen().availableGeometry()
+        size=self.font_size_combo.currentData() or 14
+        dialog.resize(min(round(860*size/14),screen.width()-60),min(round(560*size/14),screen.height()-70))
+        dialog.move(screen.center()-dialog.rect().center())
+        try:
+            dialog.exec_()
+        finally:
+            self.api_key_input.setEchoMode(QLineEdit.Password)
+            self.toggle_password_button.setText('显示')
+            for scroll,group,title in scrolls:
+                group.setTitle(title)
+                self.connection_page.layout().insertWidget(self.connection_page.layout().count()-1,group)
+            self.connection_page.setParent(self._optional_controls)
+            self.connection_page.hide()
+            dialog.deleteLater()
 
     def setup_shortcuts(self):
         """设置键盘快捷键"""
@@ -1961,6 +1404,9 @@ class MainWindow(QMainWindow):
             dialog.showMaximized()
 
     def toggle_voice_input(self):
+        if not APP_CONFIG.enable_voice or sr is None:
+            self.status_bar.showMessage("语音未启用；安装可选语音依赖并修改配置后可用")
+            return
         """切换语音输入状态"""
         if hasattr(self, 'voice_input_button') and self.voice_input_button.isEnabled():
             self.start_voice_input()
@@ -1974,7 +1420,7 @@ class MainWindow(QMainWindow):
                 print("[DEBUG] DeepSeek API已初始化")
             
             # 初始化语音组件（现在不会阻塞,因为Vosk模型延迟加载）
-            if self.voice_manager is None:
+            if APP_CONFIG.enable_voice and sr is not None and self.voice_manager is None:
                 self.voice_manager = SmartVoiceManager()
                 self.connect_smart_voice_signals()
                 
@@ -1987,10 +1433,11 @@ class MainWindow(QMainWindow):
                 print("[DEBUG] 语音管理器已初始化")
             
             # 后台异步初始化其他语音组件（TTS等）
-            threading.Thread(target=self.init_speech_components_async, daemon=True).start()
+            if APP_CONFIG.enable_voice and sr is not None and pyttsx3 is not None:
+                threading.Thread(target=self.init_speech_components_async, daemon=True).start()
             
             # 更新状态
-            self.status_bar.showMessage("系统组件加载完成,可以开始使用")
+            self.status_bar.showMessage("PC组件就绪；语音和开发板按配置启用")
             
         except Exception as e:
             print(f"[ERROR] 延迟加载组件失败: {e}")
@@ -2365,7 +1812,7 @@ class MainWindow(QMainWindow):
         voice_ctrl_layout = QHBoxLayout()
         self.voice_chat_enabled = QCheckBox("🔊 自动朗读 AI 回复")
         self.voice_chat_enabled.setStyleSheet(f"color: {self.text_color};")
-        self.voice_chat_enabled.setChecked(True)
+        self.voice_chat_enabled.setChecked(APP_CONFIG.enable_voice)
         self.voice_chat_enabled.stateChanged.connect(self.toggle_voice_chat)
         voice_ctrl_layout.addWidget(self.voice_chat_enabled)
 
@@ -2645,6 +2092,10 @@ class MainWindow(QMainWindow):
             }}
         """)
         self.setStatusBar(self.status_bar)
+        self.model_info_label = QLabel("模型未加载 | 八类分类")
+        self.status_bar.addPermanentWidget(self.model_info_label)
+        self.network_info_label = QLabel("局域网：" + get_local_ip())
+        self.status_bar.addPermanentWidget(self.network_info_label)
         self.status_bar.showMessage("系统就绪,请点击「加载模型」按钮选择模型文件")
 
     # ------------------------------------------------------------------
@@ -2654,10 +2105,10 @@ class MainWindow(QMainWindow):
         """切换密码可见性"""
         if self.api_key_input.echoMode() == QLineEdit.Password:
             self.api_key_input.setEchoMode(QLineEdit.Normal)
-            self.toggle_password_button.setText("🙈")
+            self.toggle_password_button.setText("隐藏")
         else:
             self.api_key_input.setEchoMode(QLineEdit.Password)
-            self.toggle_password_button.setText("👁")
+            self.toggle_password_button.setText("显示")
 
     def send_chat_message(self):
         """发送自定义医疗对话消息"""
@@ -2751,49 +2202,9 @@ class MainWindow(QMainWindow):
         return self.format_advice_html(content)
 
     def clear_chat_history(self):
-        """清除对话历史"""
-        try:
-            if not self.chat_history:
-                self.show_message_box("提示", "当前没有对话历史需要清除。", QMessageBox.Information)
-                return
-            
-            # 确认对话框
-            reply = self.show_message_box(
-                "确认清除", 
-                f"确定要清除所有对话历史吗？\n\n当前共有 {len(self.chat_history)} 轮对话记录。", 
-                QMessageBox.Question
-            )
-            
-            if reply == QMessageBox.Yes:
-                self.chat_history.clear()
-                # 重置聊天显示区域
-                self.chat_display.setHtml(f"""
-                <html><body style='color:{self.text_color}; background:{self.primary_color}; font-family:Microsoft YaHei;'>
-                <div style='text-align: center; padding: 50px;'>
-                    <h2 style='color: #00B5D8; margin-bottom: 20px;'>🗑️ 对话历史已清除</h2>
-                    <p style='color: #e2e8f0; font-size: 15pt;'>您可以开始新的医疗咨询对话</p>
-                </div>
-                </body></html>
-                """)
-                # 同时重置 AI 建议面板
-                self.advice_text.setHtml(f"""
-        <div style='font-family: "Microsoft YaHei", sans-serif; text-align: center; padding: 40px 20px;'>
-            <h2 style='color: {self.highlight_color}; font-size: 19pt; margin-bottom: 30px;'>DeepSeek AI 诊疗引擎</h2>
-            <div style='background-color: #21252B; border-radius: 10px; padding: 25px; border: 1px solid #2c323c;
-                text-align: left; display: inline-block;'>
-                <h3 style='color: {self.accent_color}; margin-top: 0; font-size: 14pt;'>🚀 快速上手</h3>
-                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>1.</b> 加载模型 — 选择 YOLO 权重文件 (.pt)</p>
-                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>2.</b> 加载图像 — 选择本地照片或连接开发板</p>
-                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>3.</b> 开始检测 — AI 自动分析并输出分类结果</p>
-                <p style='margin: 12px 0;'><b style='color: {self.accent_color};'>4.</b> 点击🔄 生成当前报告获取诊疗建议</p>
-            </div>
-        </div>
-                """)
-                self.status_bar.showMessage("对话历史已清除")
-                
-        except Exception as e:
-            print(f"清除对话历史时出错: {e}")
-            self.show_message_box("错误", f"清除历史失败: {str(e)}", QMessageBox.Critical)
+        from src.visualization.conversation import reset
+        reset(self)
+        self.status_bar.showMessage("会话与模型上下文已清除，辅助建议保留")
 
     def show_network_error_result(self, title, error_message):
         """显示网络错误结果"""
@@ -2817,109 +2228,6 @@ class MainWindow(QMainWindow):
         self.advice_text.setHtml(result_html)
         self.status_bar.showMessage("网络测试失败")
 
-    def test_network_and_show_result(self):
-        """测试网络并显示结果"""
-        try:
-            # 显示测试中状态
-            self.advice_text.setHtml("""
-            <div style='text-align: center; padding: 50px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
-                <h2 style='color: #38a169; margin-bottom: 20px;'>🌐 正在测试网络连接...</h2>
-                <p style='color: #e2e8f0; font-size: 15pt;'>请稍候,正在检测网络状态</p>
-            </div>
-            """)
-            self.status_bar.showMessage("正在测试网络连接...")
-            QApplication.processEvents()
-            
-            # 检查并初始化DeepSeek API
-            if self.deepseek_api is None:
-                try:
-                    self.deepseek_api = DeepSeekAPI()
-                    print("[DEBUG] DeepSeek API 初始化成功")
-                except Exception as e:
-                    print(f"[ERROR] DeepSeek API 初始化失败: {e}")
-                    self.show_network_error_result("DeepSeek API 初始化失败", str(e))
-                    return
-            
-            # 执行网络测试
-            is_connected, message = self.deepseek_api.test_network_connection()
-            
-            if is_connected:
-                # 网络正常,测试DeepSeek API连接
-                test_prompt = "请简单回复'连接测试成功'"
-                api_result = self.deepseek_api.get_custom_advice(test_prompt)
-                
-                if "连接测试成功" in api_result or len(api_result) > 10:
-                    result_html = """
-                    <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
-                        <h2 style='color: #38a169; margin-bottom: 20px;'>✅ 网络连接正常</h2>
-                        <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                            <h3 style='color: #00B5D8; margin-top: 0;'>测试结果</h3>
-                            <p style='color: #e2e8f0; margin: 10px 0;'>✅ 基础网络连接：正常</p>
-                            <p style='color: #e2e8f0; margin: 10px 0;'>✅ HTTPS连接：正常</p>
-                            <p style='color: #e2e8f0; margin: 10px 0;'>✅ DeepSeek API连接：正常</p>
-                        </div>
-                        <p style='color: #38a169; font-size: 15pt; font-weight: bold;'>您可以正常使用AI医疗咨询功能！</p>
-                    </div>
-                    """
-                    self.status_bar.showMessage("网络连接测试通过")
-                else:
-                    result_html = f"""
-                    <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
-                        <h2 style='color: #f56565; margin-bottom: 20px;'>⚠️ DeepSeek API连接异常</h2>
-                        <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                            <h3 style='color: #00B5D8; margin-top: 0;'>测试结果</h3>
-                            <p style='color: #e2e8f0; margin: 10px 0;'>✅ 基础网络连接：正常</p>
-                            <p style='color: #e2e8f0; margin: 10px 0;'>✅ HTTPS连接：正常</p>
-                            <p style='color: #f56565; margin: 10px 0;'>❌ DeepSeek API连接：异常</p>
-                        </div>
-                        <div style='background-color: #1a202c; padding: 15px; border-radius: 6px; text-align: left;'>
-                            <h4 style='color: #805AD5; margin-top: 0;'>API响应:</h4>
-                            <p style='color: #e2e8f0; font-size: 13pt;'>{api_result[:300]}...</p>
-                        </div>
-                        <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
-                            <h4 style='color: #00B5D8; margin-top: 0;'>解决建议:</h4>
-                            <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查API密钥是否正确</p>
-                            <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查API密钥是否有足够余额</p>
-                            <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 尝试使用VPN或代理</p>
-                            <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 稍后重试</p>
-                        </div>
-                    </div>
-                    """
-                    self.status_bar.showMessage("DeepSeek API连接异常")
-            else:
-                result_html = f"""
-                <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
-                    <h2 style='color: #f56565; margin-bottom: 20px;'>❌ 网络连接异常</h2>
-                    <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                        <h3 style='color: #00B5D8; margin-top: 0;'>测试结果</h3>
-                        <p style='color: #f56565; margin: 10px 0;'>❌ {message}</p>
-                    </div>
-                    <div style='margin-top: 20px; padding: 15px; background-color: #2a3441; border-radius: 6px;'>
-                        <h4 style='color: #00B5D8; margin-top: 0;'>解决建议:</h4>
-                        <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查网络连接是否稳定</p>
-                        <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 检查防火墙设置</p>
-                        <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 尝试重启路由器</p>
-                        <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 尝试使用手机热点</p>
-                        <p style='color: #e2e8f0; text-align: left; margin: 5px 0;'>• 联系网络服务提供商</p>
-                    </div>
-                </div>
-                """
-                self.status_bar.showMessage("网络连接测试失败")
-            
-            self.advice_text.setHtml(result_html)
-            
-        except Exception as e:
-            error_html = f"""
-            <div style='text-align: center; padding: 40px; font-family: "Microsoft YaHei", "SimHei", sans-serif;'>
-                <h2 style='color: #f56565; margin-bottom: 20px;'>❌ 测试过程出错</h2>
-                <div style='background-color: #2a3441; padding: 20px; border-radius: 8px; margin: 20px 0;'>
-                    <p style='color: #f56565; margin: 10px 0;'>错误信息: {str(e)}</p>
-                </div>
-                <p style='color: #e2e8f0; font-size: 15pt;'>请稍后重试或联系技术支持</p>
-            </div>
-            """
-            self.advice_text.setHtml(error_html)
-            self.status_bar.showMessage("网络测试出错")
 
     def show_unified_response(self, question, answer):
         """显示统一的回复对话框"""
@@ -3097,6 +2405,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(scroll_area, 1)  # stretch=1,让滚动区域占据大部分空间
         main_layout.addWidget(close_button)
         
+        style_dialog(dialog, self)
         dialog.exec_()
 
     def save_api_key(self):
@@ -3128,15 +2437,17 @@ class MainWindow(QMainWindow):
                 
                 # 持久化保存API密钥到文件 (Base64混淆)
                 try:
-                    encoded = base64.b64encode(api_key.encode('utf-8')).decode('utf-8')
-                    with open("saved_api_key.txt", 'w', encoding='utf-8') as f:
+                    from src.core.credentials import encode_key
+                    encoded = encode_key(api_key)
+                    with open(PROJECT_ROOT / "saved_api_key.txt", 'w', encoding='utf-8') as f:
                         f.write(encoded)
                     print("API密钥已加密保存到文件")
                 except Exception as e:
-                    print(f"保存API密钥到文件时出错: {e}")
+                    self.show_message_box("保存失败", "密钥未能写入本机安全存储，请检查目录权限后重试。", QMessageBox.Warning)
+                    return
                 
                 self.status_bar.showMessage("API密钥已保存")
-                self.show_message_box("成功", "DeepSeek API密钥已保存,现在可以获取个性化治疗建议。", QMessageBox.Information)
+                self.show_message_box("成功", "DeepSeek API密钥已加密保存，即时生效。可测试连接后使用辅助问答。", QMessageBox.Information)
             else:
                 self.status_bar.showMessage("API密钥为空")
                 self.show_message_box("提示", "API密钥为空,将使用内置的治疗建议。", QMessageBox.Warning)
@@ -3148,7 +2459,7 @@ class MainWindow(QMainWindow):
     def _cleanup_temp_images(self):
         """启动时自动清理 medical_images/ 中 7 天前的临时图像"""
         try:
-            img_dir = "medical_images"
+            img_dir = str(APP_CONFIG.image_dir)
             if not os.path.isdir(img_dir):
                 return
             cutoff = time.time() - 7 * 24 * 3600
@@ -3194,201 +2505,39 @@ class MainWindow(QMainWindow):
                 background-color: #0097B2;
             }}
         """)
+        style_dialog(msg_box, self)
         return msg_box.exec_()
 
-    def load_model(self, model_path=None):
-        """
-        加载模型：
-        用户点击【加载/切换模型】时传入 None → 弹出 QFileDialog
-        """
-        if model_path is None:           # 来自按钮点击
-            model_path, _ = QFileDialog.getOpenFileName(
-                self, "选择或切换模型", "", "模型文件 (*.pt)"
-            )
-            if not model_path:           # 用户取消
-                return
-
-        # 延迟初始化检测器（如果还没初始化）
-        if self.detector is None:
-            self.detector = EyeDiseaseDetector()
-            self.result_processor = ResultProcessor(self.detector)
-            self.deepseek_api = DeepSeekAPI()
-            self.status_bar.showMessage("正在初始化AI检测组件...")
-
-        # 真正加载
-        if self.detector.load_model(model_path):
-            self.status_bar.showMessage(f"已加载模型：{os.path.basename(model_path)}")
-            self.image_button.setEnabled(True)
-            self.batch_button.setEnabled(True)
-        else:
-            self.show_message_box("错误", "模型加载失败！", QMessageBox.Critical)
 
 
 
-    def load_image(self):
-        image_path, _ = QFileDialog.getOpenFileName(
-            self, "选择图像", "",
-            "图像文件 (*.jpg *.jpeg *.png *.bmp)"
-        )
-        if image_path:
-            self.current_image = cv2.imread(image_path)
-            if self.current_image is not None:
-                # 显示原始图像
-                self.display_image(
-                    self.current_image, self.original_image_label
-                )
-                self.detect_button.setEnabled(True)
-                self.status_bar.showMessage(f"图像已加载: {image_path}")
-            else:
-                self.show_message_box("错误", "图像加载失败！", QMessageBox.Critical)
 
-    def detect_image(self):
-        if self.current_image is None:
-            self.show_message_box("错误", "请先加载图像！", QMessageBox.Critical)
-            return
 
+
+    def export_analysis(self, prefix, figures, headers, rows, messages=None):
+        """Export the exact displayed snapshot, never query a different data scope."""
+        import csv
+        from pathlib import Path
+        directory=QFileDialog.getExistingDirectory(self,"选择导出目录")
+        if not directory:return
+        target=Path(directory)/(prefix+"_"+datetime.now().strftime("%Y%m%d_%H%M%S_%f"))
         try:
-            self.status_bar.showMessage("正在检测,请稍候...")
-            QApplication.processEvents()  # 更新UI
-            # 捕获标准输出
-            output_buffer = io.StringIO()
-            with redirect_stdout(output_buffer):
-                results = self.detector.predict(self.current_image)
-            # 尝试从输出解析结果
-            prediction_output = output_buffer.getvalue()
-            disease_name = "未知"
-            confidence = 0.0
-
-            if results and len(results) > 0:
-                current_results = results[0]
-
-                # 使用ResultProcessor解析结果
-                parsed = False
-                if prediction_output:
-                    parsed = self.result_processor.parse_prediction_output(prediction_output)
-
-                if not parsed:
-                    parsed = self.result_processor.parse_model_results(current_results)
-
-                if not parsed:
-                    self.result_processor.get_fallback_result()
-
-                # 获取解析后的结果
-                disease_name = self.result_processor.current_disease
-                confidence = self.result_processor.current_confidence
-
-                # 保存当前结果
-                self.current_results = results
-                self.current_disease = disease_name
-                self.current_confidence = confidence
-                self.prediction_output = prediction_output
-
-                # 显示检测结果
-                self.parse_and_show_results(results)
-                # 启用结果按钮
-                self.results_button.setEnabled(True)
-                self.advice_button.setEnabled(True)
-                self.status_bar.showMessage("检测完成")
-                # 保存到历史记录（图像统一存至 medical_images）
-                os.makedirs("medical_images", exist_ok=True)
-                temp_image_path = f"medical_images/temp_image_{datetime.now().strftime('%Y%m%d%H%M%S')}.png"
-                cv2.imwrite(temp_image_path, self.current_image)
-                self.save_to_history(os.path.abspath(temp_image_path), disease_name, confidence)
-
-                # 自动弹出 DeepSeek 报告
-                QTimer.singleShot(300, lambda: self.advice_button.click())
-            else:
-                self.show_message_box("警告", "模型未能生成检测结果！", QMessageBox.Warning)
-        except Exception as e:
-            self.show_message_box("错误", f"检测过程中发生错误: {str(e)}", QMessageBox.Critical)
-
-    def batch_process(self):
-        if not hasattr(self, 'detector') or self.detector.model is None:
-            self.show_message_box("错误", "请先加载模型!", QMessageBox.Critical)
-            return
-
-        file_dialog = QFileDialog()
-        file_dialog.setFileMode(QFileDialog.ExistingFiles)
-        file_dialog.setNameFilter("图像文件 (*.png *.jpg *.jpeg *.bmp)")
-
-        if file_dialog.exec() != QFileDialog.Accepted:
-            return
-
-        image_paths = file_dialog.selectedFiles()
-        if not image_paths:
-            return
-
-        progress_dialog = QProgressDialog("正在准备批量处理...", "⏹ 取消处理", 0, len(image_paths), self)
-        progress_dialog.setWindowTitle("🚀 批量智能分析中")
-        progress_dialog.setWindowModality(Qt.WindowModal)
-        progress_dialog.setMinimumWidth(450)
-        progress_dialog.setMinimumHeight(150)
-
-        progress_dialog.setStyleSheet(f"""
-            QProgressDialog {{ background-color: {self.secondary_bg}; border: 1px solid {self.accent_color}; }}
-            QLabel {{ font-size: 13pt; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
-            QProgressBar {{ border: 1px solid #3b4252; border-radius: 8px; background-color: #1a1e24;
-                text-align: center; color: white; font-weight: bold; font-size: 11pt; height: 24px; }}
-            QProgressBar::chunk {{ background-color: {self.accent_color}; border-radius: 7px; width: 20px; }}
-            QPushButton {{ background-color: transparent; color: #FF5252; border: 1px solid #FF5252;
-                padding: 6px 20px; border-radius: 6px; font-weight: bold; margin-top: 10px; }}
-            QPushButton:hover {{ background-color: rgba(255, 82, 82, 0.15); }}
-        """)
-        progress_dialog.setWindowFlags(progress_dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
-        progress_dialog.setAutoClose(True)
-        progress_dialog.setAutoReset(True)
-        progress_dialog.show()
-
-        results_summary = []
-        disease_counter = {}
-
-        try:
-            # 使用 YOLO stream 模式，底层 C++ 批处理+Pipeline，极致性能
-            results_generator = self.detector.model.predict(
-                source=image_paths, stream=True, conf=0.5
-            )
-
-            for i, (image_path, current_results) in enumerate(zip(image_paths, results_generator)):
-                if progress_dialog.wasCanceled():
-                    break
-
-                progress_dialog.setValue(i)
-                progress_dialog.setLabelText(f"正在处理 ({i+1}/{len(image_paths)}): {os.path.basename(image_path)}")
-                QApplication.processEvents()
-
-                disease_name = "未知"
-                confidence = 0.0
-
-                try:
-                    # 直接读 API 属性，不走 redirect_stdout + 正则
-                    if hasattr(current_results, 'probs') and current_results.probs is not None:
-                        top_class_idx = int(current_results.probs.top1)
-                        confidence = float(current_results.probs.top1conf)
-                        disease_name = self.detector.class_names.get(top_class_idx, "未知")
-
-                    # 只统计有效疾病
-                    if disease_name != "未知":
-                        disease_counter[disease_name] = disease_counter.get(disease_name, 0) + 1
-
-                    self.save_to_history(image_path, disease_name, confidence)
-                    results_summary.append(f"✅ 图像 {os.path.basename(image_path)}: 检测结果 - {disease_name} (置信度: {confidence:.2f})")
-
-                except Exception as e:
-                    results_summary.append(f"❌ 图像 {os.path.basename(image_path)} 处理出错: {str(e)}")
-
-        except Exception as e:
-            self.show_message_box("错误", f"批量处理失败: {str(e)}", QMessageBox.Critical)
-            return
-
-        progress_dialog.setValue(len(image_paths))
-        self.show_batch_report(disease_counter, results_summary)
-        self.status_bar.showMessage("批量处理完成")
+            target.mkdir()
+            with (target/"statistics.csv").open("w",encoding="utf-8-sig",newline="") as stream:
+                writer=csv.writer(stream);writer.writerow(headers);writer.writerows(rows)
+            if messages is not None:
+                with (target/"details.csv").open("w",encoding="utf-8-sig",newline="") as stream:
+                    writer=csv.writer(stream);writer.writerow(["任务明细"]);writer.writerows([[m] for m in messages])
+            for index,figure in enumerate(figures,1):
+                for extension in ("png","pdf"):
+                    figure.savefig(str(target/f"chart_{index}.{extension}"),dpi=200,bbox_inches="tight",facecolor="#242C37",transparent=False)
+            self.show_message_box("导出完成",str(target))
+        except Exception as error:
+            self.show_message_box("导出失败",f"{error}；已生成的部分文件位于 {target}")
 
     def show_batch_report(self, disease_counter, results_summary):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("批量检测统计报告")
-        dialog.resize(800, 600)
-    def show_batch_report(self, disease_counter, results_summary):
+        plt, FigureCanvas = load_plotting()
+        fig = None
         dialog = QDialog(self)
         dialog.setWindowTitle("批量检测统计报告")
         dialog.resize(1150, 850)
@@ -3411,15 +2560,12 @@ class MainWindow(QMainWindow):
         cards_layout.setSpacing(15)
 
         total = sum(disease_counter.values())
-        total_card = QLabel(f"<div style='text-align:center;'><div style='font-size:12pt;color:#81A1C1;margin-bottom:5px;'>总处理数</div><div style='font-size:21pt;color:#00E5FF;font-weight:bold;'>{total}</div></div>")
+        total_card = QLabel(f"<div style='text-align:center;'><div style='font-size:12pt;color:#81A1C1;margin-bottom:5px;'>已保存成功数</div><div style='font-size:21pt;color:#00E5FF;font-weight:bold;'>{total}</div></div>")
         total_card.setStyleSheet("background-color: #21252B; border-radius: 8px; padding: 15px; border: 1px solid #2c323c;")
         cards_layout.addWidget(total_card)
 
-        for disease, count in disease_counter.items():
-            if count > 0:
-                card = QLabel(f"<div style='text-align:center;'><div style='font-size:12pt;color:#81A1C1;margin-bottom:5px;'>{disease}</div><div style='font-size:19pt;color:white;font-weight:bold;'>{count}</div></div>")
-                card.setStyleSheet("background-color: #21252B; border-radius: 8px; padding: 15px; border: 1px solid #2c323c;")
-                cards_layout.addWidget(card)
+        cards_layout.addWidget(QLabel(f"已处理 {len(results_summary)} 张 · 未成功保存 {len(results_summary)-total} 张"))
+        cards_layout.addWidget(QLabel("范围：本次任务已完成部分，不包含历史记录"))
 
         cards_layout.addStretch()
         main_layout.addWidget(summary_group, stretch=0)
@@ -3427,7 +2573,7 @@ class MainWindow(QMainWindow):
         # ===== 2. 图表区 =====
         if disease_counter:
             filtered = {k: v for k, v in disease_counter.items() if v > 0}
-            theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF', '#FF9800']
+            theme_colors = ['#4DD6B4', '#51C5E3', '#F1B761', '#A7C98B', '#B7A1D8', '#E58C89', '#8BC4CB', '#CBB394']
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
             fig.set_facecolor('#1a1e24'); fig.patch.set_alpha(0.0)
@@ -3436,7 +2582,7 @@ class MainWindow(QMainWindow):
                 list(filtered.values()), labels=list(filtered.keys()), autopct='%1.1f%%',
                 startangle=140, colors=theme_colors[:len(filtered)],
                 textprops={'color': 'white', 'fontweight': 'bold'},
-                wedgeprops={'edgecolor': '#2d3748', 'linewidth': 1.5})
+                wedgeprops={'edgecolor': '#242C37', 'linewidth': 1.5})
             ax1.set_title('疾病分布比例', color='white', pad=20, fontsize=14)
             for t in texts: t.set_color('white')
             for t in autotexts: t.set_color('white')
@@ -3447,7 +2593,7 @@ class MainWindow(QMainWindow):
             ax2.set_title('疾病分布柱状图', color='white', pad=20, fontsize=14)
             ax2.tick_params(axis='x', rotation=45, colors='white')
             ax2.tick_params(axis='y', colors='white')
-            ax2.set_facecolor('#2d3748')
+            ax2.set_facecolor('#242C37')
             ax2.grid(color='#4a5568', linestyle='--', linewidth=0.5, axis='y')
             for bar in bars:
                 h = bar.get_height()
@@ -3465,7 +2611,17 @@ class MainWindow(QMainWindow):
             chart_layout = QVBoxLayout(chart_container)
             chart_layout.setContentsMargins(5, 5, 5, 5)
             chart_layout.addWidget(canvas)
-            main_layout.addWidget(chart_container, stretch=4)
+            stats_tabs=QTabWidget()
+            stats_tabs.addTab(chart_container,"分布图")
+            table=QTableWidget(len(filtered),3)
+            table.setHorizontalHeaderLabels(["分类类别","数量","占成功结果比例"])
+            table.setEditTriggers(QTableWidget.NoEditTriggers)
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+            for row,(disease,count) in enumerate(filtered.items()):
+                for col,value in enumerate([disease,str(count),f"{count/total:.1%}"]):
+                    table.setItem(row,col,QTableWidgetItem(value))
+            stats_tabs.addTab(table,"统计表")
+            main_layout.addWidget(stats_tabs, stretch=4)
 
         # ===== 3. 暗黑终端日志 =====
         log_group = QWidget()
@@ -3523,14 +2679,23 @@ class MainWindow(QMainWindow):
         button_layout.addStretch()
         main_layout.addLayout(button_layout)
 
-        dialog.exec_()
+        export_button=QPushButton("导出统计图与数据")
+        export_button.clicked.connect(lambda: self.export_analysis(
+            "batch", [fig] if fig is not None else [],
+            ["类别", "成功数量"], list(disease_counter.items()), results_summary))
+        main_layout.addWidget(export_button)
+        style_dialog(dialog, self)
+        try:
+            dialog.exec_()
+        finally:
+            if fig is not None:plt.close(fig)
 
     def save_to_history(self, image_path, disease_name, confidence):
         """保存检测结果到历史记录 (SQLite)，仅保存有效疾病名"""
         try:
             # 过滤掉以 [对话] 开头的聊天记录
-            if disease_name.startswith('[对话]'):
-                return
+            if not valid_prediction(disease_name, confidence):
+                return False
             db = get_history_db()
             db.add(
                 record_id=str(uuid.uuid4()),
@@ -3549,7 +2714,7 @@ class MainWindow(QMainWindow):
         try:
             db = get_history_db()
             # 首次使用自动迁移旧数据
-            history_dir = os.path.join(os.path.expanduser("~"), "EyeDiseaseDetectorHistory")
+            history_dir = str(APP_CONFIG.history_db.parent)
             json_path = os.path.join(history_dir, "history.json")
             if os.path.exists(json_path):
                 db.migrate_from_json(json_path)
@@ -3558,10 +2723,13 @@ class MainWindow(QMainWindow):
             print(f"加载历史记录失败: {e}")
             return []
 
-    def show_history(self):
-        """显示历史记录对话框"""
+    def show_history(self, embedded=False):
+        """History page reuses the existing detail, delete and statistics actions."""
+        if not embedded:
+            self.workspace_pages.setCurrentIndex(2)
+            return
         # 创建对话框
-        history_dialog = QDialog(self)
+        history_dialog = QWidget(self)
         history_dialog.setWindowTitle("检测历史记录")
         history_dialog.resize(1200, 800)
         history_dialog.setStyleSheet(f"""
@@ -3650,7 +2818,20 @@ class MainWindow(QMainWindow):
         self.history_table.setColumnCount(len(columns))
         self.history_table.setHorizontalHeaderLabels(columns)
 
-        # 加载历史记录并填充表格
+        legacy_history = APP_CONFIG.history_db.parent / "history.json"
+        if legacy_history.is_file():
+            get_history_db().migrate_from_json(str(legacy_history))
+        self._history_page = 0
+        pager = QHBoxLayout()
+        self.history_previous = QPushButton("上一页")
+        self.history_next = QPushButton("下一页")
+        self.history_page_label = QLabel()
+        self.history_previous.clicked.connect(lambda: self._change_history_page(-1))
+        self.history_next.clicked.connect(lambda: self._change_history_page(1))
+        pager.addWidget(self.history_previous)
+        pager.addWidget(self.history_page_label, 1)
+        pager.addWidget(self.history_next)
+        main_layout.addLayout(pager)
         self._populate_history_table()
 
         main_layout.addWidget(self.history_table)
@@ -3722,10 +2903,11 @@ class MainWindow(QMainWindow):
                 background-color: #0097B2;
             }}
         """)
-        close_button.clicked.connect(history_dialog.accept)
+        close_button.setText("刷新记录")
+        close_button.clicked.connect(self._populate_history_table)
 
         # 趋势分析按钮
-        trend_btn = QPushButton("📈 病情趋势分析")
+        trend_btn = QPushButton("分类记录统计")
         trend_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {self.accent_color};
@@ -3746,245 +2928,55 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(button_layout)
 
         # 显示对话框
-        history_dialog.setWindowState(Qt.WindowMaximized)
-        history_dialog.exec_()
+        style_dialog(history_dialog, self)
+        return history_dialog
 
     def view_history_record(self, record):
-        """查看历史记录详情"""
-        # 读取图像
-        image_path = record["image_path"]
-        image = None
-
-        # 尝试加载图像
-        if os.path.exists(image_path):
-            try:
-                image = cv2.imread(image_path)
-            except Exception as e:
-                print(f"加载图像失败: {e}")
-
-        # 创建对话框
-        detail_dialog = QDialog(self)
-        detail_dialog.setWindowTitle("历史记录详情")
-        detail_dialog.resize(800, 600)
-        detail_dialog.setStyleSheet(f"""
-            QDialog {{
-                background-color: {self.background_color};
-                color: {self.text_color};
-            }}
-        """)
-
-        # 创建布局
-        main_layout = QVBoxLayout(detail_dialog)
-
-        # 顶部栏：全屏切换按钮
-        top_bar = QHBoxLayout()
-        top_bar.addStretch()
-        detail_fullscreen_btn = QPushButton("🔍 全屏")
-        detail_fullscreen_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.highlight_color};
-                color: white;
-                padding: 6px 14px;
-                border-radius: 4px;
-                font-size: 12pt;
-            }}
-            QPushButton:hover {{
-                background-color: #d69e2e;
-            }}
-        """)
-
-        def toggle_detail_fullscreen():
-            if detail_dialog.isFullScreen():
-                detail_dialog.showNormal()
-                detail_fullscreen_btn.setText("🔍 全屏")
-            else:
-                detail_dialog.showFullScreen()
-                detail_fullscreen_btn.setText("📱 退出全屏")
-
-        detail_fullscreen_btn.clicked.connect(toggle_detail_fullscreen)
-        QShortcut(QKeySequence("F11"), detail_dialog, activated=toggle_detail_fullscreen)
-        top_bar.addWidget(detail_fullscreen_btn)
-        main_layout.addLayout(top_bar)
-
-        # 创建信息区域
-        info_layout = QHBoxLayout()
-
-        # 左侧图像区域
-        image_group = QGroupBox("原始图像")
-        image_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
-        image_group.setStyleSheet(f"""
-            QGroupBox {{
-                border: 2px solid {self.accent_color};
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
-                color: {self.accent_color};
-            }}
-        """)
-
-        image_layout = QVBoxLayout()
-        image_label = QLabel()
-        image_label.setAlignment(Qt.AlignCenter)
-        image_label.setMinimumSize(350, 350)
-        image_label.setStyleSheet(f"""
-            background-color: #1e2a38;
-            border-radius: 8px;
-            padding: 10px;
-        """)
-
+        """Read-only historical detail; opening a record never generates new advice."""
+        from src.visualization.workbench_layout import ImageCanvas, NAMES
+        from pathlib import Path
+        dialog=QDialog(self);dialog.setWindowTitle('历史记录详情');dialog.setSizeGripEnabled(True)
+        layout=QVBoxLayout(dialog);layout.setContentsMargins(20,18,20,18);layout.setSpacing(16)
+        header=QHBoxLayout();title=QLabel('历史分析详情');title.setObjectName('pageTitle');header.addWidget(title);header.addStretch()
+        fullscreen=QPushButton('全屏查看');header.addWidget(fullscreen);layout.addLayout(header)
+        def toggle():
+            if dialog.isFullScreen():dialog.showNormal();fullscreen.setText('全屏查看')
+            else:dialog.showFullScreen();fullscreen.setText('退出全屏')
+        fullscreen.clicked.connect(toggle);QShortcut(QKeySequence('F11'),dialog,activated=toggle)
+        split=QSplitter(Qt.Horizontal);layout.addWidget(split,1)
+        left=QWidget();ll=QVBoxLayout(left);ll.setContentsMargins(0,0,12,0)
+        label=QLabel('原始图像');label.setObjectName('sectionTitle');ll.addWidget(label)
+        path=str(record.get('image_path') or record.get('path') or '')
+        canvas=ImageCanvas();canvas.setAcceptDrops(False);canvas.setCursor(Qt.ArrowCursor);canvas.setToolTip('原始图像 · 等比例显示')
+        image=None
+        try:image=cv2.imdecode(np.fromfile(path,dtype=np.uint8),cv2.IMREAD_COLOR)
+        except (OSError,ValueError):pass
         if image is not None:
-            # 转换并显示图像
-            if len(image.shape) == 2:
-                image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-            else:
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-            h, w, ch = image.shape
-            bytes_per_line = ch * w
-            q_img = QImage(image.data, w, h, bytes_per_line, QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(q_img)
-            image_label.setPixmap(
-                pixmap.scaled(
-                    image_label.width(), image_label.height(),
-                    Qt.KeepAspectRatio, Qt.SmoothTransformation
-                )
-            )
+            rgb=cv2.cvtColor(image,cv2.COLOR_BGR2RGB);h,w,_=rgb.shape
+            canvas.setPixmap(QPixmap.fromImage(QImage(rgb.data,w,h,rgb.strides[0],QImage.Format_RGB888).copy()))
+            ll.addWidget(canvas,1)
         else:
-            image_label.setText("无法加载图像\n" + os.path.basename(image_path))
-            image_label.setAlignment(Qt.AlignCenter)
-            image_label.setStyleSheet(f"""
-                color: {self.text_color};
-                font-size: 13pt;
-            """)
-
-        image_layout.addWidget(image_label)
-        image_group.setLayout(image_layout)
-
-        # 右侧信息区域
-        info_group = QGroupBox("检测信息")
-        info_group.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
-        info_group.setStyleSheet(f"""
-            QGroupBox {{
-                border: 2px solid {self.highlight_color};
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }}
-            QGroupBox::title {{
-                subcontrol-origin: margin;
-                left: 15px;
-                padding: 0 8px;
-                color: {self.highlight_color};
-            }}
-        """)
-
-        info_layout_inner = QVBoxLayout()
-        info_layout_inner.setSpacing(15)
-        info_layout_inner.setContentsMargins(20, 20, 20, 20)
-
-        # 去掉演示数据前缀
-        disease_display = record['disease_name']
-        if disease_display.startswith('[演示]'):
-            disease_display = disease_display[4:]
-
-        # 添加信息标签
-        timestamp_label = QLabel(f"检测时间: {record['timestamp']}")
-        path_label = QLabel(f"图像路径: {os.path.basename(record['image_path'])}")
-        disease_label = QLabel(f"检测结果: <b style='color:{self.highlight_color};'>{disease_display}</b>")
-        confidence_label = QLabel(f"置信度: <b style='color:{self.highlight_color};'>{record['confidence']:.2f}</b>")
-
-        # 设置样式
-        for label in [timestamp_label, path_label, disease_label, confidence_label]:
-            label.setFont(QFont("Microsoft YaHei", 12))
-            label.setWordWrap(True)
-            info_layout_inner.addWidget(label)
-
-        # AI 建议显示区域（内联，带缓存）
-        advice_text = QTextEdit()
-        advice_text.setReadOnly(True)
-        advice_text.setMinimumHeight(180)
-        advice_text.setFont(QFont("Microsoft YaHei", 11))
-        advice_text.setStyleSheet(f"""
-            QTextEdit {{
-                background-color: {self.secondary_bg};
-                color: {self.text_color};
-                border: 1px solid #3b4252;
-                border-radius: 6px;
-                padding: 12px;
-            }}
-        """)
-        advice_text.setHtml(
-            f"<div style='text-align:center; padding:20px; color:#81A1C1;'>"
-            f"<div style='font-size:24pt; margin-bottom:8px;'>🤖</div>"
-            f"<div>正在查询本地缓存…</div></div>"
-        )
-        info_layout_inner.addWidget(advice_text)
-        info_group.setLayout(info_layout_inner)
-
-        info_layout.addWidget(image_group, 1)
-        info_layout.addWidget(info_group, 1)
-        main_layout.addLayout(info_layout)
-
-        # 添加关闭按钮
-        close_button = QPushButton("关闭")
-        close_button.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {self.accent_color};
-                color: white;
-                padding: 10px 20px;
-                border-radius: 6px;
-            }}
-            QPushButton:hover {{
-                background-color: #0097B2;
-            }}
-        """)
-        close_button.clicked.connect(detail_dialog.accept)
-        main_layout.addWidget(close_button)
-
-        # ================= 加载 AI 建议逻辑（默认立即 + 异步升级） =================
-
-        # 0. 主线程：立即展示默认医学建议（必须在 exec_() 之前，保证弹窗即见内容）
-        default_advice = self.deepseek_api._get_default_advice(disease_display)
-        if default_advice:
-            advice_text.setHtml(self.format_advice_html(default_advice))
-
-        # 1. 后台线程：尝试用缓存或 API 升级为更详细的 AI 建议
-        def fetch_or_load_advice():
-            try:
-                saved_advice = record.get('advice')
-                if saved_advice and str(saved_advice).strip():
-                    # 数据库有缓存 → 替换默认建议
-                    formatted_html = self.format_advice_html(saved_advice)
-                    QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
-                else:
-                    # 无缓存 → 调 API 生成
-                    raw_advice = self.deepseek_api.get_treatment_advice(
-                        disease_display, record['confidence'])
-                    if raw_advice and raw_advice.strip():
-                        formatted_html = self.format_advice_html(raw_advice)
-                        get_history_db().update_advice(record['record_id'], raw_advice)
-                        QTimer.singleShot(0, lambda: advice_text.setHtml(formatted_html))
-            except Exception as e:
-                print(f"[INFO] AI建议加载失败，已显示默认建议: {e}")
-
-        threading.Thread(target=fetch_or_load_advice, daemon=True).start()
-
-        # 快捷键 Esc 关闭
-        # Esc: 全屏状态先退出全屏，非全屏状态关闭对话框
-        def esc_detail():
-            if detail_dialog.isFullScreen():
-                detail_dialog.showNormal()
-                detail_fullscreen_btn.setText("🔍 全屏")
-            else:
-                detail_dialog.accept()
-        QShortcut(QKeySequence("Esc"), detail_dialog, activated=esc_detail)
-
-        detail_dialog.exec_()
+            missing=QLabel('原始图像已移动或无法读取');missing.setAlignment(Qt.AlignCenter);missing.setWordWrap(True);ll.addWidget(missing,1)
+        filename=QLabel(Path(path).name);filename.setWordWrap(True);filename.setToolTip(path);filename.setTextInteractionFlags(Qt.TextSelectableByMouse);ll.addWidget(filename)
+        split.addWidget(left)
+        right=QWidget();rl=QVBoxLayout(right);rl.setContentsMargins(12,0,0,0);rl.setSpacing(12)
+        disease=str(record.get('disease_name','未知'));name=NAMES.get(disease.replace('[演示]',''),disease)
+        result=QLabel(name);result.setWordWrap(True);result.setObjectName('prediction');rl.addWidget(result)
+        confidence=record.get('confidence');score=QLabel(f'模型概率  {confidence:.2%}' if isinstance(confidence,(float,int)) else '模型概率未记录');score.setObjectName('sectionTitle');rl.addWidget(score)
+        stamp=QLabel('分析时间  '+str(record.get('timestamp','未记录')));stamp.setWordWrap(True);stamp.setObjectName('muted');rl.addWidget(stamp)
+        note=QLabel('模型概率未经校准，分类结果仅供辅助参考。');note.setWordWrap(True);note.setObjectName('notice');rl.addWidget(note)
+        heading=QLabel('已保存的辅助说明');heading.setObjectName('sectionTitle');rl.addWidget(heading)
+        advice=QTextEdit();advice.setReadOnly(True);rl.addWidget(advice,1)
+        saved=record.get('advice')
+        if saved and str(saved).strip():advice.setHtml(self.format_advice_html(str(saved)))
+        else:advice.setPlainText('此记录尚未保存辅助说明。历史详情只展示已保存内容。')
+        split.addWidget(right);split.setChildrenCollapsible(False);split.setSizes([380,620])
+        footer=QHBoxLayout();hint=QLabel('拖动中间分隔线可调整图像与说明比例');hint.setObjectName('muted');hint.setWordWrap(True);footer.addWidget(hint,1)
+        close=QPushButton('关闭');close.clicked.connect(dialog.accept);footer.addWidget(close);layout.addLayout(footer)
+        style_dialog(dialog,self)
+        advice.document().setDefaultFont(QFont(self.font_family_combo.currentData(),self.font_size_combo.currentData() or 14))
+        screen=self.screen().availableGeometry();dialog.resize(min(1080,screen.width()-60),min(720,screen.height()-70))
+        dialog.move(screen.center()-dialog.rect().center());dialog.exec_()
 
     def show_history_advice(self, disease_name, confidence):
         """显示历史记录的AI建议"""
@@ -4058,109 +3050,40 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(close_button)
 
         # 显示对话框
+        style_dialog(advice_dialog, self)
         advice_dialog.exec_()
         self.status_bar.showMessage("就绪")
 
+    def _change_history_page(self, delta):
+        self._history_page += delta
+        self._populate_history_table()
+
     def _populate_history_table(self):
-        """刷新历史记录表格数据（极速渲染 + 进度条弹窗）"""
-        self.status_bar.showMessage("正在加载历史记录...")
-        QApplication.processEvents()
-
-        history = self.load_history_records()
-        total_records = len(history)
-
-        if total_records == 0:
-            self.history_table.setRowCount(0)
-            self.status_bar.showMessage("暂无历史记录")
-            return
-
-        # 1. 进度条弹窗（仅在数据量较大时显示，避免小数据量时进度条本身成为瓶颈）
-        SHOW_PROGRESS = total_records > 500
-        progress_dialog = None
-        if SHOW_PROGRESS:
-            progress_dialog = QProgressDialog(
-                "正在渲染数据到表格...", "⏹ 取消加载", 0, total_records, self)
-            progress_dialog.setWindowTitle("⏳ 正在加载")
-            progress_dialog.setWindowModality(Qt.WindowModal)
-            progress_dialog.setMinimumWidth(450)
-            progress_dialog.setStyleSheet(f"""
-                QProgressDialog {{ background-color: {self.secondary_bg}; border: 1px solid {self.accent_color}; }}
-                QLabel {{ font-size: 13pt; font-weight: bold; color: #81A1C1; margin-top: 10px; margin-bottom: 15px; }}
-                QProgressBar {{ border: 1px solid #3b4252; border-radius: 8px; background-color: #1a1e24;
-                    text-align: center; color: white; font-weight: bold; font-size: 11pt; height: 24px; }}
-                QProgressBar::chunk {{ background-color: {self.accent_color}; border-radius: 7px; width: 20px; }}
-                QPushButton {{ background-color: transparent; color: #FF5252; border: 1px solid #FF5252;
-                    padding: 6px 20px; border-radius: 6px; font-weight: bold; margin-top: 10px; }}
-                QPushButton:hover {{ background-color: rgba(255, 82, 82, 0.15); }}
-            """)
-            progress_dialog.setWindowFlags(
-                progress_dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint & ~Qt.WindowCloseButtonHint)
-            progress_dialog.setAutoClose(True)
-            progress_dialog.setAutoReset(True)
-            progress_dialog.show()
-
-        # 2. 暂停表格重绘（核心性能优化）
+        """Render at most 100 records and preserve explicit demo labels."""
+        history, total, page = get_history_db().get_page(getattr(self, "_history_page", 0))
+        self._history_page = page
+        self._history_records_cache = history
         self.history_table.setUpdatesEnabled(False)
-        self.history_table.setRowCount(total_records)
-        self.history_table.clearSelection()
-
-        self._history_records_cache = list(reversed(history))
-
-        # 3. 批量构建数据
-        for row, record in enumerate(self._history_records_cache):
-            if progress_dialog and progress_dialog.wasCanceled():
-                self.history_table.setRowCount(row)
-                self.status_bar.showMessage(f"已取消加载，当前显示部分数据 ({row}/{total_records})")
-                break
-
-            timestamp_item = QTableWidgetItem(record["timestamp"])
-            path_item = QTableWidgetItem(os.path.basename(record["image_path"]))
-
-            disease_name_display = record["disease_name"]
-            if disease_name_display.startswith("[演示]"):
-                disease_name_display = disease_name_display[4:]
-
-            disease_item = QTableWidgetItem(disease_name_display)
-            confidence_item = QTableWidgetItem(f"{record['confidence']:.2f}")
-            timestamp_item.setData(Qt.UserRole, record["record_id"])
-
-            for item in [timestamp_item, path_item, disease_item, confidence_item]:
-                item.setFlags(item.flags() & ~Qt.ItemIsEditable)
-
-            view_item = QTableWidgetItem("查看详情")
-            view_item.setTextAlignment(Qt.AlignCenter)
-            view_item.setForeground(QBrush(QColor("white")))
-            view_item.setBackground(QBrush(QColor(self.accent_color)))
-            view_item.setFlags(view_item.flags() & ~Qt.ItemIsEditable)
-
-            self.history_table.setItem(row, 0, timestamp_item)
-            self.history_table.setItem(row, 1, path_item)
-            self.history_table.setItem(row, 2, disease_item)
-            self.history_table.setItem(row, 3, confidence_item)
-            self.history_table.setItem(row, 4, view_item)
-
-            # 大数据量时才刷新进度条（每 200 条一次，减少 UI 开销）
-            if progress_dialog and (row % 200 == 0 or row == total_records - 1):
-                progress_dialog.setValue(row + 1)
-                progress_dialog.setLabelText(f"正在极速渲染数据... ({row + 1} / {total_records})")
-                QApplication.processEvents()
-
-        # 4. 列宽设置
-        self.history_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
-        self.history_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.history_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.history_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)
-        self.history_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Fixed)
-        self.history_table.setColumnWidth(0, 180)
-        self.history_table.setColumnWidth(2, 200)
-        self.history_table.setColumnWidth(3, 100)
-        self.history_table.setColumnWidth(4, 120)
-
-        # 5. 恢复表格重绘
-        self.history_table.setUpdatesEnabled(True)
-
-        if not (progress_dialog and progress_dialog.wasCanceled()):
-            self.status_bar.showMessage(f"历史记录加载完成（共 {total_records} 条）")
+        try:
+            self.history_table.clearSelection()
+            self.history_table.setRowCount(len(history))
+            self.history_table.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
+            for row, record in enumerate(history):
+                values = [record["timestamp"], os.path.basename(record["image_path"] or ""), record["disease_name"], f"{record['confidence']:.1%}", "查看详情"]
+                for col, value in enumerate(values):
+                    item = QTableWidgetItem(value)
+                    item.setFlags(item.flags() & ~Qt.ItemIsEditable)
+                    if col == 0:
+                        item.setData(Qt.UserRole, record["record_id"])
+                    self.history_table.setItem(row, col, item)
+            self.history_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        finally:
+            self.history_table.setUpdatesEnabled(True)
+        if hasattr(self, "history_page_label"):
+            self.history_page_label.setText(f"第 {page+1} / {max(1,(total+99)//100)} 页 · 共 {total} 条 · 最新在前")
+            self.history_previous.setEnabled(page > 0)
+            self.history_next.setEnabled((page+1)*100 < total)
+        self.status_bar.showMessage(f"历史记录：本页 {len(history)} 条，共 {total} 条")
 
     def delete_selected_history(self):
         """删除选中的历史记录 (SQLite)"""
@@ -4214,80 +3137,12 @@ class MainWindow(QMainWindow):
                 self.show_message_box("错误", f"清空历史记录失败: {str(e)}")
 
     def _generate_demo_data(self):
-        """生成 30 天模拟检测数据，用于趋势分析演示"""
-        import random
-        db = get_history_db()
-
-        diseases = ["Diabetic Retinopathy", "Normal", "Myopia",
-                     "AMD", "Cataract", "Glaucoma", "Hypertensive Retinopathy", "Other"]
-        # 权重：糖尿病视网膜病变最常见
-        weights = [50, 20, 15, 5, 4, 3, 3, 2]
-
-        base_date = datetime.now() - timedelta(days=30)
-        # 清除旧的演示数据（直接用 SQL，避开 get_all 的 LIMIT 500 限制）
-        with sqlite3.connect(db.db_path) as conn:
-            conn.execute("DELETE FROM records WHERE disease_name LIKE '[演示]%'")
-            conn.commit()
-
-        records_added = 0
-        for day_offset in range(30):
-            date = base_date + timedelta(days=day_offset)
-            # 每天 15-30 条记录，周末少一些
-            day_count = random.randint(150, 250) if date.weekday() < 5 else random.randint(50, 100)
-            for _ in range(day_count):
-                disease = random.choices(diseases, weights=weights, k=1)[0]
-                confidence = round(random.uniform(0.82, 0.99), 4)
-                timestamp = date.strftime("%Y-%m-%d") + f" {random.randint(8,18):02d}:{random.randint(0,59):02d}:{random.randint(0,59):02d}"
-                db.add(
-                    record_id=str(uuid.uuid4()),
-                    timestamp=timestamp,
-                    image_path=f"demo/eye_scan_{day_offset}_{records_added}.jpg",
-                    disease_name=f"[演示]{disease}",
-                    confidence=confidence
-                )
-                records_added += 1
-
-        return records_added
+        return get_history_db().generate_demo_data()
 
     def show_trend_analysis(self):
+        plt, FigureCanvas = load_plotting()
         """显示病情趋势分析"""
-        # 加载历史记录
-        history = self.load_history_records()
-        if not history:
-            self.show_message_box("提示", "暂无历史记录,无法分析趋势。")
-            return
-
-        # 按日期统计
-        date_count = {}
-        disease_count = {}
-        date_disease = {}  # 按日期和疾病分类
-
-        for rec in history:
-            try:
-                date = datetime.strptime(rec['timestamp'], "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
-                disease = rec['disease_name']
-
-                # 去掉演示标记前缀
-                if disease.startswith('[演示]'):
-                    disease = disease[4:]
-                # 过滤非标准数据：对话记录、解析失败的兜底值等
-                if disease.startswith('[') or disease == "未知":
-                    continue
-
-                # 统计每日总数
-                date_count[date] = date_count.get(date, 0) + 1
-
-                # 统计疾病总数
-                disease_count[disease] = disease_count.get(disease, 0) + 1
-
-                # 统计每日各疾病数量
-                if date not in date_disease:
-                    date_disease[date] = {}
-                date_disease[date][disease] = date_disease[date].get(disease, 0) + 1
-
-            except Exception as e:
-                print(f"解析历史记录错误: {e}")
-                continue
+        date_count, disease_count, date_disease = get_history_db().trend_counts()
 
         if not date_count:
             self.show_message_box("提示", "没有有效的历史记录数据。")
@@ -4295,7 +3150,7 @@ class MainWindow(QMainWindow):
 
         # 创建对话框
         dialog = QDialog(self)
-        dialog.setWindowTitle("病情发展趋势分析")
+        dialog.setWindowTitle("分类记录统计（排除演示数据，不代表病情变化）")
         dialog.resize(1000, 800)
         dialog.setStyleSheet(f"""
             QDialog {{
@@ -4401,15 +3256,15 @@ class MainWindow(QMainWindow):
 
         # 日期趋势折线图
         fig1, ax1 = plt.subplots(figsize=(10, 5))
-        fig1.set_facecolor('#2d3748')
-        ax1.set_facecolor('#2d3748')
+        fig1.set_facecolor('#242C37')
+        ax1.set_facecolor('#242C37')
 
         dates = sorted(date_count.keys())
         values = [date_count[d] for d in dates]
 
-        ax1.plot(dates, values, marker='o', color='#00E5FF', linewidth=3.5, markersize=10,
+        ax1.plot(dates, values, marker='o', color='#4DD6B4', linewidth=3.5, markersize=10,
                  markeredgecolor='white', markeredgewidth=1.5)
-        ax1.fill_between(range(len(dates)), values, alpha=0.1, color='#00E5FF')
+        ax1.fill_between(range(len(dates)), values, alpha=0.1, color='#4DD6B4')
         ax1.set_title('每日检测数量趋势', color='white', pad=20, fontsize=14, fontweight='bold')
         ax1.set_xlabel('日期', color='white')
         ax1.set_ylabel('检测数量', color='white')
@@ -4434,11 +3289,11 @@ class MainWindow(QMainWindow):
 
         # 疾病分布饼图
         fig2, (ax2, ax3) = plt.subplots(1, 2, figsize=(10, 5))
-        fig2.set_facecolor('#2d3748')
+        fig2.set_facecolor('#242C37')
 
         # 饼图
-        ax2.set_facecolor('#2d3748')
-        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF', '#FF9800']
+        ax2.set_facecolor('#242C37')
+        theme_colors = ['#4DD6B4', '#51C5E3', '#F1B761', '#A7C98B', '#B7A1D8', '#E58C89', '#8BC4CB', '#CBB394']
         wedges, texts, autotexts = ax2.pie(
             list(disease_count.values()),
             labels=list(disease_count.keys()),
@@ -4446,7 +3301,7 @@ class MainWindow(QMainWindow):
             startangle=140,
             colors=theme_colors[:len(disease_count)],
             textprops={'color': 'white', 'fontweight': 'bold'},
-            wedgeprops={'edgecolor': '#2d3748', 'linewidth': 1.5}
+            wedgeprops={'edgecolor': '#242C37', 'linewidth': 1.5}
         )
         ax2.set_title('疾病分布比例', color='white', pad=20, fontsize=14, fontweight='bold')
 
@@ -4458,7 +3313,7 @@ class MainWindow(QMainWindow):
             autotext.set_fontweight('bold')
 
         # 柱状图
-        ax3.set_facecolor('#2d3748')
+        ax3.set_facecolor('#242C37')
         colors_bar = theme_colors[:len(disease_count)]
         bars = ax3.bar(list(disease_count.keys()), list(disease_count.values()), color=colors_bar)
         for bar in bars:
@@ -4477,7 +3332,7 @@ class MainWindow(QMainWindow):
         canvas2 = FigureCanvas(fig2)
         canvas2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         disease_layout.addWidget(canvas2, 1)
-        canvas2.draw()
+        canvas2.draw_idle()
 
         tab_widget.addTab(disease_tab, "疾病分布")
 
@@ -4487,15 +3342,15 @@ class MainWindow(QMainWindow):
 
         # 疾病趋势折线图
         fig3, ax4 = plt.subplots(figsize=(10, 5))
-        fig3.set_facecolor('#2d3748')
-        ax4.set_facecolor('#2d3748')
+        fig3.set_facecolor('#242C37')
+        ax4.set_facecolor('#242C37')
 
         # 准备数据
         diseases = sorted(list(disease_count.keys()))
         dates_sorted = sorted(date_disease.keys())
 
         # 每种疾病一个线条
-        theme_colors = ['#00E5FF', '#FF4081', '#FFC400', '#00E676', '#E040FB', '#FF5252', '#448AFF', '#FF9800']
+        theme_colors = ['#4DD6B4', '#51C5E3', '#F1B761', '#A7C98B', '#B7A1D8', '#E58C89', '#8BC4CB', '#CBB394']
 
         for i, disease in enumerate(diseases):
             values = []
@@ -4512,7 +3367,7 @@ class MainWindow(QMainWindow):
         ax4.tick_params(axis='x', rotation=45, colors='white')
         ax4.tick_params(axis='y', colors='white')
         ax4.grid(color='#4a5568', linestyle='--', linewidth=0.5)
-        ax4.legend(facecolor='#2d3748', edgecolor='#2d3748', labelcolor='white')
+        ax4.legend(facecolor='#242C37', edgecolor='#242C37', labelcolor='white')
 
         for spine in ax4.spines.values():
             spine.set_edgecolor('#4a5568')
@@ -4521,7 +3376,7 @@ class MainWindow(QMainWindow):
         canvas3 = FigureCanvas(fig3)
         canvas3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         trend_layout.addWidget(canvas3, 1)
-        canvas3.draw()
+        canvas3.draw_idle()
 
         tab_widget.addTab(trend_tab, "疾病趋势")
 
@@ -4566,74 +3421,59 @@ class MainWindow(QMainWindow):
                 try:
                     count = self._generate_demo_data()
                     QMessageBox.information(dialog, "成功",
-                        f"已生成 {count} 条演示数据！\n弹窗将自动关闭，请重新点击「📈 病情趋势分析」查看图表。")
+                        f"已生成 {count} 条演示数据！\n弹窗将自动关闭，演示记录可在历史页查看，不计入真实分类统计。")
                     dialog.accept()
                 except Exception as ex:
                     QMessageBox.critical(dialog, "生成失败", f"错误: {ex}")
         demo_btn.clicked.connect(generate_demo)
 
         btn_row = QHBoxLayout()
+        export_button=QPushButton("导出统计图与数据")
+        export_button.clicked.connect(lambda: self.export_analysis(
+            "history", [fig1,fig2,fig3], ["日期","类别","数量"],
+            [(day,disease,count) for day,values in sorted(date_disease.items()) for disease,count in sorted(values.items())]))
+        btn_row.addWidget(export_button)
         btn_row.addWidget(demo_btn)
         btn_row.addStretch()
         btn_row.addWidget(close_btn)
         layout.addLayout(btn_row)
 
-        dialog.exec_()
+        style_dialog(dialog, self)
+        try:
+            dialog.exec_()
+        finally:
+            for figure in (fig1, fig2, fig3):
+                plt.close(figure)
 
     # ------------------------------------------------------------------
     #  结果展示 & AI 建议
     # ------------------------------------------------------------------
     def parse_and_show_results(self, results):
-        # 解析结果并显示
-        if results and len(results) > 0:
-            current_results = results[0]
-
-            # 使用ResultProcessor解析结果
-            parsed = False
-            if self.prediction_output:
-                parsed = self.result_processor.parse_prediction_output(self.prediction_output)
-
-            if not parsed:
-                parsed = self.result_processor.parse_model_results(current_results)
-
-            if not parsed:
-                self.result_processor.get_fallback_result()
-
-            # 获取解析后的结果
-            disease_name = self.result_processor.current_disease
-            confidence = self.result_processor.current_confidence
-
-            self.current_disease = disease_name
-            self.current_confidence = confidence
-
-            # 保存所有类别的置信度
-            self.all_classes_confidence = {}
-            if hasattr(current_results, 'probs') and hasattr(current_results.probs, 'data'):
-                for i, conf in enumerate(current_results.probs.data.tolist()):
-                    if i < len(self.detector.class_names):
-                        class_name = self.detector.class_names.get(i, f"类别{i}")
-                        self.all_classes_confidence[class_name] = conf
-
-            self.display_results()
-            self.show_disease_result(self.current_disease, self.current_confidence)
-        else:
-            self.show_message_box("错误", "未能解析到有效的检测结果。")
+        if self.detector is None or results is None or len(results) != 1:
+            self._classification_failed("没有有效的单图分类结果")
+            return False
+        outcome = self.detector.parse_result(results[0])
+        if not outcome.success:
+            self._classification_failed(outcome.error)
+            return False
+        self.current_results = results
+        self.current_disease = outcome.disease_name
+        self.current_confidence = outcome.confidence
+        self._update_classification_summary()
+        self.all_classes_confidence = outcome.probabilities
+        self.result_processor.current_disease = outcome.disease_name
+        self.result_processor.current_confidence = outcome.confidence
+        update_probability_panel(self, outcome.probabilities)
+        return True
 
     def display_results(self):
-        # 显示检测结果
-        if self.current_results is not None and len(self.current_results) > 0:
-            annotated_image = self.current_results[0].plot()
-            self.result_processor.display_annotated_image(annotated_image, self.detected_image_label)
-        else:
-            self.detected_image_label.setText("无法显示检测结果")
+        update_probability_panel(self, getattr(self, "all_classes_confidence", {}))
 
     def show_disease_result(self, disease_name, confidence, image_path=None, image=None):
         """显示疾病检测结果,采用全新现代医疗UI"""
-        if not disease_name or disease_name == "未知":
-            disease_name = "AMD"
-            confidence = 0.98
-            self.current_disease = disease_name
-            self.current_confidence = confidence
+        if not valid_prediction(disease_name, confidence):
+            self._classification_failed("没有有效分类结果")
+            return
 
         if image is None:
             image = self.current_image
@@ -4827,15 +3667,17 @@ class MainWindow(QMainWindow):
             else:
                 dialog.accept()
         QShortcut(QKeySequence("Esc"), dialog, activated=esc_result)
+        style_dialog(dialog, self)
         dialog.exec_()
     
 
     def show_results(self):
-        """显示检测结果"""
-        if hasattr(self, 'current_results') and self.current_results:
-            self.parse_and_show_results(self.current_results)
+        if valid_prediction(getattr(self,"current_disease",None),getattr(self,"current_confidence",0)):
+            self.right_tab_widget.setCurrentIndex(0)
+            self.result_card.setFocus()
+            self.status_bar.showMessage("八类概率已在右侧完整展示")
         else:
-            self.show_message_box("提示", "请先完成检测")
+            self.show_message_box("提示", "请先完成分类")
 
     def display_image(self, image, label):
         """显示图像到指定的QLabel"""
@@ -4862,15 +3704,13 @@ class MainWindow(QMainWindow):
     def load_saved_api_key(self):
         """从文件加载保存的API密钥"""
         try:
-            api_key_file = "saved_api_key.txt"
+            api_key_file = str(PROJECT_ROOT / "saved_api_key.txt")
             if os.path.exists(api_key_file):
                 with open(api_key_file, 'r', encoding='utf-8') as f:
                     saved_data = f.read().strip()
                     # 尝试Base64解码, 兼容旧版明文格式
-                    try:
-                        saved_key = base64.b64decode(saved_data).decode('utf-8')
-                    except Exception:
-                        saved_key = saved_data  # 旧版明文兼容
+                    from src.core.credentials import decode_key
+                    saved_key = decode_key(saved_data)
                     if saved_key and saved_key.startswith('sk-'):
                         # 确保deepseek_api已初始化
                         if self.deepseek_api is None:
@@ -4896,93 +3736,41 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("已禁用DeepSeek API,将使用默认建议")
 
     def show_ai_advice(self):
-        """获取并显示AI治疗建议"""
-        if not self.current_disease:
-            self.show_message_box("提示", "请先完成检测")
+        disease, confidence = getattr(self, 'current_disease', None), getattr(self, 'current_confidence', None)
+        if not valid_prediction(disease, confidence):
+            self.show_message_box("没有有效分类", "请先完成有效图像分类")
             return
-        
-        # 显示加载状态
-        self.advice_text.setHtml(f"""
-        <html>
-        <head>
-        <style>
-            body {{
-                font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
-                color: {self.text_color};
-                background-color: {self.secondary_bg};
-                line-height: 1.6;
-                padding: 10px;
-                text-align: center;
-            }}
-            .loading {{
-                color: {self.highlight_color};
-                font-size: 16pt;
-                font-weight: bold;
-                margin: 40px 0;
-            }}
-            .progress {{
-                color: {self.text_color};
-                font-size: 13pt;
-                margin: 20px 0;
-            }}
-        </style>
-        </head>
-        <body>
-            <div class="loading">🤖 AI正在生成治疗建议,请稍候...</div>
-            <div class="progress">正在分析检测结果：{self.current_disease} (置信度: {self.current_confidence:.2f})</div>
-        </body>
-        </html>
-        """)
-        
-        # 更新状态栏
-        self.status_bar.showMessage("正在生成AI治疗建议,请稍候...")
-        QApplication.processEvents()
+        if self.deepseek_api is None:
+            self.deepseek_api = DeepSeekAPI(config=APP_CONFIG)
+        client = self.deepseek_api
+        use_online = self.use_api_checkbox.isChecked() and bool(client.api_key)
+        self._report_generation = getattr(self, '_report_generation', 0) + 1
+        generation = self._report_generation
+        signature = (disease, confidence, id(self.current_results))
+        self.advice_text.setPlainText(f"正在为分类结果{disease}生成辅助参考说明...")
+        self.advice_button.setEnabled(False)
+        self.status_bar.showMessage("正在生成辅助说明，界面仍可操作")
+        def fetch():
+            try:
+                result = client.request_treatment_advice(disease, confidence) if use_online else AdviceResult(
+                    False, client._get_default_advice(disease), 'local_reference', 'online_disabled_or_missing_key')
+            except Exception as error:
+                result = AdviceResult(False, f"辅助建议请求失败：{error}", 'error', str(error))
+            self.report_ready.emit({'generation': generation, 'signature': signature, 'advice': result})
+        threading.Thread(target=fetch, daemon=True).start()
 
-        try:
-            # 确保DeepSeek API已初始化
-            if self.deepseek_api is None:
-                self.deepseek_api = DeepSeekAPI()
-            
-            # 检查是否启用API并且有有效密钥
-            if (self.use_api_checkbox.isChecked() and 
-                hasattr(self.deepseek_api, 'api_key') and 
-                self.deepseek_api.api_key):
-                # 使用API获取建议
-                advice = self.deepseek_api.get_treatment_advice(self.current_disease, self.current_confidence)
-                self.status_bar.showMessage("AI治疗建议生成完成")
-            else:
-                # 使用默认建议
-                advice = self.deepseek_api._get_default_advice(self.current_disease)
-                self.status_bar.showMessage("使用默认治疗建议")
-            
-            # 直接在主界面显示建议
-            self.advice_text.setHtml(self.format_advice_html(advice))
-            
-        except Exception as e:
-            self.status_bar.showMessage(f"获取AI建议失败: {str(e)}")
-            # 设置默认建议文本
-            default_advice = f"""# {self.current_disease} - AI治疗建议
-
-无法连接到AI服务,请检查您的API密钥或网络连接。
-
-## 基本建议
-
-- 保持眼部清洁
-- 避免揉眼
-- 如症状加重,请及时就医
-- 定期进行眼科检查
-
-## 注意事项
-
-如果出现以下症状,请立即就医：
-- 视力突然下降
-- 剧烈眼痛
-- 眼红持续不退
-- 闪光或飞蚊症
-"""
-            
-            # 显示错误信息
-            self.advice_text.setHtml(self.format_advice_html(default_advice))
+    def _apply_report_reply(self, payload):
+        signature = (getattr(self, 'current_disease', None), getattr(self, 'current_confidence', None), id(self.current_results))
+        if payload['generation'] != getattr(self, '_report_generation', None) or payload['signature'] != signature:
+            return False
+        if not valid_prediction(signature[0], signature[1]):
+            return False
+        result = payload['advice']
+        self.advice_text.setHtml(self.format_advice_html(result.content))
+        self.advice_button.setEnabled(True)
+        status = 'DeepSeek辅助说明已返回' if result.success else '在线服务未使用或失败；请查看标明来源的参考说明'
+        self.status_bar.showMessage(status)
+        return True
 
     def show_fullscreen_advice(self):
         """全屏显示DeepSeek AI诊疗建议"""
@@ -5004,6 +3792,17 @@ class MainWindow(QMainWindow):
         fullscreen_text.setHtml(self.advice_text.toHtml())
         fullscreen_text.setStyleSheet(self.advice_text.styleSheet())
 
+        reading_bar=QHBoxLayout();reading_bar.addStretch();reading_bar.addWidget(QLabel('阅读字号'))
+        reading_size=QComboBox()
+        for value in (12,14,16,18,20,22,24,28):reading_size.addItem(str(value),value)
+        initial=self.reading_size_combo.currentData() if hasattr(self,'reading_size_combo') else 14
+        reading_size.setCurrentIndex(reading_size.findData(initial))
+        def resize_reading():
+            from src.visualization.rich_text import apply_reading_font
+            apply_reading_font(fullscreen_text,reading_size.currentData())
+        reading_size.currentIndexChanged.connect(resize_reading)
+        reading_bar.addWidget(reading_size);layout.addLayout(reading_bar)
+        resize_reading()
         layout.addWidget(fullscreen_text)
 
         # 退出全屏按钮
@@ -5036,188 +3835,12 @@ class MainWindow(QMainWindow):
 
         # 以最大化模式显示对话框
         dialog.showMaximized()
+        style_dialog(dialog, self)
         dialog.exec_()
 
     def format_advice_html(self, markdown_text):
-        """将Markdown文本转换为美观的HTML格式（返回 body 片段，不嵌套完整 HTML 文档）"""
-
-        def _process_bold(text):
-            """将粗体标记转为 HTML 标签，兼容 DeepSeek 的不规范格式"""
-            # 标准 **粗体**
-            text = re.sub(r'\*\*(.+?)\*\*',
-                         rf'<b style="color:{self.accent_color};">\1</b>', text)
-            # DeepSeek 偶发少写星号：*text** → 当作粗体
-            text = re.sub(r'(?<!\*)\*([^*\n]+?)\*\*(?!\*)',
-                         rf'<b style="color:{self.accent_color};">\1</b>', text)
-            # DeepSeek 偶发少写星号：**text* → 当作粗体
-            text = re.sub(r'(?<!\*)\*\*([^*\n]+?)\*(?!\*)',
-                         rf'<b style="color:{self.accent_color};">\1</b>', text)
-            return text
-
-        def _process_inline(text):
-            """处理行内格式"""
-            return _process_bold(text)
-
-        lines = markdown_text.split('\n')
-        html_content = ""
-
-        section_open = False
-        in_numbered_list = False
-        in_bullet_section = False
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            stripped = line.strip()
-
-            # 空行 — 关闭已打开的区域
-            if not stripped:
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if in_bullet_section:
-                    html_content += "</div>\n"
-                    in_bullet_section = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                i += 1
-                continue
-
-            # ── 标题处理（先关闭所有已打开块，防止结构嵌套错乱）──
-            if stripped.startswith('# '):
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                html_content += f"<h2 style='color:{self.accent_color}; font-size:18pt; margin-top:22px; margin-bottom:12px; border-left:5px solid {self.accent_color}; padding:10px 14px; font-weight:bold; background-color:rgba(0,181,216,0.08); border-radius:4px;'>{_process_inline(stripped[2:])}</h2>\n"
-                i += 1
-                continue
-
-            if stripped.startswith('## '):
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                html_content += f"<h3 style='color:{self.highlight_color}; font-size:16pt; margin-top:18px; margin-bottom:10px; border-bottom:2px solid {self.highlight_color}; padding:8px 6px; font-weight:bold; background-color:rgba(128,90,213,0.08); border-radius:4px 4px 0 0;'>{_process_inline(stripped[3:])}</h3>\n"
-                i += 1
-                continue
-
-            if stripped.startswith('### '):
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                html_content += f"<h4 style='color:{self.accent_color}; font-size:15pt; margin-top:14px; margin-bottom:8px; border-left:3px solid {self.accent_color}; padding-left:10px; font-weight:bold;'>{_process_inline(stripped[4:])}</h4>\n"
-                i += 1
-                continue
-
-            if stripped.startswith('#### '):
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                html_content += f"<h5 style='color:{self.highlight_color}; font-size:14pt; margin-top:12px; margin-bottom:6px; font-weight:bold;'>{_process_inline(stripped[5:])}</h5>\n"
-                i += 1
-                continue
-
-            # ── 水平线 ──
-            if stripped == '---' or stripped == '--':
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                html_content += "<hr style='border:none; height:2px; background:#3b4252; margin:20px 0;'>\n"
-                i += 1
-                continue
-
-            # ── 引用块 ──
-            if stripped.startswith('> '):
-                if in_numbered_list:
-                    html_content += "</ol>\n"
-                    in_numbered_list = False
-                if section_open:
-                    html_content += "</div>\n"
-                    section_open = False
-                html_content += f"<blockquote style='border-left:4px solid {self.accent_color}; margin:12px 0; padding:8px 16px; color:#94A3B8; font-style:italic;'>{_process_inline(stripped[2:])}</blockquote>\n"
-                i += 1
-                continue
-
-            # ── 代码块 ──
-            if stripped.startswith('```'):
-                i += 1
-                continue
-
-            # ── 表格 ──
-            if stripped.startswith('|') and stripped.endswith('|'):
-                cells = [c.strip() for c in stripped.split('|')[1:-1]]
-                if not all(c.startswith('---') for c in cells if c):
-                    html_content += f"<div style='font-size:13pt; padding:6px 0; border-bottom:1px solid #3b4252;'>{'  |  '.join(cells)}</div>\n"
-                i += 1
-                continue
-
-            # ── 有序列表 "1." "2." 开头 ──
-            numbered_match = re.match(r'^(\d+)\.\s+(.*)', stripped)
-            if numbered_match:
-                if not section_open:
-                    html_content += f"<div style='border-left:4px solid {self.accent_color}; border-radius:4px; padding:12px 18px; margin:12px 0;'>\n"
-                    section_open = True
-                if not in_numbered_list:
-                    html_content += "<ol style='margin:10px 0; padding-left:22px;'>\n"
-                    in_numbered_list = True
-                content = _process_inline(numbered_match.group(2))
-                html_content += f"<li style='color:{self.text_color}; margin:10px 0; font-size:14pt; line-height:1.7;'>{content}</li>\n"
-                i += 1
-                continue
-
-            # ── 无序列表：- 、 * 、 • 、 · 、 ● ──
-            bullet_match = re.match(r'^[\-\*•·●]\s*(.*)', stripped)
-            if bullet_match and stripped not in ('---', '--'):
-                if not section_open:
-                    html_content += f"<div style='border-left:4px solid {self.accent_color}; border-radius:4px; padding:12px 18px; margin:12px 0;'>\n"
-                    section_open = True
-                    in_bullet_section = True
-                content = _process_inline(bullet_match.group(1))
-                html_content += f"<div style='color:{self.text_color}; margin:10px 0; padding-left:18px; font-size:14pt;'><span style='color:{self.accent_color}; font-weight:bold;'>•</span> {content}</div>\n"
-                i += 1
-                continue
-
-            # ── 普通段落 ──
-            if section_open:
-                html_content += "</div>\n"
-                section_open = False
-            if in_numbered_list:
-                html_content += "</ol>\n"
-                in_numbered_list = False
-            if in_bullet_section:
-                in_bullet_section = False
-
-            html_content += f"<p style='color:{self.text_color}; margin:12px 0; font-size:14pt; line-height:1.8; text-align:justify;'>{_process_inline(stripped)}</p>\n"
-            i += 1
-
-        # 确保所有区块都关闭
-        if in_numbered_list:
-            html_content += "</ol>\n"
-        if section_open or in_bullet_section:
-            html_content += "</div>\n"
-
-        return (
-            f"<div style='font-family:\"Microsoft YaHei\",\"SimHei\",sans-serif; "
-            f"color:{self.text_color}; line-height:1.8; font-size:13pt;'>"
-            f"{html_content}"
-            f"</div>"
-        )
-
-
+        from src.visualization.rich_text import render_text
+        return render_text(markdown_text)
 
     def init_speech_components(self):
         """初始化智能语音识别组件"""
@@ -5304,30 +3927,27 @@ class MainWindow(QMainWindow):
             return sr.Microphone()
 
     def test_microphone(self):
-        """测试麦克风功能（用户手动触发）"""
-        try:
-            print("[DEBUG] 用户触发麦克风测试...")
-            if not hasattr(self, 'recognizer') or not hasattr(self, 'microphone'):
-                # 尝试延迟初始化一次
-                try:
-                    self.recognizer = sr.Recognizer()
-                    self.microphone = sr.Microphone()
-                except Exception:
-                    self.show_message_box("错误", "语音组件未初始化", QMessageBox.Critical)
-                    return False
-                
-            with self.microphone as source:
-                print("[DEBUG] 麦克风访问成功")
-                self.recognizer.adjust_for_ambient_noise(source, duration=1)
-                print("[DEBUG] 环境噪音调整完成")
-                
-            self.show_message_box("成功", "麦克风测试通过！可以正常使用语音功能。", QMessageBox.Information)
-            return True
-            
-        except Exception as e:
-            print(f"[ERROR] 麦克风测试失败: {e}")
-            self.show_message_box("错误", f"麦克风测试失败：{str(e)}\n\n请检查：\n1. 麦克风是否连接\n2. 麦克风权限是否开启\n3. 是否有其他程序占用麦克风", QMessageBox.Critical)
-            return False
+        """Open/calibrate the microphone off the GUI thread."""
+        if not APP_CONFIG.enable_voice or sr is None:
+            self.show_message_box("语音未启用", "请在系统设置中启用语音，并安装语音依赖后重启。")
+            return
+        if self.voice_manager is not None and self.voice_manager.is_recording:
+            self.show_message_box("正在录音", "请先结束语音输入，再测试麦克风。")
+            return
+        def probe(cancel, progress):
+            try:
+                recognizer = sr.Recognizer()
+                with sr.Microphone() as source:
+                    recognizer.adjust_for_ambient_noise(source, duration=1)
+                return True, "麦克风访问与环境噪声采样成功。语音识别效果需要实际录音验证。"
+            except Exception as error:
+                return False, f"麦克风测试失败：{error}。请检查设备、权限与占用情况。"
+        def finished(result):
+            success, message = result
+            self.task_status_label.setText("麦克风测试完成" if success else "麦克风不可用")
+            self.show_message_box("麦克风测试", message,
+                                  QMessageBox.Information if success else QMessageBox.Warning)
+        self._start_job(probe, finished, "正在后台测试麦克风…")
 
     def calibrate_microphone(self):
         """校准麦克风（后台线程）"""
@@ -5472,57 +4092,13 @@ class MainWindow(QMainWindow):
             QApplication.postEvent(self, VoiceRecognitionEvent("error", f"识别异常: {str(e)}"))
 
     def speak_text(self, text):
-        """TTS 语音播放：edge-tts 在线 → pyttsx3 离线回退"""
-        import re
-        clean = text
-        clean = re.sub(r'<[^>]+>', '', clean)
-        clean = re.sub(r'\*\*([^*]+)\*\*', r'\1', clean)
-        clean = re.sub(r'\*([^*]+)\*', r'\1', clean)
-        clean = re.sub(r'#+\s*', '', clean)
-        clean = re.sub(r'[-*•]\s+', '，', clean)
-        clean = re.sub(r'\d+\.\s+', '', clean)
-        clean = re.sub(r'`{1,3}[^`]*`{1,3}', '', clean)
-        clean = re.sub(r'\n+', '。', clean)
-        clean = re.sub(r'\s+', ' ', clean).strip()
-        if len(clean) > 100:
-            clean = clean[:100] + "。具体建议请查看界面。"
-        if not clean.strip():
-            return
+        try:
+            from src.visualization.speech_player import SpeechPlayer
+            if not hasattr(self,'_speech_player'):self._speech_player=SpeechPlayer(self)
+            self._speech_player.speak(text)
+        except ImportError:
+            self.status_bar.showMessage('当前环境缺少 Qt 多媒体组件，无法在应用内播放语音')
 
-        print(f"[DEBUG] TTS: 开始播放 ({len(clean)}字)")
-
-        def safe_speak():
-            # 方案1: edge-tts 在线语音（用 vlc 或 ffplay 播放，不受 mp3 文件关联影响）
-            try:
-                import subprocess, tempfile
-                fd, mp3 = tempfile.mkstemp(suffix='.mp3')
-                import os as _os; _os.close(fd)
-                subprocess.run(['edge-tts', '--voice', 'zh-CN-XiaoxiaoNeural', '--rate=+10%',
-                    '--text', clean, '--write-media', mp3],
-                    capture_output=True, check=True, timeout=20)
-                # 直接用 wmplayer.exe 绝对路径播放（不弹第三方播放器）
-                subprocess.Popen(
-                    ['C:/Program Files/Windows Media Player/wmplayer.exe', '/play', '/close', mp3],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                print("[DEBUG] TTS(edge-tts): 播放完成")
-                return
-            except Exception:
-                pass
-            # 方案2: pyttsx3 离线引擎（无需网络）
-            try:
-                import pyttsx3
-                engine = pyttsx3.init()
-                for v in engine.getProperty('voices'):
-                    if 'chinese' in v.name.lower() or 'zh' in v.id.lower():
-                        engine.setProperty('voice', v.id); break
-                engine.setProperty('rate', 160); engine.setProperty('volume', 0.9)
-                engine.say(clean); engine.runAndWait()
-                print("[DEBUG] TTS(pyttsx3): 播放完成")
-            except Exception as e:
-                print(f"[DEBUG] TTS: 所有方案失败 {e}")
-
-        threading.Thread(target=safe_speak, daemon=True).start()
-    
     def _summarize_for_tts(self, markdown_text):
         """从 AI 回复中提取简短摘要（≤100字），用于语音播报"""
         import re
@@ -5616,141 +4192,34 @@ class MainWindow(QMainWindow):
 
 
     def send_chat_message_with_progress(self):
-        """发送消息并显示进度条"""
-        question = self.chat_input.toPlainText().strip()
-        if not question:
-            self.show_message_box("提示", "请输入您的问题或症状描述。", QMessageBox.Information)
-            return
-
-        self._last_user_question = question[:500]
-
-        # 先追加用户消息到聊天框
-        user_block = f"""
-        <div style='margin-bottom: 16px; padding: 10px 14px; background-color: #282C34; border-radius: 8px; border-left: 3px solid #805AD5;'>
-            <div style='color: #805AD5; font-weight: bold; margin-bottom: 4px;'>👤 您 ({datetime.now().strftime('%H:%M:%S')}):</div>
-            <div style='color: #E5E9F0; padding-left: 8px;'>{question}</div>
-        </div>
-        """
-        # 追加 AI 正在思考的占位块
-        thinking_block = f"""
-        <div style='margin-bottom: 20px; padding: 12px; background-color: #282C34; border-radius: 8px; border-left: 3px solid #00B5D8;'>
-            <div style='color: #00B5D8; font-weight: bold; margin-bottom: 6px;'>🩺 AI 正在回复...</div>
-            <div style='color: #94A3B8; padding-left: 10px; font-style: italic;'>请稍候, AI 正在分析您的问题并生成专业回复...</div>
-        </div>
-        """
-
-        current_html = self.chat_display.toHtml()
-        if "DeepSeek 诊疗引擎" in current_html or "对话历史已清除" in current_html or len(current_html) < 500:
-            wrapper = f"<html><body style='color:{self.text_color}; background:{self.primary_color}; font-family:Microsoft YaHei;'>{user_block}{thinking_block}</body></html>"
-            self.chat_display.setHtml(wrapper)
-        else:
-            self.chat_display.setHtml(current_html.replace("</body>", user_block + thinking_block + "</body>"))
-
-        self.chat_input.clear()
-        self.show_ai_progress(True)
-        self.ai_progress_bar.setFormat("🤔 AI 正在分析您的问题...")
-
-        threading.Thread(target=self.process_ai_response, daemon=True).start()
+        from src.visualization.conversation import send
+        send(self, APP_CONFIG)
 
     def process_ai_response(self):
-        """在后台处理AI回复"""
         try:
             message = getattr(self, '_last_user_question', '')
             if not message:
-                QApplication.postEvent(self, AIResponseEvent("error", "请输入您的问题或症状描述。"))
+                QApplication.postEvent(self, AIResponseEvent("error", "请输入有效问题"))
                 return
-
-            # 附加上下文：当前检测结果
+            if self.deepseek_api is None:
+                self.deepseek_api = DeepSeekAPI(config=APP_CONFIG)
+            key = getattr(self, '_chat_api_key', '')
+            if key and key != self.deepseek_api.api_key:
+                self.deepseek_api.set_api_key(key)
             disease = getattr(self, 'current_disease', None)
             confidence = getattr(self, 'current_confidence', None)
-            detection_context = ""
-            if disease and disease != "未知" and confidence is not None:
-                detection_context = (
-                    f"\n\n[系统上下文] 患者当前已完成的眼部AI检测结果："
-                    f"检测疾病为「{disease}」，置信度 {confidence:.2f}。"
-                    f"请结合此检测结果回答患者问题。"
-                )
-                message = message + detection_context
-
-            QApplication.postEvent(self, AIResponseEvent("progress", "正在连接 AI 引擎...", 25))
-
-            api_key = self.api_key_input.text().strip()
-            if not api_key:
-                # 尝试从保存的文件加载
-                try:
-                    if self.deepseek_api and self.deepseek_api.api_key:
-                        api_key = self.deepseek_api.api_key
-                except Exception:
-                    pass
-            if not api_key:
-                QApplication.postEvent(self, AIResponseEvent("progress", "生成默认建议...", 60))
-                time.sleep(0.3)
-                response = """# 🩺 AI医疗咨询建议
-
-## 💡 一般建议
-
-### 🔍 日常护理
-1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
-2. **保持良好的用眼习惯** - 适当休息, 避免长时间用眼疲劳
-3. **注意眼部卫生** - 保持手部清洁, 避免用手直接接触眼部
-
-### ⚠️ 重要提醒
-- 如有不适症状, 请及时就医
-- 以上建议仅供参考, 不能替代专业医疗诊断
-
----
-
-## 🚀 获取更专业建议
-如需更详细的医疗建议, 建议您:
-- 启用 **DeepSeek API** 获取AI专业分析
-- 咨询专业眼科医生进行详细检查
-
-*💊 健康提示: 早发现、早治疗是眼部疾病防治的关键*"""
-                QApplication.postEvent(self, AIResponseEvent("progress", "完成", 100))
-                time.sleep(0.2)
-                QApplication.postEvent(self, AIResponseEvent("completed", response))
+            if valid_prediction(disease, confidence):
+                message += f"\n[图像分类上下文，非临床诊断] {disease}，概率{confidence:.4f}"
+            QApplication.postEvent(self, AIResponseEvent("progress", "正在请求DeepSeek...", 50))
+            advice_result = self.deepseek_api.request_custom_advice(message)
+            response = advice_result.content
+            if not advice_result.success:
+                QApplication.postEvent(self, AIResponseEvent("error", response))
                 return
-
-            QApplication.postEvent(self, AIResponseEvent("progress", "正在请求 AI 分析...", 50))
-            ai_service = MedicalAIService(api_key)
-            # 请求详细回复
-            response = ai_service.get_custom_advice(message)
-
-            # 同时让 AI 生成一个100字左右的简短摘要用于语音播报
-            tts_summary = response  # 兜底
-            try:
-                summary_prompt = f"请用100字以内简短总结以下医疗建议的核心要点，不要扩展：" + message
-                tts_summary = ai_service.get_custom_advice(summary_prompt)
-                if not tts_summary or len(tts_summary) > 200:
-                    tts_summary = response
-            except Exception:
-                pass
-
-            if not response or "请先设置有效的API密钥" in response:
-                QApplication.postEvent(self, AIResponseEvent("progress", "生成默认建议...", 85))
-                time.sleep(0.2)
-                response = """# 🩺 AI医疗咨询建议
-
-## 💡 一般建议
-1. **定期进行眼部检查** - 建议每年至少进行一次专业眼科检查
-2. **保持良好的用眼习惯** - 适当休息, 避免长时间用眼疲劳
-3. **注意眼部卫生** - 保持手部清洁, 避免用手直接接触眼部
-
-### ⚠️ 重要提醒
-- 如有不适症状, 请及时就医
-- 以上建议仅供参考, 不能替代专业医疗诊断
-
----
-💡 **提示：** 可以在DeepSeek官网查看密钥状态和余额"""
-            QApplication.postEvent(self, AIResponseEvent("progress", "正在组织回复...", 85))
-            time.sleep(0.3)
-
-            QApplication.postEvent(self, AIResponseEvent("progress", "完成", 100))
-            time.sleep(0.2)
-            QApplication.postEvent(self, AIResponseEvent("completed", response, tts=tts_summary))
-
-        except Exception as e:
-            QApplication.postEvent(self, AIResponseEvent("error", str(e)))
+            summary = self._summarize_for_tts(response)
+            QApplication.postEvent(self, AIResponseEvent("completed", response, tts=summary))
+        except Exception as error:
+            QApplication.postEvent(self, AIResponseEvent("error", f"AI调用失败：{error}"))
 
     def customEvent(self, event):
         """处理自定义事件"""
@@ -6011,8 +4480,8 @@ class MainWindow(QMainWindow):
                 self.set_audio_device('board')
 
             # 2. 向开发板发送 UDP 唤醒指令
-            board_ip = "172.20.10.8"
-            target_port = 5006
+            board_ip = read_system_config()["network"]["board_ip"]
+            target_port = NETWORK_PORTS.get("VOICE_RECEIVE_PORT", 5006)
 
             command = {
                 "type": "pc_control",
@@ -6312,7 +4781,7 @@ class MainWindow(QMainWindow):
             command_bytes = command_json.encode('utf-8')
             
             # 发送到开发板音频端口
-            board_ip = getattr(self, 'board_ip', '172.20.10.2')  # 默认开发板IP
+            board_ip = read_system_config()["network"]["board_ip"]  # 默认开发板IP
             sock.sendto(command_bytes, (board_ip, NETWORK_PORTS.get("VOICE_RECEIVE_PORT", 5006)))
             sock.close()
             

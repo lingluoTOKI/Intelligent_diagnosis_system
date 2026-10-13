@@ -18,15 +18,20 @@ import sys
 import os
 from datetime import datetime
 import queue
+from pathlib import Path
 
 # 添加主系统路径以导入诊断模块
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from configs.runtime_config import load_app_config
+from configs.system_config import NETWORK_PORTS
+from src.core.classification import EyeDiseaseDetector
+from src.core.llm import DeepSeekAPI
 
 # ===== 配置参数 =====
 SERVER_IP = "0.0.0.0"      # 服务器绑定IP
-CAMERA_PORT = 5002         # 接收摄像头数据端口
-DIAGNOSIS_PORT = 5003      # 发送诊断结果端口
-COMMAND_PORT = 5004        # 接收命令控制端口
+CAMERA_PORT = NETWORK_PORTS["CAMERA_PORT"]         # 接收摄像头数据端口
+DIAGNOSIS_PORT = NETWORK_PORTS["DIAGNOSIS_PORT"]      # 发送诊断结果端口
+COMMAND_PORT = NETWORK_PORTS["COMMAND_PORT"]        # 接收命令控制端口
 
 MAX_PACKET_SIZE = 1400     # 最大数据包大小
 DIAGNOSIS_TIMEOUT = 30     # 诊断超时时间(秒)
@@ -84,151 +89,28 @@ class ImageBuffer:
             self.metadata.pop(client_id, None)
 
 class DiagnosisEngine:
-    """诊断引擎适配器"""
-    
-    def __init__(self):
-        self.detector = None
-        self.processor = None
-        self.init_diagnosis_components()
-    
-    def init_diagnosis_components(self):
-        """初始化诊断组件"""
-        try:
-            # 尝试导入主系统的诊断组件
-            from visualization_test2 import EyeDiseaseDetector, ResultProcessor
-            
-            self.detector = EyeDiseaseDetector()
-            self.processor = ResultProcessor(self.detector)
-            
-            # 尝试加载默认模型
-            default_model_paths = [
-                "models/eye_disease_model.pth",
-                "models/best.pt",
-                "../models/eye_disease_model.pth",
-                "../models/best.pt"
-            ]
-            
-            for model_path in default_model_paths:
-                if os.path.exists(model_path):
-                    print(f"[检查] 加载诊断模型: {model_path}")
-                    if self.detector.load_model(model_path):
-                        print("[成功] 诊断模型加载成功")
-                        break
-            else:
-                print("[警告] 未找到诊断模型，请手动指定模型路径")
-                
-        except ImportError as e:
-            print(f"[警告] 无法导入诊断组件: {e}")
-            print("[配置] 使用模拟诊断模式")
-            self.detector = None
-            self.processor = None
-        except Exception as e:
-            print(f"[错误] 诊断组件初始化失败: {e}")
-            self.detector = None
-            self.processor = None
-    
+    """Headless adapter over the same validated classification service as the GUI."""
+    def __init__(self, config=None, detector=None, api=None):
+        self.config = config or load_app_config()
+        self.detector = detector or EyeDiseaseDetector(self.config)
+        self.api = api or DeepSeekAPI(config=self.config)
+        self.initialization_error = None
+        if detector is None and not self.detector.load_model():
+            self.initialization_error = self.detector.last_error
+            print("分类模型未就绪:", self.initialization_error)
+
     def diagnose_image(self, image):
-        """诊断图像"""
-        try:
-            if self.detector and self.processor:
-                # 使用真实的诊断系统
-                results = self.detector.predict(image)
-                parsed_results = self.processor.parse_model_results(results)
-                
-                if parsed_results:
-                    disease_name = parsed_results.get('disease_name', '未知')
-                    confidence = parsed_results.get('confidence', 0.0)
-                    
-                    # 生成医疗建议
-                    advice = self.generate_medical_advice(disease_name, confidence)
-                    
-                    return {
-                        'success': True,
-                        'disease_name': disease_name,
-                        'confidence': float(confidence),
-                        'advice': advice,
-                        'emergency': confidence > 0.85 and disease_name != '正常',
-                        'timestamp': datetime.now().isoformat(),
-                        'model_info': '眼部疾病检测模型'
-                    }
-                else:
-                    return self.get_fallback_result()
-            else:
-                # 模拟诊断结果
-                return self.simulate_diagnosis(image)
-                
-        except Exception as e:
-            print(f"[错误] 诊断过程出错: {e}")
-            return {
-                'success': False,
-                'error': str(e),
-                'timestamp': datetime.now().isoformat()
-            }
-    
-    def simulate_diagnosis(self, image):
-        """模拟诊断结果（当真实模型不可用时）"""
-        # 基于图像特征的简单分析
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        mean_intensity = np.mean(gray)
-        std_intensity = np.std(gray)
-        
-        # 模拟不同的诊断结果
-        if mean_intensity < 80:
-            disease_name = "可能的视网膜病变"
-            confidence = 0.65
-        elif std_intensity < 30:
-            disease_name = "图像质量不佳"
-            confidence = 0.45
-        else:
-            disease_name = "未发现明显异常"
-            confidence = 0.75
-        
-        advice = self.generate_medical_advice(disease_name, confidence)
-        
-        return {
-            'success': True,
-            'disease_name': disease_name,
-            'confidence': confidence,
-            'advice': advice,
-            'emergency': False,
-            'timestamp': datetime.now().isoformat(),
-            'model_info': '模拟诊断系统',
-            'note': '这是模拟结果，请使用真实的AI模型进行诊断'
-        }
-    
-    def generate_medical_advice(self, disease_name, confidence):
-        """生成医疗建议"""
-        advice_map = {
-            '正常': '目前未发现明显异常，建议定期检查',
-            '白内障': '建议尽快咨询眼科医生，可能需要手术治疗',
-            '青光眼': '这是一种严重的眼病，请立即就医进行详细检查',
-            '糖尿病视网膜病变': '需要立即就医，同时控制血糖水平',
-            '黄斑变性': '建议咨询视网膜专科医生，可能需要特殊治疗',
-            '未发现明显异常': '目前看起来正常，建议定期体检',
-            '图像质量不佳': '请在光线充足的环境下重新拍摄',
-            '可能的视网膜病变': '建议进一步检查，咨询专科医生'
-        }
-        
-        base_advice = advice_map.get(disease_name, '建议咨询专业医生进行详细检查')
-        
-        if confidence < 0.6:
-            base_advice += '\n[警告] 由于检测置信度较低，强烈建议人工复查'
-        elif confidence > 0.8:
-            base_advice += '\n[成功] 检测置信度较高，结果相对可靠'
-        
-        return base_advice
-    
-    def get_fallback_result(self):
-        """获取备用结果"""
-        return {
-            'success': True,
-            'disease_name': '无法确定',
-            'confidence': 0.0,
-            'advice': '检测失败，请重新拍摄或咨询医生',
-            'emergency': False,
-            'timestamp': datetime.now().isoformat(),
-            'model_info': '检测失败'
-        }
+        result = self.detector.classify(image)
+        payload = result.to_dict()
+        payload['timestamp'] = datetime.now().isoformat()
+        if not result.success:
+            payload['error'] = result.error or self.initialization_error or '分类失败'
+            return payload
+        advice = self.api.request_treatment_advice(result.disease_name, result.confidence)
+        payload.update(advice=advice.content, advice_source=advice.source,
+                       advice_success=advice.success, emergency=False)
+        return payload
+
 
 class DiagnosisServer:
     """诊断服务器主控制器"""

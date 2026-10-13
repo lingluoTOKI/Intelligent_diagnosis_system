@@ -20,6 +20,10 @@ import wave
 import tempfile
 import os
 from datetime import datetime
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from configs.system_config import NETWORK_PORTS
 
 # 语音识别和合成
 try:
@@ -39,8 +43,8 @@ except ImportError:
     HAS_VOSK = False
 
 # 网络配置
-VOICE_RECEIVE_PORT = 5005   # 接收开发板语音
-VOICE_SEND_PORT = 5006      # 发送语音到开发板
+VOICE_RECEIVE_PORT = NETWORK_PORTS["VOICE_SEND_PORT"]   # 接收开发板语音
+VOICE_SEND_PORT = NETWORK_PORTS["VOICE_RECEIVE_PORT"]      # 发送语音到开发板
 COMMAND_PORT = 5007         # 语音命令控制
 
 class VoiceRecognitionEngine:
@@ -252,7 +256,7 @@ class AIDialogManager:
             # 尝试导入DeepSeek API
             import sys
             sys.path.append('.')
-            from visualization_test2 import DeepSeekAPI
+            from src.core.llm import DeepSeekAPI
             
             # 读取API密钥
             try:

@@ -28,7 +28,10 @@ from datetime import datetime
 import argparse
 
 # 配置文件路径   
-CONFIG_FILE = "system_config.json"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+from configs.network_config import get_local_ip
+CONFIG_FILE = str(PROJECT_ROOT / "configs" / "system_config.json")
 
 # 默认配置
 DEFAULT_CONFIG = {
@@ -48,9 +51,9 @@ DEFAULT_CONFIG = {
     },
     "services": {
         "main_system": True,
-        "diagnosis_server": True,
-        "screen_sharing": True,
-        "camera_integration": True
+        "diagnosis_server": False,
+        "screen_sharing": False,
+        "camera_integration": False
     }
 }
 
@@ -58,6 +61,7 @@ class SystemLauncher:
     """系统启动器"""
     
     def __init__(self):
+        os.chdir(PROJECT_ROOT)
         self.config = self.load_config()
         self.processes = {}
         self.running = True
@@ -81,17 +85,9 @@ class SystemLauncher:
         return DEFAULT_CONFIG
     
     def detect_local_ip(self):
-        """自动检测本机IP地址"""
-        try:
-            # 连接到一个外部地址来获取本机IP
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
-                local_ip = s.getsockname()[0]
-            print(f"[检测] 本机IP: {local_ip}")
-            return local_ip
-        except Exception as e:
-            print(f"[错误] IP检测失败: {e}")
-            return "127.0.0.1"
+        address = get_local_ip()
+        print(f"[检测] 局域网IP: {address}")
+        return address
     
     def check_dependencies(self):
         """检查依赖项"""
@@ -365,7 +361,8 @@ fi
             self.start_pc_services()
             
             # 生成开发板命令
-            self.generate_board_commands()
+            if any(self.config["services"].get(key) for key in ("diagnosis_server", "screen_sharing", "camera_integration")):
+                self.generate_board_commands()
             
             # 启动监控
             monitor_thread = threading.Thread(target=self.monitor_services, daemon=True)

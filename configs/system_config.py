@@ -5,33 +5,34 @@
 """
 import socket
 import os
+try:
+    from configs.runtime_config import load_app_config
+except ModuleNotFoundError:
+    from runtime_config import load_app_config
+
+APP_CONFIG = load_app_config()
 
 # ===== 网络配置 =====
-def get_local_ip():
-    """自动获取本机IP地址"""
-    try:
-        # 连接到远程地址来获取本机IP
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        local_ip = s.getsockname()[0]
-        s.close()
-        return local_ip
-    except:
-        return "127.0.0.1"
+try:
+    from configs.network_config import get_local_ip, read_system_config
+except ModuleNotFoundError:
+    from network_config import get_local_ip, read_system_config
+
+_NETWORK = read_system_config().get("network", {})
 
 # PC端IP配置（开发板需要连接的PC IP）
-PC_IP = "172.20.10.3"  # 固定配置，不需要自动检测
+PC_IP = get_local_ip()  # 自动选择物理局域网网卡，或使用面板保存的手动地址
 
 # 网络端口配置（确保两端一致）
 NETWORK_PORTS = {
-    "CAMERA_PORT": 5002,        # 摄像头数据传输
-    "DIAGNOSIS_PORT": 5003,     # 诊断结果接收
-    "COMMAND_PORT": 5004,       # 命令控制
-    "VOICE_SEND_PORT": 5005,    # 语音数据发送
-    "VOICE_RECEIVE_PORT": 5006, # 语音合成接收
-    "VOICE_COMMAND_PORT": 5007, # 语音命令控制
-    "TOUCH_CONTROL_PORT": 5001, # 触摸屏控制
-    "MOUSE_CONTROL_PORT": 5008, # 鼠标控制（屏幕共享）
+    "CAMERA_PORT": _NETWORK.get("camera_port", 5002),        # 摄像头数据传输
+    "DIAGNOSIS_PORT": _NETWORK.get("diagnosis_port", 5003),     # 诊断结果接收
+    "COMMAND_PORT": _NETWORK.get("command_port", 5004),       # 命令控制
+    "VOICE_SEND_PORT": _NETWORK.get("voice_send_port", 5005),    # 语音数据发送
+    "VOICE_RECEIVE_PORT": _NETWORK.get("voice_receive_port", 5006), # 语音合成接收
+    "VOICE_COMMAND_PORT": _NETWORK.get("voice_command_port", 5007), # 语音命令控制
+    "TOUCH_CONTROL_PORT": _NETWORK.get("control_port", 5001), # 触摸屏控制
+    "MOUSE_CONTROL_PORT": _NETWORK.get("mouse_control_port", 5008), # 鼠标控制（屏幕共享）
 }
 
 # 将端口配置导出为变量以便兼容现有代码
@@ -63,7 +64,7 @@ AUDIO_CONFIG = {
 
 # ===== 系统配置 =====
 SYSTEM_CONFIG = {
-    "SAVE_DIR": "medical_images",
+    "SAVE_DIR": str(APP_CONFIG.image_dir),
     "HEARTBEAT_INTERVAL": 5.0,  # 心跳间隔（秒）
     "CONNECTION_TIMEOUT": 10.0,  # 连接超时（秒）
     "RETRY_ATTEMPTS": 3,        # 重试次数
@@ -71,9 +72,9 @@ SYSTEM_CONFIG = {
 
 # ===== AI模型配置 =====
 AI_CONFIG = {
-    "MODEL_PATH": "models/best.pt",  # YOLO模型路径
+    "MODEL_PATH": str(APP_CONFIG.model_path),  # YOLO模型路径
     "CONFIDENCE_THRESHOLD": 0.5,     # 置信度阈值
-    "API_TIMEOUT": 30,               # API请求超时
+    "API_TIMEOUT": APP_CONFIG.api_read_timeout,               # API请求超时
 }
 
 # ===== 连接状态检测 =====

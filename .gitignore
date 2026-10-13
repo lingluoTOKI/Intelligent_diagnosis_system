@@ -266,3 +266,13 @@ saved_api_key.txt
 .history/
 .claude/
 
+
+# PC runtime state
+/runtime/
+
+# Local backups, preferences and manual test exports
+/backups/
+/configs/ui_preferences.json
+/configs/app_config.json
+/tests/text/
+/tests/voice/batch_results.csv

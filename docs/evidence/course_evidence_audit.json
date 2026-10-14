@@ -1,0 +1,1598 @@
+{
+  "audited_at": "2026-10-14T15:19:40.284892+08:00",
+  "counts": {
+    "train": {
+      "A": 212,
+      "C": 234,
+      "D": 1286,
+      "G": 227,
+      "H": 102,
+      "M": 185,
+      "N": 2298,
+      "O": 566
+    },
+    "val": {
+      "A": 35,
+      "C": 55,
+      "D": 236,
+      "G": 61,
+      "H": 79,
+      "M": 47,
+      "N": 575,
+      "O": 75
+    }
+  },
+  "missing_classes": [],
+  "scope": "Content hashes detect byte-identical images only; patient IDs and label conversion are unverified.",
+  "identical_file_hashes_across_splits": 140,
+  "duplicate_evidence": [
+    {
+      "sha256": "02c138cf705d8013fd5297f87117a61c2b106d9b9803a1f31301ab9f08a8a726",
+      "train": [
+        "data/train/G/1325_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1325_left.jpg"
+      ]
+    },
+    {
+      "sha256": "03a2651ad99d03db4f3b944a1d1834dacdaeffc27439af272fa2d8ab88204777",
+      "train": [
+        "data/train/H/95_right.jpg"
+      ],
+      "val": [
+        "data/val/H/95_right.jpg"
+      ]
+    },
+    {
+      "sha256": "048bfb0f030b6408bee987d489d85f3f78731420ec71b906ab55bf39f2867021",
+      "train": [
+        "data/train/H/561_left.jpg"
+      ],
+      "val": [
+        "data/val/H/561_left.jpg"
+      ]
+    },
+    {
+      "sha256": "091e8e2c81948609b39e26b7d41b3f38618a61d6789b00d97cff105dc84a8e6f",
+      "train": [
+        "data/train/H/1045_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1045_left.jpg"
+      ]
+    },
+    {
+      "sha256": "09cbb12f552756dea40d8a1a974e53c88ecd26399c3506fa65f2b04cf5c68f55",
+      "train": [
+        "data/train/G/1959_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1959_right.jpg"
+      ]
+    },
+    {
+      "sha256": "0bca49a1da49280e599b65af8d7e92f46a7dedd9a0c5412782105464658cb0e6",
+      "train": [
+        "data/train/H/561_right.jpg"
+      ],
+      "val": [
+        "data/val/H/561_right.jpg"
+      ]
+    },
+    {
+      "sha256": "0f58137b70cdf0fb0a6d6e8c88b049ea79ec0665dd019ff92ca6dbfeb01a3e43",
+      "train": [
+        "data/train/H/2048_left.jpg"
+      ],
+      "val": [
+        "data/val/H/2048_left.jpg"
+      ]
+    },
+    {
+      "sha256": "113720a5f77d0c4550955c0247b74ec362180b89b2212c5e033a82941b11bb30",
+      "train": [
+        "data/train/H/4581_right.jpg"
+      ],
+      "val": [
+        "data/val/H/4581_right.jpg"
+      ]
+    },
+    {
+      "sha256": "118239e7ebc37ab02e66f7f27b04c0ffb5f934369239c5bc5a2774c9a1963806",
+      "train": [
+        "data/train/G/1344_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1344_right.jpg"
+      ]
+    },
+    {
+      "sha256": "13b4f2207af2c7f036aa8969d51a451aeb84b51efac40e515ed29435f1a48992",
+      "train": [
+        "data/train/G/1514_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1514_left.jpg"
+      ]
+    },
+    {
+      "sha256": "16fca3ac4988b433843376758832147a5bea90c893416c75620d588486f6420c",
+      "train": [
+        "data/train/G/1480_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1480_right.jpg"
+      ]
+    },
+    {
+      "sha256": "1724b999583d136a4a80c513131c8d417bf565ae9ba50aa6e42754491c4ddee6",
+      "train": [
+        "data/train/G/1377_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1377_right.jpg"
+      ]
+    },
+    {
+      "sha256": "17344fd9b7e29644fb74569ccf6883f8455867e5cc2b00d3975d896fcf47fb21",
+      "train": [
+        "data/train/H/1867_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1867_left.jpg"
+      ]
+    },
+    {
+      "sha256": "18e8384fffbd85c98c76e260e05cd7bdd8316c37b4a97c61d09d77df6b4997c5",
+      "train": [
+        "data/train/G/1431_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1431_left.jpg"
+      ]
+    },
+    {
+      "sha256": "19644aea670ea1a685042322f70789ea5d3694cbc4935f77a8d26dc8d77ffd81",
+      "train": [
+        "data/train/H/4784_right.jpg"
+      ],
+      "val": [
+        "data/val/H/4784_right.jpg"
+      ]
+    },
+    {
+      "sha256": "1b2528177b6fd42449848b065df30e65155dd811d2ff9aab5fc44993006c2e39",
+      "train": [
+        "data/train/H/2070_right.jpg"
+      ],
+      "val": [
+        "data/val/H/2070_right.jpg"
+      ]
+    },
+    {
+      "sha256": "1dada69df895c93f446e1e2c8081598e18adeeebdc56d78ece2617c6da8c9a3f",
+      "train": [
+        "data/train/H/2004_left.jpg"
+      ],
+      "val": [
+        "data/val/H/2004_left.jpg"
+      ]
+    },
+    {
+      "sha256": "1ec8edb7b03d37332d705bba47d90bc74235ad50ad37e15a2d93200e84b1fa13",
+      "train": [
+        "data/train/G/1334_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1334_left.jpg"
+      ]
+    },
+    {
+      "sha256": "1ff5ccf7cfb540c9e760a5d9cb048d8b2c475e7ca1b6172b51fabece0cbcd3a0",
+      "train": [
+        "data/train/G/1489_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1489_left.jpg"
+      ]
+    },
+    {
+      "sha256": "2336b8d24a781ef1034623f050016194565cd79ab79190b20bab79c5f80ecdc1",
+      "train": [
+        "data/train/H/2066_left.jpg"
+      ],
+      "val": [
+        "data/val/H/2066_left.jpg"
+      ]
+    },
+    {
+      "sha256": "2753061cab1dd2d8fae37f7a954f64a4d70eb2bc2aace85b3884cbd6e0c49eba",
+      "train": [
+        "data/train/H/849_right.jpg"
+      ],
+      "val": [
+        "data/val/H/849_right.jpg"
+      ]
+    },
+    {
+      "sha256": "2da4d7d19a084962c2d20e11f983f9eb22655df0426d032af7b7bc0150dd699f",
+      "train": [
+        "data/train/H/23_left.jpg"
+      ],
+      "val": [
+        "data/val/H/23_left.jpg"
+      ]
+    },
+    {
+      "sha256": "2e5e15f7109368c474cd1a40309ef2f42ff1ce36fe21cab2e25786ba693f9cd7",
+      "train": [
+        "data/train/G/1309_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1309_left.jpg"
+      ]
+    },
+    {
+      "sha256": "2f6b85c081872412d8e2be40959813d1765fc67421f2e77bf9d52ccd32e9ab89",
+      "train": [
+        "data/train/G/2030_left.jpg"
+      ],
+      "val": [
+        "data/val/G/2030_left.jpg"
+      ]
+    },
+    {
+      "sha256": "3183227f133bff7b92506f1c001a3a52d6a9ae4e879a1898dc35177e612a01a4",
+      "train": [
+        "data/train/H/1024_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1024_right.jpg"
+      ]
+    },
+    {
+      "sha256": "352ae165cd8bb155d698ecdd4b0804f1226e3e8c5b0ed99719502d75ce8010b0",
+      "train": [
+        "data/train/G/1977_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1977_left.jpg"
+      ]
+    },
+    {
+      "sha256": "35e51e8dd572aba2765870195d7ac8edc9969b481aea057ba8feff134ca69def",
+      "train": [
+        "data/train/H/1373_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1373_right.jpg"
+      ]
+    },
+    {
+      "sha256": "3698cf2210cc863fcd6700035ef72cef3c784044d6bd774da5d2070ffd1e6027",
+      "train": [
+        "data/train/G/1462_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1462_left.jpg"
+      ]
+    },
+    {
+      "sha256": "3813887723b6bb326599fd699e632c5ea54cc375364113a3be5d9c53bec5c370",
+      "train": [
+        "data/train/G/1967_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1967_left.jpg"
+      ]
+    },
+    {
+      "sha256": "3829c613fd9405f787d5e2e0d60a673add4f68376ad65decb4c144840ac4ef47",
+      "train": [
+        "data/train/H/4478_left.jpg"
+      ],
+      "val": [
+        "data/val/H/4478_left.jpg"
+      ]
+    },
+    {
+      "sha256": "3aeb121348bbfae3814e51232470dcbb2cf9dfd89087676dfdab6247736bfd88",
+      "train": [
+        "data/train/H/1833_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1833_right.jpg"
+      ]
+    },
+    {
+      "sha256": "3b0daa2c3dbe8e3651570c7f8c288829fa8c4424aee59ae6471ad20fce99c3b6",
+      "train": [
+        "data/train/G/1977_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1977_right.jpg"
+      ]
+    },
+    {
+      "sha256": "3b5fd9228413eb1798bbdb9fd5734e59978896f6a6a50df4c99f54fbeccb04b7",
+      "train": [
+        "data/train/H/62_right.jpg"
+      ],
+      "val": [
+        "data/val/H/62_right.jpg"
+      ]
+    },
+    {
+      "sha256": "3b98c83b02f7f65eafb6194dcaffe131e37a96d544457167ab2381584b98242c",
+      "train": [
+        "data/train/G/1411_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1411_left.jpg"
+      ]
+    },
+    {
+      "sha256": "3ea10e8e66b1deb459a1680713e846f77dab9b06599117f82738c0fbfd944473",
+      "train": [
+        "data/train/H/323_right.jpg"
+      ],
+      "val": [
+        "data/val/H/323_right.jpg"
+      ]
+    },
+    {
+      "sha256": "456d321c4db4cea132d3a55d3ef4807b86dedb654af1f63577c6ad2916309a55",
+      "train": [
+        "data/train/H/315_left.jpg"
+      ],
+      "val": [
+        "data/val/H/315_left.jpg"
+      ]
+    },
+    {
+      "sha256": "46ba1807f3098d85d1d80fb94f1ec7979357008c51e452394fc3a463b2b375bb",
+      "train": [
+        "data/train/H/1056_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1056_left.jpg"
+      ]
+    },
+    {
+      "sha256": "48ec55eb1da6d2314f111558ec92ab565610915e4d91b2b6305533e4acd5d084",
+      "train": [
+        "data/train/G/1470_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1470_left.jpg"
+      ]
+    },
+    {
+      "sha256": "4c5a3ac2f7b8b50feec92706d60b8f0086a7d5533c8f13651718afd46a5d7c7f",
+      "train": [
+        "data/train/H/305_right.jpg"
+      ],
+      "val": [
+        "data/val/H/305_right.jpg"
+      ]
+    },
+    {
+      "sha256": "4f07e28dad7bb84fd34deb57a4198f6fb6ac88f93f5e9541e3de165da616fe05",
+      "train": [
+        "data/train/H/983_right.jpg"
+      ],
+      "val": [
+        "data/val/H/983_right.jpg"
+      ]
+    },
+    {
+      "sha256": "52fba287438035995e0ce065b499b11c6335318e2d3e931931655c390b457351",
+      "train": [
+        "data/train/G/2048_right.jpg"
+      ],
+      "val": [
+        "data/val/G/2048_right.jpg"
+      ]
+    },
+    {
+      "sha256": "53bc792f8c5e171628b0767fdff474971d299bde37bd12e2e653a66341611985",
+      "train": [
+        "data/train/H/345_right.jpg"
+      ],
+      "val": [
+        "data/val/H/345_right.jpg"
+      ]
+    },
+    {
+      "sha256": "57f46b5ac0786d17b6a9a95e18782fa9c0484ee0c1b4e5b63a2915884fd16cb2",
+      "train": [
+        "data/train/H/4579_right.jpg"
+      ],
+      "val": [
+        "data/val/H/4579_right.jpg"
+      ]
+    },
+    {
+      "sha256": "59ea1fb9e7e1f3b25d6749492a4a84db82e4a54f483015f9f29949d960dc20af",
+      "train": [
+        "data/train/G/1294_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1294_left.jpg"
+      ]
+    },
+    {
+      "sha256": "5cd81832946ea0049a80820342fd66e01660deb3e2bbea9e096a4a16a31f3529",
+      "train": [
+        "data/train/H/28_left.jpg"
+      ],
+      "val": [
+        "data/val/H/28_left.jpg"
+      ]
+    },
+    {
+      "sha256": "5d875601b19baea10bd87fe8051c59a09d9975b963c5996fa3c9a6b475615945",
+      "train": [
+        "data/train/H/818_left.jpg"
+      ],
+      "val": [
+        "data/val/H/818_left.jpg"
+      ]
+    },
+    {
+      "sha256": "5fa09a47d79ca65a699aa06128fbc1b2891ffd4bcc2a2c4640175301277b18f7",
+      "train": [
+        "data/train/H/783_right.jpg"
+      ],
+      "val": [
+        "data/val/H/783_right.jpg"
+      ]
+    },
+    {
+      "sha256": "5fcfe2d84982530e735d1f6074dc480eef4c515c9b6748bc9feec389609313b8",
+      "train": [
+        "data/train/G/1318_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1318_right.jpg"
+      ]
+    },
+    {
+      "sha256": "605796c86da45d4b9eefd3d53920b9ab4b5312f3b80d1c657f61aa1cd5f88cd3",
+      "train": [
+        "data/train/G/1426_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1426_left.jpg"
+      ]
+    },
+    {
+      "sha256": "643fa95d3670afcdd642409f4382e0c0e4685ab4d97ddab5b93397a27135d4cb",
+      "train": [
+        "data/train/H/2064_right.jpg"
+      ],
+      "val": [
+        "data/val/H/2064_right.jpg"
+      ]
+    },
+    {
+      "sha256": "6446aeebdf88f00172decfedba6a302023f07f021a1b43fadec5260ab44d819b",
+      "train": [
+        "data/train/H/4581_left.jpg"
+      ],
+      "val": [
+        "data/val/H/4581_left.jpg"
+      ]
+    },
+    {
+      "sha256": "677196b6f7e305d521e5043110b37cff5fba81bd7d89dcdd5e7639adb4813ad8",
+      "train": [
+        "data/train/G/931_left.jpg"
+      ],
+      "val": [
+        "data/val/G/931_left.jpg"
+      ]
+    },
+    {
+      "sha256": "678b2fe39566bce8f7c9e37d515b9fef69cc9931cfbadd4c1c694fe72d487742",
+      "train": [
+        "data/train/H/2064_left.jpg"
+      ],
+      "val": [
+        "data/val/H/2064_left.jpg"
+      ]
+    },
+    {
+      "sha256": "67da481efa16e781568126b863dd7a20ae567740c148ef1e8b98bd4115fc2125",
+      "train": [
+        "data/train/G/1307_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1307_left.jpg"
+      ]
+    },
+    {
+      "sha256": "68cb0bd0caa35d1280eb221732377967129420c01a2dc1d0fb414bde2d1f7a4b",
+      "train": [
+        "data/train/G/1971_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1971_left.jpg"
+      ]
+    },
+    {
+      "sha256": "68f22ee774f9cca417e423c536d80c21a5d8293aac77f236e36fd8907c828381",
+      "train": [
+        "data/train/H/968_left.jpg"
+      ],
+      "val": [
+        "data/val/H/968_left.jpg"
+      ]
+    },
+    {
+      "sha256": "6a0d5eacbdc80183393e70dbbb1c8a55d0d586867eaa2036f25ab5fb51e40e26",
+      "train": [
+        "data/train/H/957_left.jpg"
+      ],
+      "val": [
+        "data/val/H/957_left.jpg"
+      ]
+    },
+    {
+      "sha256": "6c13fe8fba8fc7e9ebaf8640f2881de6759a1423f9d67a459c2bdedee4211859",
+      "train": [
+        "data/train/H/4562_left.jpg"
+      ],
+      "val": [
+        "data/val/H/4562_left.jpg"
+      ]
+    },
+    {
+      "sha256": "6cea910478e8cda06aaa885c39606db7778a1388c3e3e83cd0ed2c9398732295",
+      "train": [
+        "data/train/G/1970_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1970_left.jpg"
+      ]
+    },
+    {
+      "sha256": "6d9d904598f22260244045920816abbab989a5fe5e9f1f9a65d82f01847dabf8",
+      "train": [
+        "data/train/H/2004_right.jpg"
+      ],
+      "val": [
+        "data/val/H/2004_right.jpg"
+      ]
+    },
+    {
+      "sha256": "6f40fc7c744b2777ef69b69e0391c7f7ccb69247d7ff8f367e0eaf065a3b9eef",
+      "train": [
+        "data/train/G/1303_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1303_left.jpg"
+      ]
+    },
+    {
+      "sha256": "6fed0a034ee93910be02dd12a6ca97b167f2d03e5da9f2ac647a322c28a42515",
+      "train": [
+        "data/train/H/1031_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1031_right.jpg"
+      ]
+    },
+    {
+      "sha256": "6ffc43a322bcdb8d61b542e2c879613feb138069f9339b0b04e14fe92f690bc7",
+      "train": [
+        "data/train/G/1386_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1386_right.jpg"
+      ]
+    },
+    {
+      "sha256": "70412761fb17b9596849ad4928d0e336ab1c024305b77b643faec00c3093a86c",
+      "train": [
+        "data/train/H/720_right.jpg"
+      ],
+      "val": [
+        "data/val/H/720_right.jpg"
+      ]
+    },
+    {
+      "sha256": "74ac6a29302f9f6221bda601c84174764060122f0112ed33bb2bd42dfe32d124",
+      "train": [
+        "data/train/G/1498_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1498_left.jpg"
+      ]
+    },
+    {
+      "sha256": "7608de76a1d43a56911e38a059a953a7817b9b9c5f9618d01e5f03e278b099fb",
+      "train": [
+        "data/train/H/4579_left.jpg"
+      ],
+      "val": [
+        "data/val/H/4579_left.jpg"
+      ]
+    },
+    {
+      "sha256": "7756540cc794742807dd0cc365414401dc8456602691395d05f4df0b446de2cb",
+      "train": [
+        "data/train/G/1492_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1492_left.jpg"
+      ]
+    },
+    {
+      "sha256": "77766877fef28d9921197bd8d842aef55372819e85011b98813073bc8e69d24b",
+      "train": [
+        "data/train/G/1443_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1443_right.jpg"
+      ]
+    },
+    {
+      "sha256": "78514decb65b0fcdc68710cc30e434e829e748c317445bb915a9971a4d8e6e2c",
+      "train": [
+        "data/train/G/1421_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1421_left.jpg"
+      ]
+    },
+    {
+      "sha256": "79ed028e6e29dafb2f1853e54f29069d518e089bde754d94a81f924f73d9639a",
+      "train": [
+        "data/train/G/1297_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1297_left.jpg"
+      ]
+    },
+    {
+      "sha256": "7bdf11e5dd4209226a9a11c39e565effdb157f9017ce115aeb2a4635676029d0",
+      "train": [
+        "data/train/G/1277_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1277_right.jpg"
+      ]
+    },
+    {
+      "sha256": "80b7eae2e38129edb70351cd43e2a577c86ccd13f2a98a35b84f660d23c215e8",
+      "train": [
+        "data/train/H/32_left.jpg"
+      ],
+      "val": [
+        "data/val/H/32_left.jpg"
+      ]
+    },
+    {
+      "sha256": "83ac09cfaf44f15f78c2ff18781e2b74f88c784c9243a691cf7ec9f6ceaaf036",
+      "train": [
+        "data/train/H/365_left.jpg"
+      ],
+      "val": [
+        "data/val/H/365_left.jpg"
+      ]
+    },
+    {
+      "sha256": "84e10dd480887c9aab012d0b73567f4354e1b5a57ee8277f865cc7420e5cbbd9",
+      "train": [
+        "data/train/H/686_right.jpg"
+      ],
+      "val": [
+        "data/val/H/686_right.jpg"
+      ]
+    },
+    {
+      "sha256": "86bacff9a2af35925f7647c630988e030be1380b91b55eae035d3bd03d115d8e",
+      "train": [
+        "data/train/H/374_right.jpg"
+      ],
+      "val": [
+        "data/val/H/374_right.jpg"
+      ]
+    },
+    {
+      "sha256": "8833a9e81439ad4d600d5f8b120ac7846b21feba2d9740f83c4b1f609e372067",
+      "train": [
+        "data/train/G/1450_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1450_left.jpg"
+      ]
+    },
+    {
+      "sha256": "8b93afe33c8c07dc46e561465c6955c014080cdf6a705b272664505e460427be",
+      "train": [
+        "data/train/G/1985_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1985_left.jpg"
+      ]
+    },
+    {
+      "sha256": "8ce1c07e5f59a35f3975f539cc590c1a6f29b09fe92366f37167618c54aeb672",
+      "train": [
+        "data/train/H/723_right.jpg"
+      ],
+      "val": [
+        "data/val/H/723_right.jpg"
+      ]
+    },
+    {
+      "sha256": "8d419b889e441807cadd171bdf57686f2ed0093fd2873eee8141715e49b04d37",
+      "train": [
+        "data/train/H/783_left.jpg"
+      ],
+      "val": [
+        "data/val/H/783_left.jpg"
+      ]
+    },
+    {
+      "sha256": "8e0ff69f9df3867da122c60677c1109a1e32c8219a847b4d738281448b402dc3",
+      "train": [
+        "data/train/G/2074_left.jpg"
+      ],
+      "val": [
+        "data/val/G/2074_left.jpg"
+      ]
+    },
+    {
+      "sha256": "8e4d54e3409153e5126b2c8e07e8c219b71a0c7912322ce5cf07c171aadf3c95",
+      "train": [
+        "data/train/H/374_left.jpg"
+      ],
+      "val": [
+        "data/val/H/374_left.jpg"
+      ]
+    },
+    {
+      "sha256": "92097c447bf18a3efb78148395f6f4840d870e89c3c6557f2e6966565efa92a2",
+      "train": [
+        "data/train/G/1239_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1239_left.jpg"
+      ]
+    },
+    {
+      "sha256": "94b37c525619d248a3fc1262617873c0df4bcd42aa22948d0f2f9b7d5ae656cf",
+      "train": [
+        "data/train/G/1428_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1428_left.jpg"
+      ]
+    },
+    {
+      "sha256": "96485693e8bcf0b5adf8858244023b1eb1445447837ea2c6dcbd3ca846c8a550",
+      "train": [
+        "data/train/H/4215_right.jpg"
+      ],
+      "val": [
+        "data/val/H/4215_right.jpg"
+      ]
+    },
+    {
+      "sha256": "9a29150f48fd950dbf51253a45ab8ca10d0baca1a843d1e8e1625badd9022cdd",
+      "train": [
+        "data/train/G/1241_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1241_left.jpg"
+      ]
+    },
+    {
+      "sha256": "9cbe34241487bd3194298b875172cbbe8c0fc340f82d02e43d489c38e0adf4e7",
+      "train": [
+        "data/train/G/1405_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1405_left.jpg"
+      ]
+    },
+    {
+      "sha256": "9d731cb3422783492c598b789bbf149b29522b1f00f67628a00f9b31f8bc9236",
+      "train": [
+        "data/train/H/826_left.jpg"
+      ],
+      "val": [
+        "data/val/H/826_left.jpg"
+      ]
+    },
+    {
+      "sha256": "9f2364db93404fa45cbe0af83c565f636d6d9d7c169ac2d991e9d65255774a2e",
+      "train": [
+        "data/train/H/323_left.jpg"
+      ],
+      "val": [
+        "data/val/H/323_left.jpg"
+      ]
+    },
+    {
+      "sha256": "a0215eab4f544f03c5029bedb01b7f627addc52244d0d45e54b4b811d045720c",
+      "train": [
+        "data/train/G/1270_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1270_left.jpg"
+      ]
+    },
+    {
+      "sha256": "a3fb494de24632eff6b5c83c1aad43b62a1138d69947eb7e18ed2bd860dcafb4",
+      "train": [
+        "data/train/G/1436_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1436_right.jpg"
+      ]
+    },
+    {
+      "sha256": "a5e4ad6de49648604a054e37980c7560c77b57f180139f160714bed19dbd50f0",
+      "train": [
+        "data/train/H/1081_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1081_right.jpg"
+      ]
+    },
+    {
+      "sha256": "a6d4586019fe9171ccea3d6f4b74cfe82aa92be26826752e2d99090ae8aefa29",
+      "train": [
+        "data/train/H/272_left.jpg"
+      ],
+      "val": [
+        "data/val/H/272_left.jpg"
+      ]
+    },
+    {
+      "sha256": "a8482cf6ef4aca842a573af7662654e60e6bf9e3966a37664f8339fc207b0815",
+      "train": [
+        "data/train/H/2070_left.jpg"
+      ],
+      "val": [
+        "data/val/H/2070_left.jpg"
+      ]
+    },
+    {
+      "sha256": "a8ae5451f7b0e0bc08b6322f4c71b2f0c41bc81ea7cfaef523277d1ae45a758b",
+      "train": [
+        "data/train/G/1327_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1327_left.jpg"
+      ]
+    },
+    {
+      "sha256": "ab42f142a576b30e1e1434fa88cda9b4fd6df7977488652f1c00adc176f4f674",
+      "train": [
+        "data/train/H/675_right.jpg"
+      ],
+      "val": [
+        "data/val/H/675_right.jpg"
+      ]
+    },
+    {
+      "sha256": "ac07995a27e5dcc91c83a8cf3333527658c27b0af55655e8ac3108b8f7c79b92",
+      "train": [
+        "data/train/H/4202_left.jpg"
+      ],
+      "val": [
+        "data/val/H/4202_left.jpg"
+      ]
+    },
+    {
+      "sha256": "adcb2c86654186269e87e2642b716b017256678b96b84f7563868cab21ec360b",
+      "train": [
+        "data/train/H/759_right.jpg"
+      ],
+      "val": [
+        "data/val/H/759_right.jpg"
+      ]
+    },
+    {
+      "sha256": "b08a7922f71839e3e83f486b682b1dac10c971f5c3b927418c2f37a3062f5f0c",
+      "train": [
+        "data/train/H/345_left.jpg"
+      ],
+      "val": [
+        "data/val/H/345_left.jpg"
+      ]
+    },
+    {
+      "sha256": "b2120a3d15c8dddda4109c0b6975a8ab69fd89dfab1cae7fdaa877d48a4dc1e0",
+      "train": [
+        "data/train/H/3951_right.jpg"
+      ],
+      "val": [
+        "data/val/H/3951_right.jpg"
+      ]
+    },
+    {
+      "sha256": "b2542508b3d863f35d0bcff2fc8b3794e32ec949b028d2ec1fc9be5de3fbbad9",
+      "train": [
+        "data/train/G/1964_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1964_left.jpg"
+      ]
+    },
+    {
+      "sha256": "b2b56a4edde6cc65c0d192ed59b9228cbd3b4236f49cc5f6f09eab990b5f6a14",
+      "train": [
+        "data/train/G/1269_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1269_right.jpg"
+      ]
+    },
+    {
+      "sha256": "bdcc13b2b87f65bd7cbf703f52e31380bc99abb06df0d7478c1a61055d9e2e14",
+      "train": [
+        "data/train/H/272_right.jpg"
+      ],
+      "val": [
+        "data/val/H/272_right.jpg"
+      ]
+    },
+    {
+      "sha256": "c2f4e7f761b12d4b04e58ae86d4110c4a8c3d80705601b1b7dfb73b0e327e64d",
+      "train": [
+        "data/train/G/1232_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1232_left.jpg"
+      ]
+    },
+    {
+      "sha256": "c300958f3b603dbd24e4eb16829f4b6a86971bcd4762ef1b8f168fa921d7bcea",
+      "train": [
+        "data/train/G/1495_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1495_left.jpg"
+      ]
+    },
+    {
+      "sha256": "c4793cb6eb8e04c8bb00bde404d2d5e538d3f04c6cee2f14ce1918a991f7e183",
+      "train": [
+        "data/train/H/2052_right.jpg"
+      ],
+      "val": [
+        "data/val/H/2052_right.jpg"
+      ]
+    },
+    {
+      "sha256": "c4e6054dd0cbe137432027b501dea76336020beaf73d955077e9d42bbbe4d859",
+      "train": [
+        "data/train/G/1424_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1424_left.jpg"
+      ]
+    },
+    {
+      "sha256": "c93cc316359e9ad6101b837db22886db54b5614f4c7cc50468d00d5e7b822ec7",
+      "train": [
+        "data/train/G/1378_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1378_right.jpg"
+      ]
+    },
+    {
+      "sha256": "c9d374b54ae830d70f75e6cf9c55250f9042fb6f15aef0e7fd681f0edbd2a041",
+      "train": [
+        "data/train/H/4559_left.jpg"
+      ],
+      "val": [
+        "data/val/H/4559_left.jpg"
+      ]
+    },
+    {
+      "sha256": "c9ee6642fdf288174a5b168b265206645026e3cf96d731722a0c7817b6ad95cf",
+      "train": [
+        "data/train/G/1959_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1959_left.jpg"
+      ]
+    },
+    {
+      "sha256": "ce5c6662166b5449cac5d2a236365cd07ac211b65d2a4e7047414c1daa7e0826",
+      "train": [
+        "data/train/G/1433_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1433_left.jpg"
+      ]
+    },
+    {
+      "sha256": "d1f0fbdfb1893a6c50a0aba1c02ab16149a7446e503f7bea33ce10b41afce1a8",
+      "train": [
+        "data/train/H/818_right.jpg"
+      ],
+      "val": [
+        "data/val/H/818_right.jpg"
+      ]
+    },
+    {
+      "sha256": "d2d140d42f3832b5692170ecece0932667aba677c6c738b4e23b127c913138a8",
+      "train": [
+        "data/train/H/365_right.jpg"
+      ],
+      "val": [
+        "data/val/H/365_right.jpg"
+      ]
+    },
+    {
+      "sha256": "d2f589cc7637d9c8916438fb67fe2ef23ecfbf46c165100869f6fc28275c1c6a",
+      "train": [
+        "data/train/G/1270_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1270_right.jpg"
+      ]
+    },
+    {
+      "sha256": "d3074e7cd9ca9b6e7105a94e575b8fd2c6ba8bde2be90a1160cff76fe3c7ce5c",
+      "train": [
+        "data/train/G/1963_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1963_right.jpg"
+      ]
+    },
+    {
+      "sha256": "d665b65ba0cbe5e0b9c80a3e6bc6b58b1e02ccd38313e6a01863a0a1413167fc",
+      "train": [
+        "data/train/H/1046_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1046_left.jpg"
+      ]
+    },
+    {
+      "sha256": "da175503fcd0a7a739dec0309d85d2d591e110517f4db2e20b663e787cfb3654",
+      "train": [
+        "data/train/G/1510_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1510_right.jpg"
+      ]
+    },
+    {
+      "sha256": "da9b211058fe31f90e5cb5b9d6c174279edbf4fcc8533cab310a1338ee8ec7b5",
+      "train": [
+        "data/train/H/754_left.jpg"
+      ],
+      "val": [
+        "data/val/H/754_left.jpg"
+      ]
+    },
+    {
+      "sha256": "dabac1169308b7d8836e69a4d7f9d5dbdf87fcb4d7be6a10b4bf5ecc7a0f4363",
+      "train": [
+        "data/train/H/4562_right.jpg"
+      ],
+      "val": [
+        "data/val/H/4562_right.jpg"
+      ]
+    },
+    {
+      "sha256": "db7f98ace6e3ec2d6708260448c9424e4c0eae972b026cd2a3d4ffdcb9b39394",
+      "train": [
+        "data/train/H/861_left.jpg"
+      ],
+      "val": [
+        "data/val/H/861_left.jpg"
+      ]
+    },
+    {
+      "sha256": "dc033944bdb9f43dcedc41b3ac4b104366573f82cc6c026615ddd08f62777ca1",
+      "train": [
+        "data/train/H/1833_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1833_left.jpg"
+      ]
+    },
+    {
+      "sha256": "dc4ea3555d36edd15dfed3941b615f157f46aef2f1dd088719a5fc3d23a20758",
+      "train": [
+        "data/train/H/1046_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1046_right.jpg"
+      ]
+    },
+    {
+      "sha256": "dcaecca19c1f10ae1d0a3071a145af6dbdc5843eb966fa4710964e31865762d0",
+      "train": [
+        "data/train/H/32_right.jpg"
+      ],
+      "val": [
+        "data/val/H/32_right.jpg"
+      ]
+    },
+    {
+      "sha256": "dce4d1c60ac80b740e75482203aee4937231ac2e588208a66e81296cd4050472",
+      "train": [
+        "data/train/G/1301_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1301_left.jpg"
+      ]
+    },
+    {
+      "sha256": "df06774c3b8b73b6c84b9b27af5f4d5a41e76e81e6aeb52899f2fb5e387a645a",
+      "train": [
+        "data/train/H/1048_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1048_left.jpg"
+      ]
+    },
+    {
+      "sha256": "e2877a6e1ac3811f1da97b69d8b12cc0012f90187cb11183f58c8c71e94a5df9",
+      "train": [
+        "data/train/H/1024_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1024_left.jpg"
+      ]
+    },
+    {
+      "sha256": "e35126474246a6978851eba4359b96ee55a7ea773518425108ca4b27110a8285",
+      "train": [
+        "data/train/H/983_left.jpg"
+      ],
+      "val": [
+        "data/val/H/983_left.jpg"
+      ]
+    },
+    {
+      "sha256": "e57deb7980b2b217904a51ece5b7e053752060168091f69eeea6b7f05c7b87ff",
+      "train": [
+        "data/train/H/4591_right.jpg"
+      ],
+      "val": [
+        "data/val/H/4591_right.jpg"
+      ]
+    },
+    {
+      "sha256": "e5e7782366b19edf989ebd72fae23e40809d407d6c948e41c896c2f1e1d78e1a",
+      "train": [
+        "data/train/H/28_right.jpg"
+      ],
+      "val": [
+        "data/val/H/28_right.jpg"
+      ]
+    },
+    {
+      "sha256": "e68166e9bea3370a7ab99647d3fa3ef2418d16d433490a173288c4bcbcaf55bd",
+      "train": [
+        "data/train/G/1986_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1986_left.jpg"
+      ]
+    },
+    {
+      "sha256": "e723f47a55245457c8cf59ab807fdcb0d6e1fd47bc9e79ae9502007b9f7d8fec",
+      "train": [
+        "data/train/G/2063_left.jpg"
+      ],
+      "val": [
+        "data/val/G/2063_left.jpg"
+      ]
+    },
+    {
+      "sha256": "ea502b7d5b7ae1b7f8891f71a6e4eefe26b6a7f6c7e97490047f6ddab7113545",
+      "train": [
+        "data/train/G/1302_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1302_left.jpg"
+      ]
+    },
+    {
+      "sha256": "eac80fcd9c0f06614f24885321b884a3bec6a984b462f2c5f24f7e12c60d683d",
+      "train": [
+        "data/train/H/1048_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1048_right.jpg"
+      ]
+    },
+    {
+      "sha256": "eb9b1d7af89cfcb2e58ec59570fc41fc2df2be86bbe91804bb18290d728fe949",
+      "train": [
+        "data/train/G/1493_left.jpg"
+      ],
+      "val": [
+        "data/val/G/1493_left.jpg"
+      ]
+    },
+    {
+      "sha256": "ebacd42ddd67986fc8314f6334c8255c2311b5d577dc42359434875d641973ec",
+      "train": [
+        "data/train/H/1853_left.jpg"
+      ],
+      "val": [
+        "data/val/H/1853_left.jpg"
+      ]
+    },
+    {
+      "sha256": "f5ac6365a2d617f2521e9a888c99bf67df9e9d044fa2373b0f3abf829613d2bb",
+      "train": [
+        "data/train/H/826_right.jpg"
+      ],
+      "val": [
+        "data/val/H/826_right.jpg"
+      ]
+    },
+    {
+      "sha256": "f78b51b650f0d5394a1e5affecd197cebd019fd1668d1b7e2a5ad044cf061498",
+      "train": [
+        "data/train/H/300_right.jpg"
+      ],
+      "val": [
+        "data/val/H/300_right.jpg"
+      ]
+    },
+    {
+      "sha256": "f89e8472a4f2091658f85f511cd0830e258f796ac3df11b2f84be14e9baa3023",
+      "train": [
+        "data/train/H/723_left.jpg"
+      ],
+      "val": [
+        "data/val/H/723_left.jpg"
+      ]
+    },
+    {
+      "sha256": "fc99e235b0fbd0916c069b67a7af744c41cd376dcb019a4392412cedad0b30f8",
+      "train": [
+        "data/train/H/1867_right.jpg"
+      ],
+      "val": [
+        "data/val/H/1867_right.jpg"
+      ]
+    },
+    {
+      "sha256": "fcc5fd453b09e8cf476a5276800fb9f53328b01e3e850e792b15a07190b773f1",
+      "train": [
+        "data/train/G/1507_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1507_right.jpg"
+      ]
+    },
+    {
+      "sha256": "fcecc20bce1e6a1a4b85f100d592a104e78f6cb24f886c86862a1c1b7898bd88",
+      "train": [
+        "data/train/G/1352_right.jpg"
+      ],
+      "val": [
+        "data/val/G/1352_right.jpg"
+      ]
+    }
+  ],
+  "experiments": [
+    {
+      "model": "YOLO11n-cls",
+      "epochs": "50",
+      "best_top1_pct": "63.285",
+      "best_top1_epoch": "49",
+      "top5_at_best_top1_pct": "98.538",
+      "last_top1_pct": "63.113",
+      "last_top5_pct": "98.452",
+      "max_top5_pct": "98.624",
+      "csv_training_seconds": "504.175",
+      "amp": "False",
+      "workers": "8",
+      "batch": "32",
+      "imgsz": "224",
+      "segment": "1",
+      "source_csv": "runs\\comparison_notebook\\20261012_200855_w8_fp32_537100\\baseline\\results.csv",
+      "comparison_scope": "FP32 2x2 framework experiment",
+      "matching_settings": "True",
+      "configuration_differences": "",
+      "completion_verified": "True",
+      "data_fingerprint": "804f89adf19750468e9e8acb56276eb8e59a36e79212e08d356eee3568127242",
+      "parameters": "1541352",
+      "gflops_at_input": "0.39941350400000003",
+      "wall_seconds": "564.2674039999984",
+      "akconv_layers": "0",
+      "framework_version": "8.3.93",
+      "source_exists": true,
+      "logged_epochs": 50,
+      "source_sha256": "1a58b87ce2803cbd31a3a35ace57847ad0ad406a3d7dd9cd71041ba1adf94303"
+    },
+    {
+      "model": "YOLO11n-cls + AKConv",
+      "epochs": "50",
+      "best_top1_pct": "63.199",
+      "best_top1_epoch": "48",
+      "top5_at_best_top1_pct": "98.452",
+      "last_top1_pct": "63.113",
+      "last_top5_pct": "98.108",
+      "max_top5_pct": "98.624",
+      "csv_training_seconds": "1218.66",
+      "amp": "False",
+      "workers": "8",
+      "batch": "32",
+      "imgsz": "224",
+      "segment": "1",
+      "source_csv": "runs\\comparison_notebook\\20261012_200855_w8_fp32_537100\\akconv\\results.csv",
+      "comparison_scope": "FP32 2x2 framework experiment",
+      "matching_settings": "True",
+      "configuration_differences": "",
+      "completion_verified": "True",
+      "data_fingerprint": "804f89adf19750468e9e8acb56276eb8e59a36e79212e08d356eee3568127242",
+      "parameters": "1487772",
+      "gflops_at_input": "0.3862423039999999",
+      "wall_seconds": "1274.9130773999932",
+      "akconv_layers": "6",
+      "framework_version": "8.3.93",
+      "source_exists": true,
+      "logged_epochs": 50,
+      "source_sha256": "8c0de5d2179db8cf9400fb4697a764e8b154a36361011f1b1cc0af54a2807cc6"
+    },
+    {
+      "model": "YOLO26n-cls",
+      "epochs": "50",
+      "best_top1_pct": "63.285",
+      "best_top1_epoch": "49",
+      "top5_at_best_top1_pct": "98.538",
+      "last_top1_pct": "63.113",
+      "last_top5_pct": "98.452",
+      "max_top5_pct": "98.624",
+      "csv_training_seconds": "508.106",
+      "amp": "False",
+      "workers": "8",
+      "batch": "32",
+      "imgsz": "224",
+      "segment": "1",
+      "source_csv": "runs\\comparison_notebook\\20261012_200855_w8_fp32_537100\\yolo26n\\results.csv",
+      "comparison_scope": "FP32 2x2 framework experiment",
+      "matching_settings": "True",
+      "configuration_differences": "",
+      "completion_verified": "True",
+      "data_fingerprint": "804f89adf19750468e9e8acb56276eb8e59a36e79212e08d356eee3568127242",
+      "parameters": "1541352",
+      "gflops_at_input": "0.39941350400000003",
+      "wall_seconds": "557.6827353999979",
+      "akconv_layers": "0",
+      "framework_version": "8.4.38",
+      "source_exists": true,
+      "logged_epochs": 50,
+      "source_sha256": "57c550711dddf53acd4bff9a00323fa593ac4571ba02bfbc508ac85a6042dad2"
+    },
+    {
+      "model": "YOLO26n-cls + AKConv",
+      "epochs": "50",
+      "best_top1_pct": "63.199",
+      "best_top1_epoch": "48",
+      "top5_at_best_top1_pct": "98.452",
+      "last_top1_pct": "63.113",
+      "last_top5_pct": "98.108",
+      "max_top5_pct": "98.624",
+      "csv_training_seconds": "1167.69",
+      "amp": "False",
+      "workers": "8",
+      "batch": "32",
+      "imgsz": "224",
+      "segment": "1",
+      "source_csv": "runs\\comparison_notebook\\20261012_200855_w8_fp32_537100\\yolo26n_akconv\\results.csv",
+      "comparison_scope": "FP32 2x2 framework experiment",
+      "matching_settings": "True",
+      "configuration_differences": "",
+      "completion_verified": "True",
+      "data_fingerprint": "804f89adf19750468e9e8acb56276eb8e59a36e79212e08d356eee3568127242",
+      "parameters": "1487772",
+      "gflops_at_input": "0.3862423039999999",
+      "wall_seconds": "1221.6115434999956",
+      "akconv_layers": "6",
+      "framework_version": "8.4.38",
+      "source_exists": true,
+      "logged_epochs": 50,
+      "source_sha256": "13949900a6cf5d93d06db95c0d9e52911837e5eb0c20f5e2b5998afec5a23759"
+    }
+  ],
+  "structure_audit": [
+    {
+      "model": "deployed",
+      "weight": "models/custom/AKConv_best_moudle/best.pt",
+      "parameters": 1448536,
+      "akconv_layers": 0,
+      "structure_sha256": "bca41c973f5fb72d31632e09067654b11c509a57ef6fbb39835c6b3ca60ae02a",
+      "state_tensors_sha256": "640dd1a3ce34a7322a6869a3c5a57b0c9b81646694b093fe17eb33c8c6cf7eaa",
+      "preprocessing": "Compose(\n    Resize(size=512, interpolation=bilinear, max_size=None, antialias=warn)\n    CenterCrop(size=(512, 512))\n    ToTensor()\n    Normalize(mean=tensor([0., 0., 0.]), std=tensor([1., 1., 1.]))\n)",
+      "inspection_loader": "project local Ultralytics; training framework versions remain as recorded in manifests"
+    },
+    {
+      "model": "YOLO11n-cls",
+      "weight": "runs/comparison_notebook/20261012_200855_w8_fp32_537100/baseline/weights/best.pt",
+      "parameters": 1541352,
+      "akconv_layers": 0,
+      "structure_sha256": "2e3902a09f6eeb000c3c33dae5207d9bc3b44e9cd4e7c1f0fde7712da8ac35aa",
+      "state_tensors_sha256": "ebc3645f7ed07dde98ebc605ee79c27f70518fa9acafb7ae5e6bde9e2d5b2cd9",
+      "preprocessing": "Compose(\n    Resize(size=224, interpolation=bilinear, max_size=None, antialias=warn)\n    CenterCrop(size=(224, 224))\n    ToTensor()\n    Normalize(mean=tensor([0., 0., 0.]), std=tensor([1., 1., 1.]))\n)",
+      "inspection_loader": "project local Ultralytics; training framework versions remain as recorded in manifests"
+    },
+    {
+      "model": "YOLO11n-cls + AKConv",
+      "weight": "runs/comparison_notebook/20261012_200855_w8_fp32_537100/akconv/weights/best.pt",
+      "parameters": 1487772,
+      "akconv_layers": 6,
+      "structure_sha256": "c349d92a11aa291e87182fd383032b4f25a2de9d81190f2c4a3bdf29a0228c36",
+      "state_tensors_sha256": "12b5a4c500303f2e47891b5e2832f5e8fa2f0645c7ba008c940804119d9e14df",
+      "preprocessing": "Compose(\n    Resize(size=224, interpolation=bilinear, max_size=None, antialias=warn)\n    CenterCrop(size=(224, 224))\n    ToTensor()\n    Normalize(mean=tensor([0., 0., 0.]), std=tensor([1., 1., 1.]))\n)",
+      "inspection_loader": "project local Ultralytics; training framework versions remain as recorded in manifests"
+    },
+    {
+      "model": "YOLO26n-cls",
+      "weight": "runs/comparison_notebook/20261012_200855_w8_fp32_537100/yolo26n/weights/best.pt",
+      "parameters": 1541352,
+      "akconv_layers": 0,
+      "structure_sha256": "2e3902a09f6eeb000c3c33dae5207d9bc3b44e9cd4e7c1f0fde7712da8ac35aa",
+      "state_tensors_sha256": "ebc3645f7ed07dde98ebc605ee79c27f70518fa9acafb7ae5e6bde9e2d5b2cd9",
+      "preprocessing": "Compose(\n    Resize(size=224, interpolation=bilinear, max_size=None, antialias=warn)\n    CenterCrop(size=(224, 224))\n    ToTensor()\n    Normalize(mean=tensor([0., 0., 0.]), std=tensor([1., 1., 1.]))\n)",
+      "inspection_loader": "project local Ultralytics; training framework versions remain as recorded in manifests"
+    },
+    {
+      "model": "YOLO26n-cls + AKConv",
+      "weight": "runs/comparison_notebook/20261012_200855_w8_fp32_537100/yolo26n_akconv/weights/best.pt",
+      "parameters": 1487772,
+      "akconv_layers": 6,
+      "structure_sha256": "c349d92a11aa291e87182fd383032b4f25a2de9d81190f2c4a3bdf29a0228c36",
+      "state_tensors_sha256": "12b5a4c500303f2e47891b5e2832f5e8fa2f0645c7ba008c940804119d9e14df",
+      "preprocessing": "Compose(\n    Resize(size=224, interpolation=bilinear, max_size=None, antialias=warn)\n    CenterCrop(size=(224, 224))\n    ToTensor()\n    Normalize(mean=tensor([0., 0., 0.]), std=tensor([1., 1., 1.]))\n)",
+      "inspection_loader": "project local Ultralytics; training framework versions remain as recorded in manifests"
+    }
+  ],
+  "model_files": {
+    "models/custom/AKConv_best_moudle/best.onnx": {
+      "bytes": 5804153,
+      "sha256": "f960c4fb04a7a905a285251d1a21fb4e1be08814e35baec64f6d20e63c9ad4fd"
+    },
+    "models/custom/AKConv_best_moudle/best.pt": {
+      "bytes": 2983382,
+      "sha256": "06e674b3c61cc3e4cd28bbca97b6d1b58fee519df962e9daef12253c70d7b6ca"
+    },
+    "models/custom/AKConv_best_moudle/last.pt": {
+      "bytes": 2984854,
+      "sha256": "4c13fc1f495f9427bbc3e1bdca4c2ee4b5de3ba175904fbacae33cd09a5ec10c"
+    },
+    "models/custom/common/best.pt": {
+      "bytes": 3205200,
+      "sha256": "21c741fa0766e4d6b3beae62fe441328773cc66eb0d9ab8d7c447c39c596c752"
+    },
+    "models/server/best512.onnx": {
+      "bytes": 5804153,
+      "sha256": "f960c4fb04a7a905a285251d1a21fb4e1be08814e35baec64f6d20e63c9ad4fd"
+    }
+  },
+  "server_health": [
+    {
+      "url": "http://101.132.104.41:8000/api/health",
+      "tested_at": "2026-10-14T15:23:47.026421+08:00",
+      "transport": "direct; environment proxy disabled for this request only",
+      "http_status": 200,
+      "response": {
+        "status": "ok",
+        "model": {
+          "weight_path": "/opt/eye-diagnosis/models/server/best512.onnx",
+          "runtime": "1.23.2",
+          "providers": [
+            "CPUExecutionProvider"
+          ],
+          "input_name": "images",
+          "output_logits": false,
+          "classes": {
+            "0": "AMD",
+            "1": "Cataract",
+            "2": "Diabetic Retinopathy",
+            "3": "Glaucoma",
+            "4": "Hypertensive Retinopathy",
+            "5": "Myopia",
+            "6": "Normal",
+            "7": "Other"
+          },
+          "image_size": 512
+        },
+        "model_error": null,
+        "history_ready": true,
+        "history_error": null,
+        "history_db": "/opt/eye-diagnosis/runtime/history.db",
+        "llm_enabled": true,
+        "classes": [
+          "AMD",
+          "Cataract",
+          "Diabetic Retinopathy",
+          "Glaucoma",
+          "Hypertensive Retinopathy",
+          "Myopia",
+          "Normal",
+          "Other"
+        ]
+      }
+    },
+    {
+      "url": "http://game.lingluotoki.dpdns.org:8000/api/health",
+      "tested_at": "2026-10-14T15:23:48.360453+08:00",
+      "transport": "direct; environment proxy disabled for this request only",
+      "http_status": 200,
+      "response": {
+        "status": "ok",
+        "model": {
+          "weight_path": "/opt/eye-diagnosis/models/server/best512.onnx",
+          "runtime": "1.23.2",
+          "providers": [
+            "CPUExecutionProvider"
+          ],
+          "input_name": "images",
+          "output_logits": false,
+          "classes": {
+            "0": "AMD",
+            "1": "Cataract",
+            "2": "Diabetic Retinopathy",
+            "3": "Glaucoma",
+            "4": "Hypertensive Retinopathy",
+            "5": "Myopia",
+            "6": "Normal",
+            "7": "Other"
+          },
+          "image_size": 512
+        },
+        "model_error": null,
+        "history_ready": true,
+        "history_error": null,
+        "history_db": "/opt/eye-diagnosis/runtime/history.db",
+        "llm_enabled": true,
+        "classes": [
+          "AMD",
+          "Cataract",
+          "Diabetic Retinopathy",
+          "Glaucoma",
+          "Hypertensive Retinopathy",
+          "Myopia",
+          "Normal",
+          "Other"
+        ]
+      }
+    }
+  ],
+  "previous_server_health": [
+    {
+      "url": "http://101.132.104.41:8000/api/health",
+      "tested_at": "2026-10-14T15:20:12.181607+08:00",
+      "error": "timed out"
+    },
+    {
+      "url": "http://game.lingluotoki.dpdns.org:8000/api/health",
+      "tested_at": "2026-10-14T15:20:24.192957+08:00",
+      "error": "timed out"
+    },
+    {
+      "url": "http://101.132.104.41:8000/api/health",
+      "tested_at": "2026-10-14T15:21:17.133445+08:00",
+      "error": "HTTPConnectionPool(host='127.0.0.1', port=7897): Read timed out. (read timeout=12)"
+    },
+    {
+      "url": "http://game.lingluotoki.dpdns.org:8000/api/health",
+      "tested_at": "2026-10-14T15:21:29.150666+08:00",
+      "error": "HTTPConnectionPool(host='127.0.0.1', port=7897): Read timed out. (read timeout=12)"
+    }
+  ]
+}

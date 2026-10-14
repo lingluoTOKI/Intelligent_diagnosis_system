@@ -21,7 +21,7 @@ AI 眼科辅助诊断系统，采用 **PC + 开发板** 分离式架构。PC 端
 visualization_test2.py          ← PC 端主入口（PyQt5 GUI 单体应用）
     ├── YOLO 推理（ultralytics，当前权重为原生 YOLO11-cls）
     ├── 语音：SmartVoiceManager（Vosk 离线 → Google 在线回退）
-    ├── DeepSeek API 提供 AI 治疗建议
+    ├── DeepSeek API 提供辅助说明与科普问答
     ├── 网络：屏幕共享、诊断服务、语音服务
     └── configs/（运行与网络配置）
 
@@ -51,7 +51,7 @@ PC局域网IP通过活动物理网卡识别或面板手动设置，网络配置�
 - `models/custom/AKConv_best_moudle/best.onnx` — 用于开发板推理的 ONNX 导出
 - `models/custom/common/best.pt` — 备用权重
 
-> **关于 AKConv：** 模块代码位于 `ultralytics-main/ultralytics/nn/modules/akconv.py`，并已完成框架注册（`__init__.py` 导入 + `tasks.py` 的 `parse_model()`）。默认部署权重不含AKConv；YOLO11与YOLO26框架的AKConv配置及实验权重需要分别核实，不能据文件夹名推断结构。AKConv 原始工作见 Lv et al., *AKConv: Convolutional Kernel with Arbitrary Sampled Shapes and Arbitrary Number of Parameters*。
+> **关于 AKConv：** 模块代码位于 `ultralytics-main/ultralytics/nn/modules/akconv.py`，并已完成框架注册（`__init__.py` 导入 + `tasks.py` 的 `parse_model()`）。默认部署权重不含AKConv；YOLO11与YOLO26框架的AKConv配置及实验权重需要分别核实，不能据文件夹名推断结构。AKConv 原始工作见 Xin Zhang et al., *AKConv: Convolutional Kernel with Arbitrary Sampled Shapes and Arbitrary Number of Parameters*, arXiv:2311.11587v2。
 
 `ultralytics-main/` 目录是 YOLO 框架的本地副本（尽管 `requirements.txt` 中列出了 ultralytics，但实际使用的是该本地版本）。
 
@@ -92,8 +92,8 @@ yolo val model=models/custom/AKConv_best_moudle/best.pt data=data
 
 `configs/system_config.py` 包含所有网络配置。`configs/system_config.json` 是启动脚本使用的简化 JSON 版本。系统启动时会验证配置 —— PC 与开发板之间的 IP/端口不匹配会导致通信失败。
 
-- `PC_IP`：硬编码为 `172.20.10.3`
-- `BOARD_IP`：`172.20.10.8`（在发送端脚本中）
+- `PC_IP`：从活动局域网网卡自动识别，或读取保存的手动 IPv4。
+- `BOARD_IP`：以系统设置保存的地址为准；模板为空，实机使用前配置。
 - 接收图像的保存目录：`medical_images/` 或 `SYSTEM_CONFIG["SAVE_DIR"]`
 
 ## 语音系统
@@ -101,9 +101,9 @@ yolo val model=models/custom/AKConv_best_moudle/best.pt data=data
 `SmartVoiceManager`（定义在 `visualization_test2.py` 中）处理：
 1. **Vosk** 离线中文模型（`vosk-model-cn-0.22/`）—— 延迟加载以避免启动延迟
 2. **Google 语音识别** —— 在线回退方案
-3. **pyttsx3** —— 语音合成，用于朗读 AI 回复
+3. **Edge TTS MP3** —— 自然音色与应用内播放；缓存相同文本；失败时按当前播放器实现回退。
 
-语音依赖：`speechrecognition`、`pyttsx3`、`vosk`、`pyaudio`（系统级）。
+语音依赖见 `requirements-voice.txt`，包括 `edge-tts`、`speechrecognition`、`pyttsx3`、`vosk`、`pyaudio`。
 
 ## 数据集
 
@@ -114,7 +114,7 @@ yolo val model=models/custom/AKConv_best_moudle/best.pt data=data
 - 主入口是 `visualization_test2.py`，**不是** `visualization_test1.py` 或 `ultralytics-main/` 下的任何文件
 - `src/visualization/visualization*.py` 是历史版本；同目录workbench、conversation、analysis_pages等为当前生产模块
 - `src/utils/` 存放的是一次性测试/调试脚本，而非工具库
-- `services/` 目录只包含过期的 `.pyc` 字节码文件 —— 可忽略
+- 原 `services/` 的过期 `.pyc` 已归档至 `runtime/local_install_cache/2026-10-14/services_legacy/`，当前入口不导入它们。
 - README 中引用的 `models/custom/self_model/` 实际路径为 `models/custom/AKConv_best_moudle/`
 - API 密钥（DeepSeek）存储在 `saved_api_key.txt` —— 切勿提交此文件
 - 根目录下的 `temp_image_*.png` 是运行时产物，可以安全删除

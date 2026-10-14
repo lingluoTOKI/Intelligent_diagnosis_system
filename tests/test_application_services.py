@@ -16,6 +16,16 @@ from src.core.history import HistoryDB
 from src.core.llm import DeepSeekAPI
 
 
+def test_network_template_used_when_local_config_missing(tmp_path, monkeypatch):
+    root = tmp_path / "project"
+    (root / "configs").mkdir(parents=True)
+    (root / "configs/system_config.example.json").write_text('{"startup":{"auto_detect_ip":true}}', encoding="utf-8")
+    monkeypatch.setattr(network_config, "PROJECT_ROOT", root)
+    monkeypatch.setattr(network_config, "SYSTEM_CONFIG_PATH", root / "configs/system_config.json")
+    assert network_config.read_system_config()["startup"]["auto_detect_ip"] is True
+    assert not (root / "configs/system_config.json").exists()
+
+
 class FakeModel:
     task = "classify"
     names = dict(enumerate(("A", "C", "D", "G", "H", "M", "N", "O")))

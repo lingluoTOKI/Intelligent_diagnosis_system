@@ -8,11 +8,13 @@ from docx.enum.section import WD_SECTION
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "deliverables" / "course_design"
-FIG = ROOT / "runs" / "report_figures"
+FIG = ROOT / "docs" / "evidence" / "report_figures"
+if not FIG.is_dir():
+    FIG = ROOT / "runs" / "report_figures"
 TITLE = "基于YOLO与大语言模型的眼科图像分类辅助诊断系统"
 MEMBERS = "欧阳宸（230722105）  汪晓蕾（231613212）"
 DATE = "2026年10月"
@@ -63,6 +65,7 @@ def add_para(doc, text="", bold_lead=None, indent=True):
 
 def add_heading(doc, text, level=1):
     p = doc.add_paragraph()
+    p.paragraph_format.keep_with_next = True
     p.paragraph_format.space_before = Pt(10 if level == 1 else 7)
     p.paragraph_format.space_after = Pt(5)
     r = p.add_run(text)
@@ -73,6 +76,8 @@ def add_heading(doc, text, level=1):
 def add_table(doc, headers, rows, widths=None):
     table = doc.add_table(rows=1, cols=len(headers))
     table.style = "Table Grid"
+    header_marker = OxmlElement("w:tblHeader")
+    table.rows[0]._tr.get_or_add_trPr().append(header_marker)
     for i, h in enumerate(headers):
         c = table.rows[0].cells[i]
         c.text = h
@@ -80,7 +85,7 @@ def add_table(doc, headers, rows, widths=None):
         border(c)
         for r in c.paragraphs[0].runs:
             set_run(r, 10.5, True)
-            r.font.color.rgb = None
+            r.font.color.rgb = RGBColor(255, 255, 255)
     for row in rows:
         cells = table.add_row().cells
         for i, value in enumerate(row):
@@ -91,6 +96,8 @@ def add_table(doc, headers, rows, widths=None):
                 for r in p.runs:
                     set_run(r, 10.5)
     if widths:
+        available = 21 - 2 * 2.54
+        widths = [width * available / sum(widths) for width in widths]
         for row in table.rows:
             for i, width in enumerate(widths):
                 row.cells[i].width = Cm(width)
@@ -149,17 +156,19 @@ def setup(title):
 
 
 def references(doc):
-    add_heading(doc, "参考文献", 1)
+    p = add_heading(doc, "参考文献", 1)
+    p.paragraph_format.page_break_before = True
     items = [
-        "[1] P. Liu et al. ODIR 5K Ocular Disease Intelligent Recognition Dataset. arXiv:2004.11419, 2020.",
-        "[2] T. Y. Wong et al. Artificial intelligence and deep learning in ophthalmology. British Journal of Ophthalmology, 2019.",
+        "[1] ODIR-2019. Dataset ODIR-5K [EB/OL]. https://odir2019.grand-challenge.org/dataset/, accessed 2026-10-14. 数据集说明页面，不计作核心研究论文。",
+        "[2] D. S. W. Ting et al. Artificial intelligence and deep learning in ophthalmology. British Journal of Ophthalmology, 2019, 103(2): 167-175. doi:10.1136/bjophthalmol-2018-313173.",
         "[3] V. Gulshan et al. Development and validation of a deep learning algorithm for detection of diabetic retinopathy. JAMA, 2016.",
         "[4] D. S. W. Ting et al. Development and validation of a deep learning system for diabetic retinopathy and related eye diseases. JAMA, 2017.",
         "[5] G. Litjens et al. A survey on deep learning in medical image analysis. Medical Image Analysis, 2017.",
-        "[6] Z. Lv et al. AKConv Convolutional Kernel with Arbitrary Sampled Shapes and Arbitrary Number of Parameters. arXiv:2309.13855, 2023.",
+        "[6] X. Zhang et al. AKConv: Convolutional Kernel with Arbitrary Sampled Shapes and Arbitrary Number of Parameters. arXiv:2311.11587v2, 2023. https://arxiv.org/abs/2311.11587v2.",
         "[7] Ultralytics. YOLO Classification Documentation and Source Code. https://docs.ultralytics.com, accessed 2026-10-13.",
         "[8] X. Liu et al. A comparison of deep learning performance against health-care professionals in detecting diseases from medical imaging. The Lancet Digital Health, 2019.",
         "[9] DeepSeek-AI. DeepSeek V3 Technical Report. arXiv:2412.19437, 2024.",
+        "[10] Y. Zhou et al. A foundation model for generalizable disease detection from retinal images. Nature, 2023, 622: 156-163. doi:10.1038/s41586-023-06555-x.",
     ]
     for item in items:
         add_para(doc, item, indent=False)
@@ -174,6 +183,7 @@ def literature():
     add_para(doc, "公开眼底数据集推动了自动筛查研究。ODIR 5K 提供双眼彩色眼底照片及多个疾病标签，为多类别研究提供了基础。深度学习方法已经在糖尿病视网膜病变等任务中显示出较好的筛查能力，但跨设备、类别不均衡、样本独立性和临床外部验证仍是决定结果可信度的关键因素。")
     add_para(doc, "轻量级卷积网络适合有限显存和边缘部署。YOLO 分类模型可复用成熟训练、增强和导出工具链。AKConv 通过可学习采样位置扩展卷积的几何适应性，但其有效性必须由相同数据和独立验证下的消融实验支持，不能仅依据代码中存在模块或目录名称作结论。")
     add_para(doc, "大语言模型可将类别名称、概率和限制条件组织为可读说明，适合辅助交互；其输出会受提示、上下文和服务状态影响，因此应显示来源、限制和失败信息。")
+    add_para(doc, "Zhou等人的RETFound研究以未标注视网膜图像的自监督预训练为基础，再适配具体疾病检测任务，说明领域预训练是值得比较的技术路线[10]。本项目尚未训练或评估RETFound，不能将其公开结果与本项目受污染划分上的指标直接排序；它仅作为后续独立实验的候选基准。")
     add_heading(doc, "3 方法对比与评述")
     add_table(doc, ["方向", "代表工作", "优势", "主要局限", "与本项目关系"], [
         ["眼底数据集", "ODIR 5K", "类别覆盖广，含双眼图像", "多标签与患者级信息需谨慎处理", "作为历史来源线索"],
@@ -234,6 +244,7 @@ def model_report():
     add_para(doc, "部署任务为八类眼底图像分类：AMD、白内障、糖尿病视网膜病变、青光眼、高血压性视网膜病变、近视性黄斑病变、正常和其他。当前服务端权重为 ONNX 格式 best512.onnx，模型声明输入为 512×512；服务端以权重声明尺寸进行短边缩放和中心裁剪。")
     add_table(doc, ["项目", "已核实信息"], [
         ["部署骨干", "YOLO11n-cls 分类权重，原生部署权重不含 AKConv"],
+        ["部署参数量", "1,448,536；与历史对比实验基线的 1,541,352 不同"],
         ["输入尺寸", "512×512（权重声明，服务端健康接口可查询）"],
         ["类别数", "8"],
         ["服务端运行时", "ONNX Runtime CPUExecutionProvider"],
@@ -244,7 +255,7 @@ def model_report():
     add_para(doc, "推理模块首先校验 NCHW 三通道输入和八类输出，再完成归一化、模型执行与 softmax 判断。分类失败时向上层返回明确错误；业务层不保存成功历史，也不生成当前图像的伪报告。")
     add_heading(doc, "3 AKConv 适配与能力边界")
     add_para(doc, "工程中保留 AKConv 模块与候选训练记录。历史对比日志显示，AKConv 候选模型包含 6 个 AKConv 层，参数量为 1,487,772；基线模型参数量为 1,541,352。当前实际部署权重经结构核对 AKConv 层数为 0，因而系统不能宣称在线部署使用了 AKConv。")
-    add_para(doc, "两套框架下的同设置记录存在相同数据指纹和数值高度一致的现象。此类记录不应被表述为彼此独立的框架对比结果，只能作为历史工程检查材料。")
+    add_para(doc, "两套框架下的记录使用相同数据指纹，这是控制数据变量的正常条件，本身不能证明结果不独立。2026年10月14日进一步读取四个候选最佳检查点，以同一项目框架比较逐层模块与参数形状以及权重张量，发现两套框架中的基线模型结构和张量哈希分别相同，AKConv候选也分别相同。因此四条记录只能描述不同框架环境下的训练过程，不能作为四种不同网络架构的性能比较；哈希相同也不能单独用于断定训练日志被复制。")
     add_heading(doc, "4 资源与风险分析")
     add_table(doc, ["风险", "表现", "控制措施"], [
         ["数据泄漏", "训练与验证跨集合重复内容哈希 140 个", "去重、患者级划分、重训重测"],

@@ -41,7 +41,8 @@ YOLO26框架来自同级 `../yolo26/ultralytics-main`，供实验或显式配置
 本机配置 `configs/app_config.json`、`ui_preferences.json`、备份、数据集、密钥、运行截图及临时导出不随Git提交。应用配置模板为 `configs/app_config.example.json`。
 
 ## 整理原则与保留区域
-本次仅补充说明和Git忽略规则，不删除或搬移文件。
+业务代码、模型与实验材料保留原路径；可重建临时文件归档保留。
+2026-10-14 更新：根目录 75 项安装与文档测试临时内容已保留式归档至 `runtime/local_install_cache/2026-10-14/`；业务代码、数据、模型与训练结果保留原路径。当前入口与可交付文件经过包级检查，见 `docs/guide/工程与证据核对结果.md`。
 
 | 区域 | 用途 | 当前处理 |
 |---|---|---|
@@ -55,4 +56,4 @@ YOLO26框架来自同级 `../yolo26/ultralytics-main`，供实验或显式配置
 | docs/guide/ | 当前操作说明与验收记录 | 以最新日期文档为准 |
 | 其他历史报告 | 历史材料 | 保留，不作为当前实验真实性依据 |
 
-旧 `ablation.ipynb` 的本地缺失是此前工作区状态，本次同步不提交该删除；GitHub保留旧文件。
+旧 `ablation.ipynb` 已恢复且存在于当前工作区；最终提交包包含它及清除输出的 `ablation_fast_workers8.ipynb` 副本。本机实验 notebook 输出保持原样。

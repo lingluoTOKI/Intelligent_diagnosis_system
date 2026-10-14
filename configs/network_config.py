@@ -40,7 +40,10 @@ def get_ipv4_interfaces(addresses=None, stats=None):
 
 
 def read_system_config(path=None):
-    return json.loads(Path(path or SYSTEM_CONFIG_PATH).read_text(encoding="utf-8-sig"))
+    source = Path(path or SYSTEM_CONFIG_PATH)
+    if path is None and not source.is_file():
+        source = PROJECT_ROOT / "configs/system_config.example.json"
+    return json.loads(source.read_text(encoding="utf-8-sig"))
 
 
 def get_local_ip(preferred_interface=None):

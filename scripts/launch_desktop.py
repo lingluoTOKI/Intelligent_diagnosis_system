@@ -2,9 +2,20 @@
 from pathlib import Path
 import os,sys,subprocess,datetime
 ROOT=Path(__file__).resolve().parents[1]
-PYTHON=Path(os.environ.get('EYE_PYTHON',r'D:\Anaconda3\envs\yolov10\python.exe'))
+def resolve_python():
+    configured=os.environ.get('EYE_PYTHON')
+    if configured:
+        candidate=Path(configured).expanduser()
+        if not candidate.is_file():raise RuntimeError('EYE_PYTHON points to a missing interpreter: '+str(candidate))
+        return candidate
+    for candidate in (ROOT/'.venv'/'Scripts'/'python.exe', ROOT/'venv'/'Scripts'/'python.exe',
+                      ROOT/'.venv'/'bin'/'python', ROOT/'venv'/'bin'/'python',
+                      Path(r'D:\Anaconda3\envs\yolov10\python.exe'), Path(sys.executable)):
+        if candidate.is_file():return candidate
+    raise RuntimeError('Python environment not found; install dependencies and set EYE_PYTHON')
 def main():
-    if not PYTHON.is_file():raise RuntimeError('GUI Python not found: '+str(PYTHON))
+    PYTHON=resolve_python()
+    if not (ROOT/'visualization_test2.py').is_file():raise RuntimeError('Desktop entrypoint is missing: visualization_test2.py')
     env=dict(os.environ,PYTHONIOENCODING='utf-8',PYTHONUTF8='1')
     no_window = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
     probe=subprocess.run([str(PYTHON),'-c','import PyQt5.QtWidgets,cv2,numpy,torch; print("GUI environment OK")'],cwd=ROOT,env=env,capture_output=True,text=True,encoding='utf-8',creationflags=no_window)

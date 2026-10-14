@@ -1,0 +1,29 @@
+{
+  "verified_at": "2026-10-14T15:29:31.670335+08:00",
+  "tests": {
+    "command": "python -m pytest tests/test_gui_classification.py tests/test_application_services.py tests/test_course_submission.py -q",
+    "passed": 55
+  },
+  "package_model_smoke": {
+    "exit_code": 0,
+    "uses_existing_environment": true,
+    "clean_install_claim": false,
+    "log": "runtime/package_smoke/desktop_model_check.log"
+  },
+  "parity": {
+    "samples": 20,
+    "top1_equal": 20,
+    "max_probability_gap_rounded": 3e-06,
+    "mean_max_probability_gap_rounded": 1e-06
+  },
+  "report_visual_check": {
+    "renderer": "native Word PDF export and Poppler PNG rendering; LibreOffice unavailable",
+    "pages": {
+      "design": 4,
+      "model": 4,
+      "experiment": 5,
+      "literature": 4
+    },
+    "status": "fact-corrected drafts; substantial writing still required"
+  }
+}

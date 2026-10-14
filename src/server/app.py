@@ -287,12 +287,25 @@ async def predict(file: UploadFile = File(...)):
 @app.post("/api/chat")
 def chat(request: ChatRequest):
     disease = request.disease.strip()
+    question = request.question.strip()
+
+    # 同时携带分类结果与追问时，把分类结果作为上下文拼进多轮问答，
+    # 让 AI 知道"当前图片被识别为什么病"，避免给出通用回复。
+    if disease and disease in DISEASES and question and state.llm is not None:
+        prompt = (
+            f"【当前图像分类结果】模型预测为：{disease}"
+            f"（置信度 {float(request.confidence) * 100:.1f}%）。"
+            f"该结果仅供参考，不能替代医生诊断。在此前提下，请回答我的问题：{question}"
+        )
+        advice = state.llm.request_custom_advice(prompt)
+        return {"success": advice.success, "content": advice.content,
+                "source": advice.source, "error": advice.error}
+
     if disease and disease in DISEASES and state.llm is not None:
         advice = state.llm.request_treatment_advice(disease, request.confidence)
         return {"success": advice.success, "content": advice.content,
                 "source": advice.source, "error": advice.error}
 
-    question = request.question.strip()
     if question and state.llm is not None:
         advice = state.llm.request_custom_advice(question)
         return {"success": advice.success, "content": advice.content,

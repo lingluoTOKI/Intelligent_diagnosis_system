@@ -757,7 +757,7 @@ tbody td{height:45px}
 
   <div class="statusbar">
     <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
-    <span id="barRight">v2026-10-13.20 · 输出结果不构成医学诊断依据</span>
+    <span id="barRight">v2026-10-14.21 · 输出结果不构成医学诊断依据</span>
   </div>
 </div>
 
@@ -2180,7 +2180,11 @@ el("btnSend").addEventListener("click", async () => {
     const data = await apiJson("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: text })
+      body: JSON.stringify({
+        question: text,
+        disease: current.disease || "",
+        confidence: current.confidence || 0
+      })
     });
     pushChat(data.success ? "ai" : "sys",
              (data.success ? "AI：" : "") + (data.content || data.error || "无返回内容"));
@@ -2273,7 +2277,7 @@ document.querySelectorAll("#rightTabs button").forEach(btn => {
 function updateViewport(){
   const width = document.documentElement.clientWidth;
   const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
-  el("barRight").textContent = "v2026-10-13.20 · 视口 " + width + "px · 缩放 " + ratio +
+  el("barRight").textContent = "v2026-10-14.21 · 视口 " + width + "px · 缩放 " + ratio +
     "x · 输出结果不构成医学诊断依据";
 }
 window.addEventListener("resize", updateViewport);

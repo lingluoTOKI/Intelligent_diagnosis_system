@@ -281,8 +281,14 @@ td.name{color:var(--ink)}
 .blank{padding:30px;text-align:center;color:var(--muted);font-size:var(--fs-body)}
 .chart-box{padding:12px;overflow:auto}
 .chart-box svg{width:100%;height:auto;display:block}
-.detail{display:none;margin-top:10px;background:var(--input);border:1px solid var(--btn-line);border-radius:7px;padding:12px;font-size:var(--fs-small);color:var(--muted);white-space:pre-wrap;max-height:220px;overflow:auto}
+.detail{display:none;margin-top:10px;background:var(--input);border:1px solid var(--btn-line);border-radius:7px;padding:12px;font-size:var(--fs-small);color:var(--muted);white-space:pre-wrap;max-height:340px;overflow:auto}
 .detail.show{display:block}
+.detail .dmeta{white-space:pre-wrap;line-height:1.75}
+.detail .dsec{margin-top:11px;padding-top:10px;border-top:1px dashed var(--btn-line)}
+.detail .dsec h5{margin:0 0 8px;font-size:var(--fs-small);color:var(--ink);font-weight:600}
+.detail .dprobs{display:flex;flex-direction:column;gap:6px}
+.detail .dadvice{white-space:pre-wrap;line-height:1.75;color:var(--ink)}
+.detail .dempty{color:var(--muted)}
 .footer-row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
 .page-label{color:var(--muted);font-size:var(--fs-small)}
 
@@ -834,7 +840,7 @@ tbody tr{transition:background .15s var(--ease)}
 
   <div class="statusbar">
     <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
-    <span id="barRight">v2026-10-14.24 · 输出结果不构成医学诊断依据</span>
+    <span id="barRight">v2026-10-14.25 · 输出结果不构成医学诊断依据</span>
   </div>
 </div>
 
@@ -1372,14 +1378,42 @@ function drawTable(scope){
   el(scope + "ChartBox").innerHTML = chartSvg(view.chart, view.counts, view.daily);
 }
 
+function parseStoredJson(value){
+  if(!value) return null;
+  if(typeof value === "object") return value;
+  try{ return JSON.parse(value); }catch(_){ return null; }
+}
+function detailProbsHtml(probabilities){
+  const map = parseStoredJson(probabilities);
+  const keys = map ? Object.keys(map) : [];
+  if(!keys.length) return "";
+  const ranked = Object.entries(map).sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0));
+  return '<div class="dsec"><h5>八类概率分布</h5><div class="dprobs">' +
+    ranked.map((item, i) => {
+      const name = item[0], value = Number(item[1]) || 0;
+      return '<div class="prow' + (i === 0 ? " top" : "") + '">' +
+        '<span class="pn" title="' + escHtml(name + " / " + (SHORT[name] || name)) + '">' +
+        escHtml(SHORT[name] || name) + '</span>' +
+        '<span class="pb"><i style="width:' + Math.max(value * 100, 0.5).toFixed(2) + '%"></i></span>' +
+        '<span class="pv">' + pct(value) + '</span></div>';
+    }).join("") + '</div></div>';
+}
 function showDetail(scope, row){
   const box = el(scope + "Detail");
-  box.textContent = "图像路径：" + (row.path || row.image_path || "-") + "\n" +
+  const modelInfo = typeof row.model_info === "string"
+    ? row.model_info : JSON.stringify(row.model_info || {});
+  const meta = "图像路径：" + (row.path || row.image_path || "-") + "\n" +
     "类别：" + (FULL[row.disease_name] || row.disease_name || "-") + "\n" +
     "概率：" + pct(row.confidence) + "\n" +
     "时间：" + (row.timestamp || "-") + (row.batch_id ? " · 批次 " + row.batch_id : "") + "\n" +
+    "状态：" + (STATE_TEXT[row.status] || "成功") + " · " + (SAVE_TEXT[row.save_status] || "已保存") + "\n" +
     "错误：" + (row.error || "无") + "\n" +
-    "模型信息：" + (typeof row.model_info === "string" ? row.model_info : JSON.stringify(row.model_info || {}));
+    "模型信息：" + modelInfo;
+  const advice = String(row.advice || "").trim();
+  box.innerHTML = '<div class="dmeta">' + escHtml(meta) + "</div>" +
+    detailProbsHtml(row.probabilities) +
+    (advice ? '<div class="dsec"><h5>辅助建议</h5><div class="dadvice">' +
+      escHtml(advice) + "</div></div>" : "");
   box.classList.add("show");
 }
 
@@ -2432,7 +2466,7 @@ document.querySelectorAll("#rightTabs button").forEach(btn => {
 function updateViewport(){
   const width = document.documentElement.clientWidth;
   const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
-  el("barRight").textContent = "v2026-10-14.24 · 视口 " + width + "px · 缩放 " + ratio +
+  el("barRight").textContent = "v2026-10-14.25 · 视口 " + width + "px · 缩放 " + ratio +
     "x · 输出结果不构成医学诊断依据";
 }
 window.addEventListener("resize", updateViewport);

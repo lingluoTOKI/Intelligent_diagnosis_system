@@ -289,6 +289,8 @@ td.name{color:var(--ink)}
 .detail .dprobs{display:flex;flex-direction:column;gap:6px}
 .detail .dadvice{white-space:pre-wrap;line-height:1.75;color:var(--ink)}
 .detail .dempty{color:var(--muted)}
+.detail .dimg{margin-top:11px;padding-top:10px;border-top:1px dashed var(--btn-line)}
+.detail .dimg img{max-width:100%;max-height:280px;border-radius:6px;border:1px solid var(--btn-line);display:block;background:var(--card)}
 .footer-row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
 .page-label{color:var(--muted);font-size:var(--fs-small)}
 
@@ -840,7 +842,7 @@ tbody tr{transition:background .15s var(--ease)}
 
   <div class="statusbar">
     <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
-    <span id="barRight">v2026-10-14.25 · 输出结果不构成医学诊断依据</span>
+    <span id="barRight">v2026-10-14.26 · 输出结果不构成医学诊断依据</span>
   </div>
 </div>
 
@@ -1410,10 +1412,19 @@ function showDetail(scope, row){
     "错误：" + (row.error || "无") + "\n" +
     "模型信息：" + modelInfo;
   const advice = String(row.advice || "").trim();
+  const recordId = String(row.record_id || "");
   box.innerHTML = '<div class="dmeta">' + escHtml(meta) + "</div>" +
     detailProbsHtml(row.probabilities) +
     (advice ? '<div class="dsec"><h5>辅助建议</h5><div class="dadvice">' +
-      escHtml(advice) + "</div></div>" : "");
+      escHtml(advice) + "</div></div>" : "") +
+    (recordId ? '<div class="dsec dimg"><h5>原始图像</h5><img loading="lazy" alt="原始图像" src="' +
+      escHtml("/api/history/" + encodeURIComponent(recordId) + "/image") + '"></div>' : "");
+  // 老记录未留存原图时后端返回 404，直接移除图片区块，不显示破图
+  const thumb = box.querySelector(".dimg img");
+  if(thumb) thumb.addEventListener("error", () => {
+    const holder = thumb.parentNode;
+    if(holder) holder.remove();
+  });
   box.classList.add("show");
 }
 
@@ -2466,7 +2477,7 @@ document.querySelectorAll("#rightTabs button").forEach(btn => {
 function updateViewport(){
   const width = document.documentElement.clientWidth;
   const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
-  el("barRight").textContent = "v2026-10-14.25 · 视口 " + width + "px · 缩放 " + ratio +
+  el("barRight").textContent = "v2026-10-14.26 · 视口 " + width + "px · 缩放 " + ratio +
     "x · 输出结果不构成医学诊断依据";
 }
 window.addEventListener("resize", updateViewport);

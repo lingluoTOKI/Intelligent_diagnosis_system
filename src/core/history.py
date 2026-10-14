@@ -41,14 +41,16 @@ class HistoryDB:
                 pass  # 字段已存在，忽略
 
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON records(timestamp DESC)")
-            for name in ("probabilities", "model_info", "batch_id"):
+            for name in ("probabilities", "model_info", "batch_id", "image_file"):
                 if name not in [r[1] for r in conn.execute("PRAGMA table_info(records)")]:
                     conn.execute(f"ALTER TABLE records ADD COLUMN {name} TEXT")
             conn.execute("CREATE TABLE IF NOT EXISTS batches (batch_id TEXT PRIMARY KEY, created TEXT, state TEXT, model_info TEXT)")
             conn.execute("CREATE TABLE IF NOT EXISTS batch_items (batch_id TEXT, position INTEGER, payload TEXT, PRIMARY KEY(batch_id,position))")
             conn.commit()
 
-    def add(self, record_id, timestamp, image_path, disease_name, confidence, probabilities=None, model_info=None, batch_id=None):
+    def add(self, record_id, timestamp, image_path, disease_name, confidence, probabilities=None,
+            model_info=None, batch_id=None, image_file=None):
+        """写入一条记录。image_file 为 runtime/uploads 下的实际文件名，用于历史回看原图。"""
         # Explicitly labelled demonstration records remain separate from predictions.
         is_demo = isinstance(disease_name, str) and disease_name.startswith("[演示]")
         checked_name = disease_name[len("[演示]"):].strip() if is_demo else disease_name
@@ -60,10 +62,18 @@ class HistoryDB:
                 "INSERT OR REPLACE INTO records (record_id, timestamp, image_path, disease_name, confidence) VALUES (?,?,?,?,?)",
                 (record_id, timestamp, image_path, disease_name, round(confidence, 4))
             )
-            conn.execute("UPDATE records SET probabilities=?, model_info=?, batch_id=? WHERE record_id=?",
+            conn.execute("UPDATE records SET probabilities=?, model_info=?, batch_id=?, image_file=? WHERE record_id=?",
                          (json.dumps(probabilities, ensure_ascii=False) if probabilities is not None else None,
-                          json.dumps(model_info, ensure_ascii=False) if model_info is not None else None, batch_id, record_id))
+                          json.dumps(model_info, ensure_ascii=False) if model_info is not None else None,
+                          batch_id, image_file, record_id))
             conn.commit()
+
+    def get_by_record_id(self, record_id):
+        """按 record_id 取单条记录；不存在返回 None。"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute("SELECT * FROM records WHERE record_id = ?", (record_id,)).fetchone()
+            return dict(row) if row else None
 
     def create_batch(self, batch_id, paths, model_info):
         with sqlite3.connect(self.db_path) as conn:

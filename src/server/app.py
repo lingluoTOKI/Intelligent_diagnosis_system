@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import os
+import re
 import sys
 import time
 import uuid
@@ -64,6 +65,31 @@ MAX_UPLOAD_BYTES = int(float(os.getenv("EYE_MAX_UPLOAD_MB", "12")) * 1024 * 1024
 # 防止超大批次把 worker 拖到 OOM（worker 一旦被 kill，nginx 会对所有请求返回 502）
 MAX_BATCH_FILES = int(os.getenv("EYE_MAX_BATCH_FILES", "10"))
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/jpg"}
+
+# 历史回看原图：分类时把上传图像另存到 runtime/uploads，历史详情可直接显示原图。
+# 注意：眼底图像属于医疗数据，若不想在服务器留存，设置 EYE_SAVE_UPLOADS=0 关闭。
+SAVE_UPLOADS = os.getenv("EYE_SAVE_UPLOADS", "1").strip().lower() not in {"0", "false", "no", "off"}
+UPLOAD_DIR = Path(os.getenv("EYE_UPLOAD_DIR", PROJECT_ROOT / "runtime" / "uploads"))
+if SAVE_UPLOADS:
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as error:  # noqa: BLE001 - 目录创建失败不应阻断启动
+        print(f"[警告] 上传目录不可用，将不保存原图: {error}")
+        SAVE_UPLOADS = False
+
+
+def _save_upload(data: bytes, record_id: str, name: str) -> str:
+    """把上传图像另存到 UPLOAD_DIR，返回落盘文件名；失败返回空串，不影响分类结果。"""
+    if not SAVE_UPLOADS or not data:
+        return ""
+    try:
+        safe = re.sub(r"[^A-Za-z0-9._-]", "_", Path(name or "upload").name)[:60] or "upload"
+        filename = record_id + "_" + safe
+        (UPLOAD_DIR / filename).write_bytes(data)
+        return filename
+    except Exception as error:  # noqa: BLE001 - 另存失败只影响回看，不影响诊断
+        print(f"[警告] 图像另存失败: {error}")
+        return ""
 
 
 class ChatRequest(BaseModel):
@@ -266,7 +292,8 @@ async def predict(file: UploadFile = File(...)):
             state.history.add(record_id, datetime.now().isoformat(timespec="seconds"),
                               file.filename or "upload", prediction.disease,
                               prediction.confidence, prediction.probabilities,
-                              state.classifier.model_info())
+                              state.classifier.model_info(),
+                              image_file=_save_upload(data, record_id, file.filename or "upload"))
             saved = True
         except Exception as error:  # noqa: BLE001 - 历史写入失败不应让诊断失败
             saved = False
@@ -412,7 +439,8 @@ def _classify_one(data: bytes, name: str, batch_id: str = "") -> dict:
             record_id = uuid.uuid4().hex
             state.history.add(record_id, datetime.now().isoformat(timespec="seconds"), name,
                               prediction.disease, prediction.confidence, prediction.probabilities,
-                              state.classifier.model_info(), batch_id=batch_id or None)
+                              state.classifier.model_info(), batch_id=batch_id or None,
+                              image_file=_save_upload(data, record_id, name))
             item["record_id"] = record_id
             saved = True
         except Exception as error:  # noqa: BLE001
@@ -523,12 +551,45 @@ def history(limit: int = 100, page: int = 0, start: str = "", end: str = "",
             "page": page_index, "page_size": page_size, "counts": counts, "daily": daily}
 
 
+@app.get("/api/history/{record_id}/image")
+def history_image(record_id: str):
+    """历史原图回看：返回该记录分类时另存的原始图像。
+
+    老记录（开启此功能之前产生的）没有留图，返回 404，前端会自动隐藏图片区域。
+    """
+    if state.history is None:
+        return JSONResponse({"success": False, "error": state.history_error or "历史库不可用"},
+                            status_code=503)
+    row = state.history.get_by_record_id(record_id)
+    if not row:
+        return JSONResponse({"success": False, "error": "记录不存在"}, status_code=404)
+    stored = (row.get("image_file") or "").strip()
+    if not stored:
+        return JSONResponse({"success": False, "error": "该记录未保存原图"}, status_code=404)
+    # 只取文件名，杜绝路径穿越
+    filename = Path(stored).name
+    target = UPLOAD_DIR / filename
+    if not target.is_file():
+        return JSONResponse({"success": False, "error": "原图文件已不存在"}, status_code=404)
+    return FileResponse(str(target))
+
+
 @app.delete("/api/history/{record_id}")
 def delete_history(record_id: str):
     if state.history is None:
         return JSONResponse({"success": False, "error": state.history_error or "历史库不可用"},
                             status_code=503)
+    row = state.history.get_by_record_id(record_id)
     state.history.delete_by_record_id(record_id)
+    # 连带清理已留存的原图，避免孤儿文件持续占用磁盘
+    stored = (row or {}).get("image_file") or ""
+    if stored:
+        try:
+            target = UPLOAD_DIR / Path(stored).name
+            if target.is_file():
+                target.unlink()
+        except Exception as error:  # noqa: BLE001 - 清理失败不影响记录删除结果
+            print(f"[警告] 原图清理失败: {error}")
     return {"success": True, "record_id": record_id}
 
 

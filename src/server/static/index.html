@@ -459,6 +459,30 @@ tbody tr{transition:background .15s var(--ease)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(77,214,180,.45)}70%{box-shadow:0 0 0 7px rgba(77,214,180,0)}100%{box-shadow:0 0 0 0 rgba(77,214,180,0)}}
 /* 小标签统一微光 */
 .tag,.bid,.api-method{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 2px rgba(0,0,0,.15)}
+/* 本次优化：减少过重的装饰，突出图像、分类结果和操作反馈。 */
+.btn:focus-visible,.canvas:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
+  outline:2px solid var(--accent);outline-offset:2px
+}
+.canvas.has{background:#111922}
+.canvas.has img{border-radius:6px;filter:none}
+.prediction{align-items:center}
+.prediction .name{line-height:1.35}
+.probs .hint{letter-spacing:.02em}
+.advice,.chat-log{scrollbar-gutter:stable}
+.status-text{overflow-wrap:anywhere}
+@media (max-width:560px){
+  .pages{width:100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pages button{min-width:0;justify-content:center;padding:10px 6px;font-size:var(--fs-small)}
+  .tabs{width:100%}
+  .tabs button{flex:1;padding:9px 6px;font-size:var(--fs-small)}
+  .tabhead{flex-wrap:wrap}
+  .reading{margin-left:0}
+  .prediction .name{min-width:0}
+  .key-row{flex-wrap:wrap}
+  .key-row input[type=password],.key-row input[type=text]{flex-basis:100%}
+  .key-row .btn{flex:1}
+  .inference{white-space:normal}
+}
 </style>
 </head>
 <body>
@@ -499,15 +523,15 @@ tbody tr{transition:background .15s var(--ease)}
   </div>
 
   <!-- 工作区分页 -->
-  <div class="pages">
+  <nav class="pages" aria-label="主要功能页面">
     <button class="on" data-page="single"><svg class="ic"><use href="#i-image"/></svg>单图分析</button>
     <button data-page="batch"><svg class="ic"><use href="#i-batch"/></svg>批量分析</button>
     <button data-page="history"><svg class="ic"><use href="#i-history"/></svg>历史记录</button>
     <button data-page="settings"><svg class="ic"><use href="#i-settings"/></svg>系统设置</button>
-  </div>
+  </nav>
 
-  <div class="statusline"><span class="status-text" id="statusText">导入一张图像开始分析</span></div>
-  <div class="progress" id="progress"><i></i></div>
+  <div class="statusline" role="status" aria-live="polite" aria-atomic="true"><span class="status-text" id="statusText">导入一张图像开始分析</span></div>
+  <div class="progress" id="progress" role="progressbar" aria-label="请求处理中"><i></i></div>
 
   <!-- ============ 单图分析 ============ -->
   <div class="split" id="pageSingle">
@@ -599,7 +623,7 @@ tbody tr{transition:background .15s var(--ease)}
           <div class="hint" id="probHint">八类概率 · 分类后显示实际结果</div>
           <div class="grid2" id="probGrid"></div>
         </div>
-        <div class="notice">概率未经校准，不代表诊断准确率；分类结果仅供辅助参考。</div>
+        <div class="notice">模型输出概率未经校准，不等于临床诊断准确率。即使预测为「正常」也不能排除疾病；请使用合规眼底图像，结果仅供辅助参考。</div>
       </div>
       <div class="tabhead">
         <div class="pages-sm" id="rightTabs">
@@ -694,7 +718,7 @@ tbody tr{transition:background .15s var(--ease)}
       <button class="btn" id="histBundle" disabled>导出完整包</button>
     </div>
     <div class="filters">
-      <input type="text" id="histSearch" placeholder="按图像路径或文件名搜索" style="flex:1;min-width:220px">
+      <input type="text" id="histSearch" aria-label="搜索历史图像路径或文件名" placeholder="按图像路径或文件名搜索" style="flex:1;min-width:220px">
       <select id="histCategory"></select>
     </div>
     <div class="summary" id="histSummary">尚无数据</div>
@@ -733,20 +757,21 @@ tbody tr{transition:background .15s var(--ease)}
         <dl class="kv" id="setModel"></dl>
         <div class="section-title" style="margin-top:24px">服务信息</div>
         <dl class="kv" id="setService"></dl>
-        <div class="section-title" style="margin-top:24px">DeepSeek 在线问答（密钥仅存本机浏览器）</div>
+        <div class="section-title" style="margin-top:24px">DeepSeek 在线问答（需保护密钥）</div>
         <div class="card key-card">
           <div class="pref-row key-row">
             <span>API Key</span>
-            <input type="password" id="deepseekKey" placeholder="sk-... 留空则使用本地静态参考">
+            <input type="password" id="deepseekKey" autocomplete="off" spellcheck="false" placeholder="sk-... 留空则使用本地静态参考">
             <button class="btn sm" id="btnToggleKey" title="显示/隐藏">显示</button>
             <button class="btn sm primary" id="btnSaveKey">保存并启用</button>
             <button class="btn sm" id="btnClearKey">清除</button>
           </div>
           <div id="keyStatus" class="notice key-status" style="display:none"></div>
           <p class="key-hint">
-            密钥只保存在当前浏览器（localStorage），不会上传到除 DeepSeek 以外的任何服务器。
-            打开本页会自动下发到服务端内存，服务端重启后若未配置环境变量需本机再提交一次。
-            不填写时仍可使用内置本地参考，不影响图像分类功能。
+            点击「保存并启用」后，密钥会通过当前站点发送到本站服务端，再由服务端调用 DeepSeek；
+            本页仅在当前标签页的会话存储中暂存密钥，关闭标签页后失效。请只在可信且使用 HTTPS 的站点中操作。
+            如果站点供多人共用，是否存在用户间密钥混用必须由服务端做独立隔离，单靠网页无法保证。
+            不配置密钥时仍可使用本地静态参考，不影响图像分类。
           </p>
         </div>
         <div class="section-title" style="margin-top:24px">界面偏好（保存在本机浏览器）</div>
@@ -809,7 +834,7 @@ tbody tr{transition:background .15s var(--ease)}
 
   <div class="statusbar">
     <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
-    <span id="barRight">v2026-10-14.23 · 输出结果不构成医学诊断依据</span>
+    <span id="barRight">v2026-10-14.24 · 输出结果不构成医学诊断依据</span>
   </div>
 </div>
 
@@ -1135,6 +1160,7 @@ function currentPaneText(){
 
 let current = null;
 let currentFile = null;
+let singleRunning = false;
 let health = null;
 const serverReady = () => !IS_LOCAL_PREVIEW && health && health.status === "ok";
 
@@ -1151,7 +1177,7 @@ async function loadHealth(){
   if(IS_LOCAL_PREVIEW){
     health = null;
     el("runtimeBadge").className = "badge preview";
-    el("runtimeBadge").textContent = "●  本地界面预览";
+    el("runtimeBadge").textContent = "本地界面预览";
     el("barLeft").textContent = "请通过服务器地址访问以使用分类、历史与问答功能";
     setStatus("当前为界面预览模式；启动服务器后从 http://服务器地址:8000 访问。", "note");
     return;
@@ -1164,9 +1190,9 @@ async function loadHealth(){
     const model = health.model || {};
     const providers = model.providers || [];
     const device = providers.some(p => String(p).indexOf("CUDA") >= 0) ? "GPU" : "CPU";
-    badge.textContent = ok ? "●  模型就绪  ·  " + device : "●  模型不可用";
-    el("btnPredict").disabled = !ok || !currentFile;
-    el("btnBatchStart").disabled = !ok || !pending.some(row => row.status === "pending");
+    badge.textContent = ok ? "模型就绪 · " + device : "模型不可用";
+    el("btnPredict").disabled = singleRunning || !ok || !currentFile;
+    el("btnBatchStart").disabled = batchRunning || !ok || !pending.some(row => row.status === "pending");
     el("barLeft").textContent = ok
       ? "onnxruntime " + (model.runtime || "-") + " · 输入 " + (model.image_size || "512") +
         " · " + String(model.weight_path || "-").split(/[\\/]/).pop()
@@ -1174,7 +1200,7 @@ async function loadHealth(){
   }catch(e){
     health = null;
     el("runtimeBadge").className = "badge off";
-    el("runtimeBadge").textContent = "●  服务未响应";
+    el("runtimeBadge").textContent = "服务未响应";
   }
 }
 
@@ -1276,8 +1302,9 @@ function drawTable(scope){
   const view = views[scope];
   const tbody = el(scope + "Body");
   tbody.innerHTML = "";
-  const start = view.page * 100;
-  const pageRows = view.rows.slice(start, start + 100);
+  // 历史接口已经按 page/limit 返回当前页；批量列表才使用客户端切片。
+  const start = scope === "hist" ? 0 : view.page * 100;
+  const pageRows = scope === "hist" ? view.rows : view.rows.slice(start, start + 100);
   if(!pageRows.length){
     const tr = document.createElement("tr");
     const td = document.createElement("td");
@@ -1334,12 +1361,14 @@ function drawTable(scope){
     });
     tbody.appendChild(tr);
   });
-  el(scope + "PageLabel").textContent = "第 " + (view.page + 1) + " 页 · 当前范围 " + view.rows.length + " 条";
+  const total = scope === "hist" ? view.total : view.rows.length;
+  el(scope + "PageLabel").textContent = "第 " + (view.page + 1) + " / " +
+    Math.max(1, Math.ceil(total / 100)) + " 页 · 共 " + total + " 条";
   el(scope + "Prev").disabled = view.page === 0;
-  el(scope + "Next").disabled = (view.page + 1) * 100 >= view.rows.length;
-  el(scope + "Export").disabled = view.rows.length === 0;
+  el(scope + "Next").disabled = (view.page + 1) * 100 >= total;
+  el(scope + "Export").disabled = total === 0;
   const bundleButton = el(scope + "Bundle");
-  if(bundleButton) bundleButton.disabled = view.rows.length === 0;
+  if(bundleButton) bundleButton.disabled = total === 0;
   el(scope + "ChartBox").innerHTML = chartSvg(view.chart, view.counts, view.daily);
 }
 
@@ -1355,39 +1384,59 @@ function showDetail(scope, row){
 }
 
 function downloadCsv(filename, rows){
-  const lines = [HEADS.join(",")];
-  rows.forEach(row => {
-    lines.push([
-      (row.path || row.image_path || ""),
-      (SHORT[row.disease_name] || row.disease_name || ""),
-      pct(row.confidence),
-      (STATE_TEXT[row.status] || "成功"),
-      (SAVE_TEXT[row.save_status] || "已保存"),
-      (row.timestamp || "")
-    ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(","));
-  });
-  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(link.href);
+  const data = [HEADS].concat(rows.map(row => [
+    row.path || row.image_path || "",
+    SHORT[row.disease_name] || row.disease_name || "",
+    pct(row.confidence),
+    STATE_TEXT[row.status] || "成功",
+    SAVE_TEXT[row.save_status] || "已保存",
+    row.timestamp || ""
+  ]));
+  downloadText(filename, toCsv(data), "text/csv");
 }
 
-async function fetchRows(scope){
-  if(scope === "batch") return batchFiltered();
+// 按筛选条件逐页读取历史，而不是偷偷只导出前 200 条。
+const HISTORY_PAGE_SIZE = 100;
+const HISTORY_EXPORT_LIMIT = 5000;
+function historyParams(page, limit){
   const params = new URLSearchParams();
-  params.set("limit", "200");
-  params.set("page", "0");
+  params.set("limit", String(limit));
+  params.set("page", String(page));
   if(el("histStart").value) params.set("start", el("histStart").value);
   if(el("histEnd").value) params.set("end", el("histEnd").value);
   if(el("histBatch").value.trim()) params.set("batch", el("histBatch").value.trim());
   if(el("histCategory").value) params.set("disease", el("histCategory").value);
   if(el("histSearch").value.trim()) params.set("search", el("histSearch").value.trim());
-  const data = await apiJson("/api/history?" + params.toString());
-  return (data.rows || []).map(row => Object.assign({}, row, {
-    path: row.image_path, status: row.status || "success", save_status: row.save_status || "saved"
+  return params;
+}
+function normalizeHistoryRows(rows){
+  return (rows || []).map(row => Object.assign({}, row, {
+    path: row.image_path || row.path || "",
+    status: row.status || "success", save_status: row.save_status || "saved"
   }));
+}
+async function fetchRows(scope){
+  if(scope === "batch") return batchFiltered();
+  const first = await apiJson("/api/history?" + historyParams(0, HISTORY_PAGE_SIZE));
+  if(!first.success) throw new Error(first.error || "历史数据读取失败");
+  const total = Number(first.total);
+  if(!Number.isFinite(total) || total < 0) throw new Error("历史总数无效，已停止导出");
+  if(total > HISTORY_EXPORT_LIMIT){
+    throw new Error("当前筛选有 " + total + " 条记录，超过前端安全导出上限 " +
+      HISTORY_EXPORT_LIMIT + " 条；请缩小日期、批次或类别范围后导出，以免浏览器卡顿。");
+  }
+  const result = normalizeHistoryRows(first.rows);
+  for(let page = 1; result.length < total; page++){
+    const data = await apiJson("/api/history?" + historyParams(page, HISTORY_PAGE_SIZE));
+    if(!data.success) throw new Error(data.error || "读取历史第 " + (page + 1) + " 页失败");
+    const rows = normalizeHistoryRows(data.rows);
+    if(!rows.length) throw new Error("历史记录分页提前结束，导出已取消（避免遗漏数据）");
+    result.push(...rows);
+  }
+  if(result.length !== total){
+    throw new Error("导出数据量与记录总数不一致，请刷新并重试");
+  }
+  return result;
 }
 async function exportCsv(scope){
   let rows;
@@ -1503,12 +1552,25 @@ async function exportBundle(scope){
 
 const views = {
   batch: { rows: [], page: 0, selected: new Set(), counts: {}, daily: {}, chart: 0 },
-  hist:  { rows: [], page: 0, selected: new Set(), counts: {}, daily: {}, chart: 0 }
+  hist:  { rows: [], page: 0, total: 0, selected: new Set(), counts: {}, daily: {}, chart: 0 }
 };
 
 /* ================= 批量分析 ================= */
 let pending = [];
 let lastBatchId = "";
+let batchRunning = false;
+const MAX_BATCH_REQUEST = 10;
+const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+function validImage(file){
+  if(!file || !/\.(jpe?g|png|bmp)$/i.test(file.name || "") ||
+      (file.type && !/^(image\/(jpeg|png|bmp|x-ms-bmp))$/.test(file.type))){
+    setStatus("仅支持 JPG、PNG 和 BMP 图像。", "err"); return false;
+  }
+  if(!file.size || file.size > MAX_IMAGE_BYTES){
+    setStatus("图像须非空且不超过 20MB：" + (file.name || "未命名图像"), "err"); return false;
+  }
+  return true;
+}
 
 /* 批次号：一次「开始分类」= 一个批次号，写入 records.batch_id 并登记到 batches 表。
    表格里的批次标签可点击，直接跳到历史记录页按该批次回看。 */
@@ -1518,11 +1580,11 @@ async function loadBatches(){
     const data = await apiJson("/api/batches");
     const list = (data.success && data.batches) ? data.batches : [];
     el("batchPicker").innerHTML = ['<option value="">查看近期批次…</option>'].concat(
-      list.map(item => '<option value="' + esc(item.batch_id) + '">' + esc(item.batch_id) +
+      list.map(item => '<option value="' + escHtml(item.batch_id) + '">' + esc(item.batch_id) +
         " · 入库 " + item.saved + "/" + item.planned + " 张 · " +
         esc(String(item.created || "").slice(5, 16)) + "</option>")).join("");
     el("histBatchList").innerHTML = list.map(item =>
-      '<option value="' + esc(item.batch_id) + '">' + esc(item.batch_id) +
+      '<option value="' + escHtml(item.batch_id) + '">' + esc(item.batch_id) +
       " · " + esc(String(item.created || "").slice(0, 16)) + " · " + item.saved + " 张</option>").join("");
   }catch(e){ /* 批次列表失败不影响分类主流程 */ }
 }
@@ -1568,20 +1630,27 @@ function batchFiltered(){
   drawTable("batch");
   const hasPending = pending.some(r => r.status === "pending");
   const hasFailed = pending.some(r => r.status === "failed" || r.save_status === "failed");
-  el("btnBatchStart").disabled = !hasPending || !serverReady();
-  el("btnBatchRetry").disabled = !hasFailed;
+  el("btnBatchStart").disabled = batchRunning || !hasPending || !serverReady();
+  el("btnBatchRetry").disabled = batchRunning || !hasFailed;
+  return rows;
 }
 
 el("btnAddFiles").addEventListener("click", () => el("batchFiles").click());
 el("batchFiles").addEventListener("change", e => {
+  if(batchRunning) return;
+  let added = 0, invalid = 0;
   Array.prototype.forEach.call(e.target.files, file => {
-    pending.push({ path: file.name, file: file, status: "pending", save_status: "pending" });
+    if(!validImage(file)){ invalid++; return; }
+    pending.push({ path:file.name, file:file, status:"pending", save_status:"pending" });
+    added++;
   });
   e.target.value = "";
-  setStatus("已添加 " + pending.length + " 项，可点击「开始分类」。", "ok");
+  setStatus("已添加 " + added + " 张图像（待处理 " + pending.filter(r => r.status === "pending").length +
+    " 张）" + (invalid ? "；跳过不支持或超过 20MB 的 " + invalid + " 张" : "") + "。", invalid ? "note" : "ok");
   batchFiltered();
 });
 el("btnRemoveSel").addEventListener("click", () => {
+  if(batchRunning) return;
   const remove = new Set();
   views.batch.selected.forEach(i => { if(views.batch.rows[i]) remove.add(views.batch.rows[i]); });
   pending = pending.filter(row => !remove.has(row));
@@ -1591,50 +1660,72 @@ el("btnRemoveSel").addEventListener("click", () => {
 });
 
 async function runBatch(onlyFailed){
-  if(IS_LOCAL_PREVIEW){ setStatus("本地文件仅供预览，请从服务器地址打开后执行批量分类。", "note"); return; }
+  if(IS_LOCAL_PREVIEW){ setStatus("本地预览不能请求服务器，请通过服务器地址访问。", "note"); return; }
+  if(batchRunning) return;
   const targets = pending.filter(row => onlyFailed
     ? (row.status === "failed" || row.save_status === "failed") : row.status === "pending");
   if(!targets.length) return;
+  batchRunning = true;
   busy(true);
-  setStatus("正在批量分类 " + targets.length + " 张…");
-  const form = new FormData();
-  targets.forEach(row => form.append("files", row.file, row.path));
+  el("btnAddFiles").disabled = true;
+  el("btnRemoveSel").disabled = true;
+  el("btnBatchStart").disabled = true;
+  el("btnBatchRetry").disabled = true;
+  let done = 0, failed = 0, stopped = false;
+  const batches = Math.ceil(targets.length / MAX_BATCH_REQUEST);
   try{
-    const data = await apiJson("/api/predict/batch", { method: "POST", body: form });
-    if(!data.success){
-      setStatus("批量分类失败：" + (data.error || "未知原因"), "err");
-      return;
-    }
-    (data.results || []).forEach((result, index) => {
-      Object.assign(targets[index], result, { path: result.image_path || targets[index].path });
-    });
-    // 服务端漏返回的项标记为失败，避免停留在「待处理」导致无法重试
-    targets.forEach(row => {
-      if(row.status === "pending"){
-        row.status = "failed";
-        row.save_status = "failed";
-        row.error = "服务端未返回该图像的处理结果";
+    for(let index = 0; index < targets.length; index += MAX_BATCH_REQUEST){
+      const chunk = targets.slice(index, index + MAX_BATCH_REQUEST);
+      const batchNo = Math.floor(index / MAX_BATCH_REQUEST) + 1;
+      setStatus("正在分类第 " + batchNo + "/" + batches + " 组（每组最多 " + MAX_BATCH_REQUEST + " 张）…");
+      const form = new FormData();
+      chunk.forEach(row => form.append("files", row.file, row.path));
+      try{
+        const data = await apiJson("/api/predict/batch", { method:"POST", body:form });
+        if(!data.success) throw new Error(data.error || "服务端批量分类失败");
+        const results = data.results || [];
+        chunk.forEach((row, i) => {
+          const result = results[i];
+          if(!result){
+            row.status = "failed"; row.save_status = "failed";
+            row.error = "服务端未返回该图像结果";
+          }else{
+            Object.assign(row, result, { path:result.image_path || row.path });
+            // 部分旧版后端可能缺省 status，若结果包含分类类别则按成功处理。
+            row.status = (!row.status || row.status === "pending")
+              ? (row.disease_name ? "success" : "failed") : row.status;
+            row.save_status = row.save_status || "pending";
+          }
+          if(row.status === "success") done++; else failed++;
+        });
+        lastBatchId = data.batch_id || lastBatchId;
+      }catch(error){
+        chunk.forEach(row => {
+          row.status = "failed"; row.save_status = "failed";
+          row.error = String(error && error.message ? error.message : error);
+          failed++;
+        });
+        stopped = true;
+        setStatus("第 " + batchNo + " 组处理失败，已暂停后续上传：" +
+          (error && error.message ? error.message : error) + "。未处理的图像仍可继续分类。", "err");
       }
-    });
-    lastBatchId = data.batch_id || lastBatchId;
-    setStatus("批量分类完成：" + data.done + " 成功 / " + data.failed + " 失败，总耗时 " +
-              data.latency_ms + " 毫秒" + (lastBatchId ? "，批次号 " + lastBatchId : "") + "。",
-              data.failed ? "err" : "ok");
-    views.batch.selected.clear();
-    batchFiltered();
+      views.batch.selected.clear();
+      batchFiltered();
+      if(stopped) break;
+    }
+    if(!stopped){
+      setStatus("批量分类完成：成功 " + done + " 张，失败 " + failed + " 张，共 " +
+        Math.ceil((done + failed) / MAX_BATCH_REQUEST) + " 组" +
+        (lastBatchId ? "，最近批次 " + lastBatchId : "") + "。", failed ? "note" : "ok");
+    }
     loadHistoryPage();
     loadBatches();
-  }catch(error){
-    // 502 / 断网时把本次目标标记为失败，让「重试失败项」可以继续工作
-    targets.forEach(row => {
-      row.status = "failed";
-      row.save_status = "failed";
-      row.error = String(error && error.message ? error.message : error);
-    });
-    setStatus("批量分类失败：" + (error && error.message ? error.message : error), "err");
-    batchFiltered();
   }finally{
+    batchRunning = false;
     busy(false);
+    el("btnAddFiles").disabled = false;
+    el("btnRemoveSel").disabled = false;
+    batchFiltered();
   }
 }
 el("btnBatchStart").addEventListener("click", () => runBatch(false));
@@ -1649,33 +1740,31 @@ el("batchPrev").addEventListener("click", () => { views.batch.page--; drawTable(
 el("batchNext").addEventListener("click", () => { views.batch.page++; drawTable("batch"); });
 
 /* ================= 历史记录 ================= */
+let historyRequestId = 0;
+let historySearchTimer = null;
 async function loadHistoryPage(){
   if(IS_LOCAL_PREVIEW){
     el("histSummary").textContent = "本地预览不读取服务器历史记录";
-    views.hist.rows = []; views.hist.counts = {}; views.hist.daily = {};
+    views.hist.rows = []; views.hist.total = 0; views.hist.counts = {}; views.hist.daily = {};
     drawTable("hist"); return;
   }
   const view = views.hist;
-  const params = new URLSearchParams();
-  params.set("limit", "100");
-  params.set("page", String(view.page));
-  if(el("histStart").value) params.set("start", el("histStart").value);
-  if(el("histEnd").value) params.set("end", el("histEnd").value);
-  if(el("histBatch").value.trim()) params.set("batch", el("histBatch").value.trim());
-  if(el("histCategory").value) params.set("disease", el("histCategory").value);
-  if(el("histSearch").value.trim()) params.set("search", el("histSearch").value.trim());
+  const requestId = ++historyRequestId;
   try{
-    const data = await apiJson("/api/history?" + params.toString());
+    const data = await apiJson("/api/history?" + historyParams(view.page, HISTORY_PAGE_SIZE));
+    // 快速切换筛选条件时忽略过时响应，避免较慢的请求覆盖新结果。
+    if(requestId !== historyRequestId) return;
     if(!data.success){
       el("histSummary").textContent = data.error || "历史不可用";
-      view.rows = []; view.counts = {}; view.daily = {};
+      view.rows = []; view.total = 0; view.counts = {}; view.daily = {};
       drawTable("hist");
       return;
     }
     view.rows = (data.rows || []).map(row => Object.assign({}, row, {
       path: row.image_path, status: row.status || "success", save_status: row.save_status || "saved"
     }));
-    view.page = data.page || 0;
+    view.page = Math.max(0, Number(data.page) || 0);
+    view.total = Math.max(0, Number(data.total) || 0);
     view.counts = data.counts || {};
     view.daily = data.daily || {};
     view.selected.clear();
@@ -1683,16 +1772,20 @@ async function loadHistoryPage(){
     el("histSummary").textContent = data.total
       ? "当前筛选 " + data.total + " 条记录（排除标注演示）· 图表与导出范围一致"
       : "当前范围暂无记录";
-    el("histExport").disabled = false;
     drawTable("hist");
   }catch(e){
+    if(requestId !== historyRequestId) return;
     el("histSummary").textContent = "历史加载失败：" + (e && e.message ? e.message : e);
-    view.rows = []; view.counts = {}; view.daily = {};
+    view.rows = []; view.total = 0; view.counts = {}; view.daily = {};
     drawTable("hist");
   }
 }
 el("btnHistRefresh").addEventListener("click", () => { views.hist.page = 0; loadHistoryPage(); });
-el("histSearch").addEventListener("input", () => { views.hist.page = 0; loadHistoryPage(); });
+el("histSearch").addEventListener("input", () => {
+  views.hist.page = 0;
+  clearTimeout(historySearchTimer);
+  historySearchTimer = setTimeout(loadHistoryPage, 300);
+});
 el("histCategory").addEventListener("change", () => { views.hist.page = 0; loadHistoryPage(); });
 el("histChart").addEventListener("change", e => { views.hist.chart = e.target.selectedIndex; drawTable("hist"); });
 el("histPrev").addEventListener("click", () => { if(views.hist.page > 0){ views.hist.page--; loadHistoryPage(); } });
@@ -1823,18 +1916,21 @@ function renderProbs(probabilities){
 }
 function useFile(file){
   if(!file) return;
-  if(!/^image\//.test(file.type)){ setStatus("请选择图片文件。", "err"); return; }
+  if(!validImage(file)) return;
   currentFile = file;
   const reader = new FileReader();
   reader.onload = e => {
+    if(currentFile !== file) return;
     el("preview").src = e.target.result;
     el("canvas").classList.add("has");
     el("cap").textContent = file.name;
     el("metaName").textContent = file.name;
     const img = new Image();
-    img.onload = () => { el("metaSize").textContent = img.naturalWidth + " × " + img.naturalHeight + " px"; };
+    img.onload = () => { if(currentFile === file) el("metaSize").textContent = img.naturalWidth + " × " + img.naturalHeight + " px"; };
+    img.onerror = () => { if(currentFile === file) setStatus("图像解码失败，请检查文件格式。", "err"); };
     img.src = e.target.result;
   };
+  reader.onerror = () => { if(currentFile === file) setStatus("图像读取失败，请重新选择。", "err"); };
   reader.readAsDataURL(file);
   el("metaSize").textContent = "正在读取…";
   setStatus("图像已就绪", "ok");
@@ -1874,6 +1970,7 @@ el("canvas").addEventListener("drop", e => {
   if(f) useFile(f);
 });
 document.addEventListener("paste", e => {
+  if(e.target && e.target.closest && e.target.closest("input, textarea, [contenteditable]")) return;
   const items = (e.clipboardData && e.clipboardData.items) || [];
   for(const item of items){
     if(item.type && item.type.indexOf("image") === 0){ useFile(item.getAsFile()); break; }
@@ -2011,7 +2108,9 @@ function downloadText(filename, text, mime){
   setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 function csvCell(v){
-  const s = (v === null || v === undefined) ? "" : String(v);
+  let s = (v === null || v === undefined) ? "" : String(v);
+  // 防止从文件名、备注等非可信数据触发电子表格公式。
+  if(/^[\s]*[=+@-]/.test(s) || /^[\t\r\n]/.test(s)) s = "'" + s;
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 function toCsv(rows){
@@ -2049,9 +2148,11 @@ function downloadBlob(filename, blob){
 }
 
 el("btnPredict").addEventListener("click", async () => {
+  if(singleRunning) return;
   if(IS_LOCAL_PREVIEW){ setStatus("本地文件仅供预览，请从服务器地址打开后执行分类。", "note"); return; }
   const file = currentFile;
   if(!file){ setStatus("请先加载图像。", "err"); return; }
+  singleRunning = true;
   el("btnPredict").disabled = true;
   busy(true);
   setStatus("正在分析图像…");
@@ -2066,6 +2167,8 @@ el("btnPredict").addEventListener("click", async () => {
       clearPrediction();
       return;
     }
+    // 若用户在请求期间切换了图像，不显示过时的分类结果。
+    if(file !== currentFile) return;
     current = data;
     el("predName").textContent = FULL[data.disease] || data.disease;
     el("predScore").textContent = pct(data.confidence);
@@ -2077,10 +2180,13 @@ el("btnPredict").addEventListener("click", async () => {
     renderAdvice(GUIDE_DONE);
     setStatus("分析完成", "ok");
   }catch(error){
-    setStatus("请求失败：" + error, "err");
-    el("inferenceTime").textContent = "等待分析";
+    if(file === currentFile){
+      setStatus("请求失败：" + error, "err");
+      el("inferenceTime").textContent = "等待分析";
+    }
   }finally{
-    el("btnPredict").disabled = !serverReady();
+    singleRunning = false;
+    el("btnPredict").disabled = !serverReady() || !currentFile;
     busy(false);
   }
 });
@@ -2234,8 +2340,8 @@ el("btnSend").addEventListener("click", async () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         question: text,
-        disease: current.disease || "",
-        confidence: current.confidence || 0
+        disease: current?.disease || "",
+        confidence: current?.confidence || 0
       })
     });
     pushChat(data.success ? "ai" : "sys",
@@ -2260,9 +2366,6 @@ el("btnSpeak").addEventListener("click", () => {
   speakText(currentPaneText());
 });
 /* 切出多轮问答或离开页面时停止语音，避免后台继续占用麦克风 / 朗读 */
-el("chatInput").addEventListener("keydown", e => {
-  if(e.ctrlKey && e.key === "Enter") el("btnSend").click();
-});
 window.addEventListener("pagehide", () => { stopVoice(); stopSpeak(); });
 
 /* 设置页偏好控件 */
@@ -2329,7 +2432,7 @@ document.querySelectorAll("#rightTabs button").forEach(btn => {
 function updateViewport(){
   const width = document.documentElement.clientWidth;
   const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
-  el("barRight").textContent = "v2026-10-14.23 · 视口 " + width + "px · 缩放 " + ratio +
+  el("barRight").textContent = "v2026-10-14.24 · 视口 " + width + "px · 缩放 " + ratio +
     "x · 输出结果不构成医学诊断依据";
 }
 window.addEventListener("resize", updateViewport);
@@ -2345,8 +2448,11 @@ if(IS_LOCAL_PREVIEW){
     link.removeAttribute("href"); link.title = "启动服务器后可访问接口文档";
   });
 }
-/* ================= DeepSeek 密钥：存本机浏览器，运行时下发服务端 ================= */
-const KEY_STORE = "eye.deepseekKey";
+/* ================ DeepSeek：仅在当前标签页会话存储，显式发送到本站服务端 ================
+   只修改前端无法保证多用户之间的后端密钥隔离；公开服务建议由管理员在服务器环境变量配置。 */
+const KEY_STORE = "eye.deepseekKey.session";
+// 清除旧版持久化密钥（否则即使不再读取，它仍会长期留在浏览器里）。
+try{ localStorage.removeItem("eye.deepseekKey"); localStorage.removeItem("eye.deepseekKey.masked"); }catch(_){}
 function setKeyStatus(ok, text){
   const box = el("keyStatus");
   box.style.display = "block";
@@ -2355,52 +2461,51 @@ function setKeyStatus(ok, text){
   box.style.borderColor = ok ? "#2f5d4a" : "#6b3134";
   box.style.background = ok ? "rgba(40,80,66,.42)" : "rgba(61,34,36,.5)";
 }
-async function applyDeepSeekKey(key, silent){
+async function applyDeepSeekKey(key){
   try{
     const d = await apiJson("/api/set-key", { method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({ key: key || "" }) });
-    if(!silent){
-      if(d.success && d.llm_enabled){
-        setKeyStatus(true, "已启用 DeepSeek 在线问答（" + (d.masked || "") + "）。");
-        try{ if(d.masked) localStorage.setItem(KEY_STORE + ".masked", d.masked); }catch(_){}
-      }else if(d.success){
-        setKeyStatus(false, "已清除密钥，将使用本地静态参考。");
-        try{ localStorage.removeItem(KEY_STORE + ".masked"); }catch(_){}
-      }else{
-        setKeyStatus(false, "设置失败：" + (d.error || "未知错误"));
-      }
+      body:JSON.stringify({key:key || ""}) });
+    if(d.success && d.llm_enabled){
+      setKeyStatus(true, "本站服务端已启用 DeepSeek 在线问答（" + (d.masked || "已设置") + "）。");
+    }else if(d.success){
+      setKeyStatus(true, "服务端已清除运行时密钥；将使用本地静态参考或管理员配置。");
+    }else{
+      setKeyStatus(false, "设置失败：" + (d.error || "未知错误"));
     }
     return d;
   }catch(e){
-    if(!silent) setKeyStatus(false, "请求失败：" + (e && e.message ? e.message : e));
+    setKeyStatus(false, "请求失败：" + (e && e.message ? e.message : e));
     return null;
   }
 }
 function restoreDeepSeekKey(){
-  let k = "";
-  try{ k = localStorage.getItem(KEY_STORE) || ""; }catch(_){}
   const input = el("deepseekKey");
-  if(k){
-    input.value = k;
-    input.placeholder = "密钥已保存在本机浏览器，如需更换请直接输入";
-    let masked = "";
-    try{ masked = localStorage.getItem(KEY_STORE + ".masked") || ""; }catch(_){}
-    setKeyStatus(true, "已在本机浏览器保存" + (masked ? "（" + masked + "）" : "") + "，进入本页已自动下发。");
-    applyDeepSeekKey(k, true);
-  }else{
-    input.placeholder = "sk-... 留空则使用本地静态参考";
-  }
+  let k = "";
+  try{ k = sessionStorage.getItem(KEY_STORE) || ""; }catch(_){}
+  input.value = k;
+  input.placeholder = k ? "密钥仅保留在当前标签页，点击保存重新启用" : "sk-... 留空则使用本地静态参考";
+  // 不在打开设置页时自动向服务端重复推送密钥。
 }
 el("btnSaveKey").addEventListener("click", async () => {
-  const k = el("deepseekKey").value.trim();
-  try{ localStorage.setItem(KEY_STORE, k); }catch(_){}
-  await applyDeepSeekKey(k, false);
+  const input = el("deepseekKey");
+  const k = input.value.trim();
+  if(k && !location.protocol.startsWith("https") && !["localhost", "127.0.0.1"].includes(location.hostname)){
+    setKeyStatus(false, "请先使用 HTTPS 访问本站，再提交 API Key。HTTP 明文访问不安全。");
+    return;
+  }
+  el("btnSaveKey").disabled = true;
+  try{
+    const d = await applyDeepSeekKey(k);
+    if(d && d.success){
+      try{ if(k) sessionStorage.setItem(KEY_STORE, k); else sessionStorage.removeItem(KEY_STORE); }catch(_){}
+    }
+  }finally{ el("btnSaveKey").disabled = false; }
 });
 el("btnClearKey").addEventListener("click", async () => {
   el("deepseekKey").value = "";
   el("deepseekKey").placeholder = "sk-... 留空则使用本地静态参考";
-  try{ localStorage.removeItem(KEY_STORE); localStorage.removeItem(KEY_STORE + ".masked"); }catch(_){}
-  await applyDeepSeekKey("", false);
+  try{ sessionStorage.removeItem(KEY_STORE); }catch(_){}
+  await applyDeepSeekKey("");
 });
 el("btnToggleKey").addEventListener("click", () => {
   const input = el("deepseekKey");
@@ -2408,7 +2513,6 @@ el("btnToggleKey").addEventListener("click", () => {
   input.type = isPwd ? "text" : "password";
   el("btnToggleKey").textContent = isPwd ? "隐藏" : "显示";
 });
-
 
 buildProbRows();
 clearPrediction();

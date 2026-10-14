@@ -60,7 +60,9 @@ def resolve_weights() -> Path:
             return candidate
     return WEIGHT_CANDIDATES[0]
 MAX_UPLOAD_BYTES = int(float(os.getenv("EYE_MAX_UPLOAD_MB", "12")) * 1024 * 1024)
-MAX_BATCH_FILES = int(os.getenv("EYE_MAX_BATCH_FILES", "100"))
+# 2GB 内存服务器上 ONNX Runtime 峰值内存有限，单批上限默认收紧到 10 张，
+# 防止超大批次把 worker 拖到 OOM（worker 一旦被 kill，nginx 会对所有请求返回 502）
+MAX_BATCH_FILES = int(os.getenv("EYE_MAX_BATCH_FILES", "10"))
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/bmp", "image/jpg"}
 
 
@@ -166,6 +168,15 @@ app = FastAPI(title="眼科图像分类辅助诊断系统 · 服务端",
 @app.on_event("startup")
 def on_startup():
     state.startup()
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """兜底：任何未捕获异常都返回 JSON 500，避免前端拿到空响应/纯文本报
+    SyntaxError: Unexpected end of JSON input。"""
+    print(f"[错误] 未处理异常 {request.url.path}: {exc}")
+    return JSONResponse({"success": False, "error": f"服务端内部错误: {exc}"},
+                        status_code=500)
 
 
 @app.middleware("http")

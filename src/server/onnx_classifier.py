@@ -89,6 +89,10 @@ class OnnxClassifier:
         self._ort = ort
         options = ort.SessionOptions()
         options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # 2GB 内存服务器：关闭 CPU 内存池可显著降低峰值 RSS，避免 worker 被 OOM kill
+        #（worker 死后 nginx 会对所有 /api/ 请求返回 502）
+        options.enable_cpu_mem_arena = False
+        options.log_severity_level = 3
         self.session = ort.InferenceSession(
             str(path), options, providers=providers or ["CPUExecutionProvider"])
         self.input_name = self.session.get_inputs()[0].name

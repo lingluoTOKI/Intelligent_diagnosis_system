@@ -305,7 +305,7 @@ td.name{color:var(--ink)}
 .pref-row{display:flex;align-items:center;gap:12px;padding:9px 12px;background:rgba(29,36,45,.62);
   border:1px solid var(--card-line);border-radius:8px;font-size:var(--fs-small);cursor:pointer}
 .pref-row span{color:var(--muted);white-space:nowrap}
-.pref-row select{margin-left:auto;padding:6px 8px;min-height:34px;background:var(--input);color:var(--ink);
+.pref-row select{margin-left:auto;padding:6px 8px;min-height:34px;width:150px;flex:none;background:var(--input);color:var(--ink);
   border:1px solid var(--btn-line);border-radius:6px;font-family:var(--font);font-size:var(--fs-small)}
 .pref-row input[type=checkbox]{margin-left:auto;width:20px;height:20px;accent-color:var(--primary);cursor:pointer}
 .pref-check{cursor:pointer}
@@ -407,6 +407,58 @@ tbody td{height:45px}
   .btn{min-height:36px;padding-top:5px;padding-bottom:5px}
   .statusbar{margin-top:8px;padding-top:3px;padding-bottom:3px}
 }
+
+/* ==================== 高级感增强层（v22） ==================== */
+:root{
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --glow-a:rgba(81,197,227,.35);
+  --glow-p:rgba(77,214,180,.35);
+}
+/* 选中文字 */
+::selection{background:rgba(81,197,227,.32);color:#fff}
+/* 滚动条精致化 */
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#5A6B80,#48576B);border-radius:6px;border:2.5px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#6C7F97,#56677E)}
+/* 顶栏：底部流光分隔线 */
+.topbar{position:relative;box-shadow:0 12px 32px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.06)}
+.topbar::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--glow-a) 30%,var(--glow-p) 70%,transparent)}
+/* 按钮：弹性过渡 + 按下微缩 + 主按钮扫光 */
+.btn{transition:transform .16s var(--ease),background .18s var(--ease),border-color .18s var(--ease),box-shadow .18s var(--ease)}
+.btn:not(:disabled):active{transform:translateY(1px) scale(.98)}
+.btn.primary{position:relative;overflow:hidden}
+.btn.primary::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.30) 50%,transparent 70%);
+  transform:translateX(-130%);transition:transform .55s var(--ease)}
+.btn.primary:hover::after{transform:translateX(130%)}
+/* 输入控件：focus 光环 */
+input[type=text],input[type=date],input[type=password],select,textarea{transition:border-color .18s var(--ease),box-shadow .18s var(--ease),background .18s var(--ease)}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(77,214,180,.15),0 0 18px rgba(77,214,180,.08)}
+/* 结果分数：渐变数字 + 发光 */
+.prediction .score{background:linear-gradient(180deg,#8FF0D4,#3ECBAA);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 12px rgba(77,214,180,.30));letter-spacing:.01em}
+/* 概率条：渐变填充 + 顶部高光 */
+.prow .pb i{background:linear-gradient(90deg,#2FBF97,#4DD6B4 60%,#7BE7C8);position:relative;transition:width .65s var(--ease)}
+.prow .pb i::after{content:"";position:absolute;left:0;right:0;top:0;height:45%;
+  background:linear-gradient(180deg,rgba(255,255,255,.30),transparent);border-radius:3px 3px 0 0}
+/* 表格：表头层次 + 行平滑 */
+thead th{letter-spacing:.05em;font-weight:600;background:linear-gradient(180deg,#35414F,#2E3947)}
+tbody tr{transition:background .15s var(--ease)}
+/* 进度条：渐变 + 发光 */
+.progress i{background:linear-gradient(90deg,#51C5E3,#4DD6B4);box-shadow:0 0 12px rgba(77,214,180,.55)}
+/* 聊天气泡：进入动画 */
+@keyframes msgIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.msg{animation:msgIn .28s var(--ease) both}
+/* 模型状态徽标：在线呼吸脉冲点 */
+.badge{position:relative;padding-left:26px}
+.badge::before{content:"";position:absolute;left:11px;top:50%;width:8px;height:8px;margin-top:-4px;border-radius:50%;
+  background:var(--primary);animation:pulse 2.2s var(--ease) infinite}
+.badge.off::before{background:var(--notice);animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(77,214,180,.45)}70%{box-shadow:0 0 0 7px rgba(77,214,180,0)}100%{box-shadow:0 0 0 0 rgba(77,214,180,0)}}
+/* 小标签统一微光 */
+.tag,.bid,.api-method{box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 1px 2px rgba(0,0,0,.15)}
 </style>
 </head>
 <body>
@@ -757,7 +809,7 @@ tbody td{height:45px}
 
   <div class="statusbar">
     <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
-    <span id="barRight">v2026-10-14.21 · 输出结果不构成医学诊断依据</span>
+    <span id="barRight">v2026-10-14.23 · 输出结果不构成医学诊断依据</span>
   </div>
 </div>
 
@@ -2277,7 +2329,7 @@ document.querySelectorAll("#rightTabs button").forEach(btn => {
 function updateViewport(){
   const width = document.documentElement.clientWidth;
   const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
-  el("barRight").textContent = "v2026-10-14.21 · 视口 " + width + "px · 缩放 " + ratio +
+  el("barRight").textContent = "v2026-10-14.23 · 视口 " + width + "px · 缩放 " + ratio +
     "x · 输出结果不构成医学诊断依据";
 }
 window.addEventListener("resize", updateViewport);

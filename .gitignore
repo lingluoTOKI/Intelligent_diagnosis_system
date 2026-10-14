@@ -285,6 +285,13 @@ saved_api_key.txt
 /pip-build-env-*/
 /pip-build-tracker-*/
 /pip-unpack-*/
+/tmp*/
 /tmp*cacert.pem
 /眼科图像分类辅助诊断系统.exe
 /start-test-server.bat
+
+# Locally generated course submission package and document-render QA artifacts
+/deliverables/final_submission/
+/deliverables/course_design/*.pdf
+/deliverables/course_design/*_qa-*.png
+/deliverables/course_design/qa_montage.png

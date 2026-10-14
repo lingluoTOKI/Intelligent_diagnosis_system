@@ -773,6 +773,35 @@ const FULL = {
   "Myopia":"近视性黄斑病变","Normal":"正常","Other":"其他"
 };
 const COLORS = ['#4DD6B4','#51C5E3','#A49AE8','#E8B96B','#75B8A4','#DA91B3','#8AA6D1','#B8C580'];
+
+/* ================= 统一请求封装 =================
+   服务端进程被杀 / nginx 502 / 断网时，响应体是 HTML 或空的，
+   裸调 .json() 会抛 "Unexpected end of JSON input" 且看不出真正原因。
+   这里统一处理：网络异常、非 2xx、空响应、非 JSON 响应，都转成带 HTTP 状态的可读错误。 */
+async function apiJson(url, options){
+  let res;
+  try{
+    res = await fetch(url, options);
+  }catch(e){
+    throw new Error("网络请求失败（无法连接服务器）：" + (e && e.message ? e.message : e));
+  }
+  if(res.status === 401 && url.indexOf("/api/login") < 0){
+    location.replace("/");
+    throw new Error("未授权，请重新输入访问口令");
+  }
+  const text = await res.text().catch(() => "");
+  let data = null;
+  if(text){
+    try{ data = JSON.parse(text); }catch(e){ data = null; }
+  }
+  if(!res.ok || data === null){
+    const snippet = text ? text.slice(0, 80).replace(/\s+/g, " ") : "空响应";
+    throw new Error("服务端无响应（HTTP " + res.status +
+      (res.statusText ? " " + res.statusText : "") + "）：" + snippet +
+      "。请检查服务端是否在线。");
+  }
+  return data;
+}
 const GUIDE = "开始使用\n" +
   "1. 导入图像：点击左侧「加载图像」，也可拖入图片或按 Ctrl + V 粘贴。\n" +
   "2. 开始分类：模型就绪后点击「开始分类」。\n" +
@@ -1076,9 +1105,7 @@ async function loadHealth(){
     return;
   }
   try{
-    const res = await fetch("/api/health");
-    if(res.status === 401){ location.replace("/"); return; }
-    health = await res.json();
+    health = await apiJson("/api/health");
     const ok = health.status === "ok";
     const badge = el("runtimeBadge");
     badge.className = "badge" + (ok ? "" : " off");
@@ -1103,9 +1130,7 @@ async function loadHealth(){
 async function loadAccessState(){
   if(IS_LOCAL_PREVIEW){ el("btnLogout").style.display = "none"; return; }
   try{
-    const res = await fetch("/api/access");
-    if(res.status === 401){ location.replace("/"); return; }
-    const data = await res.json();
+    const data = await apiJson("/api/access");
     el("btnLogout").style.display = data.required ? "" : "none";
   }catch(e){
     el("btnLogout").style.display = "none";
@@ -1307,7 +1332,7 @@ async function fetchRows(scope){
   if(el("histBatch").value.trim()) params.set("batch", el("histBatch").value.trim());
   if(el("histCategory").value) params.set("disease", el("histCategory").value);
   if(el("histSearch").value.trim()) params.set("search", el("histSearch").value.trim());
-  const data = await (await fetch("/api/history?" + params.toString())).json();
+  const data = await apiJson("/api/history?" + params.toString());
   return (data.rows || []).map(row => Object.assign({}, row, {
     path: row.image_path, status: row.status || "success", save_status: row.save_status || "saved"
   }));
@@ -1438,7 +1463,7 @@ let lastBatchId = "";
 async function loadBatches(){
   if(IS_LOCAL_PREVIEW) return;
   try{
-    const data = await (await fetch("/api/batches")).json();
+    const data = await apiJson("/api/batches");
     const list = (data.success && data.batches) ? data.batches : [];
     el("batchPicker").innerHTML = ['<option value="">查看近期批次…</option>'].concat(
       list.map(item => '<option value="' + esc(item.batch_id) + '">' + esc(item.batch_id) +
@@ -1523,13 +1548,21 @@ async function runBatch(onlyFailed){
   const form = new FormData();
   targets.forEach(row => form.append("files", row.file, row.path));
   try{
-    const data = await (await fetch("/api/predict/batch", { method: "POST", body: form })).json();
+    const data = await apiJson("/api/predict/batch", { method: "POST", body: form });
     if(!data.success){
       setStatus("批量分类失败：" + (data.error || "未知原因"), "err");
       return;
     }
     (data.results || []).forEach((result, index) => {
       Object.assign(targets[index], result, { path: result.image_path || targets[index].path });
+    });
+    // 服务端漏返回的项标记为失败，避免停留在「待处理」导致无法重试
+    targets.forEach(row => {
+      if(row.status === "pending"){
+        row.status = "failed";
+        row.save_status = "failed";
+        row.error = "服务端未返回该图像的处理结果";
+      }
     });
     lastBatchId = data.batch_id || lastBatchId;
     setStatus("批量分类完成：" + data.done + " 成功 / " + data.failed + " 失败，总耗时 " +
@@ -1540,7 +1573,14 @@ async function runBatch(onlyFailed){
     loadHistoryPage();
     loadBatches();
   }catch(error){
-    setStatus("请求失败：" + error, "err");
+    // 502 / 断网时把本次目标标记为失败，让「重试失败项」可以继续工作
+    targets.forEach(row => {
+      row.status = "failed";
+      row.save_status = "failed";
+      row.error = String(error && error.message ? error.message : error);
+    });
+    setStatus("批量分类失败：" + (error && error.message ? error.message : error), "err");
+    batchFiltered();
   }finally{
     busy(false);
   }
@@ -1573,7 +1613,7 @@ async function loadHistoryPage(){
   if(el("histCategory").value) params.set("disease", el("histCategory").value);
   if(el("histSearch").value.trim()) params.set("search", el("histSearch").value.trim());
   try{
-    const data = await (await fetch("/api/history?" + params.toString())).json();
+    const data = await apiJson("/api/history?" + params.toString());
     if(!data.success){
       el("histSummary").textContent = data.error || "历史不可用";
       view.rows = []; view.counts = {}; view.daily = {};
@@ -1594,7 +1634,9 @@ async function loadHistoryPage(){
     el("histExport").disabled = false;
     drawTable("hist");
   }catch(e){
-    el("histSummary").textContent = "历史加载失败";
+    el("histSummary").textContent = "历史加载失败：" + (e && e.message ? e.message : e);
+    view.rows = []; view.counts = {}; view.daily = {};
+    drawTable("hist");
   }
 }
 el("btnHistRefresh").addEventListener("click", () => { views.hist.page = 0; loadHistoryPage(); });
@@ -1614,7 +1656,7 @@ el("histDelete").addEventListener("click", async () => {
   busy(true);
   try{
     for(const recordId of targets){
-      await fetch("/api/history/" + encodeURIComponent(recordId), { method: "DELETE" });
+      await apiJson("/api/history/" + encodeURIComponent(recordId), { method: "DELETE" });
     }
     setStatus("已删除 " + targets.length + " 条记录。", "ok");
     view.selected.clear();
@@ -1965,8 +2007,7 @@ el("btnPredict").addEventListener("click", async () => {
   const form = new FormData();
   form.append("file", file);
   try{
-    const res = await fetch("/api/predict", { method: "POST", body: form });
-    const data = await res.json();
+    const data = await apiJson("/api/predict", { method: "POST", body: form });
     if(!data.success){
       setStatus("分类失败：" + (data.error || data.detail || "请检查图像或模型"), "err");
       el("inferenceTime").textContent = "等待分析";
@@ -2002,12 +2043,11 @@ el("btnAdvice").addEventListener("click", async () => {
   el("btnAdvice").disabled = true;
   setStatus("正在生成辅助建议…");
   try{
-    const res = await fetch("/api/chat", {
+    const data = await apiJson("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ disease: current.disease, confidence: current.confidence })
     });
-    const data = await res.json();
     // 服务端失败时也会带本地参考内容，这里统一交给 renderAdvice 排版并标注来源
     if(data.success){
       renderAdvice("来源：" + (data.source || "-") + "\n\n" + (data.content || ""));
@@ -2137,12 +2177,11 @@ el("btnSend").addEventListener("click", async () => {
   pushChat("me", "我：" + text);
   el("btnSend").disabled = true;
   try{
-    const res = await fetch("/api/chat", {
+    const data = await apiJson("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: text })
     });
-    const data = await res.json();
     pushChat(data.success ? "ai" : "sys",
              (data.success ? "AI：" : "") + (data.content || data.error || "无返回内容"));
     if(data.success && prefs.autoSpeak) speakText(data.content);
@@ -2262,9 +2301,8 @@ function setKeyStatus(ok, text){
 }
 async function applyDeepSeekKey(key, silent){
   try{
-    const res = await fetch("/api/set-key", { method:"POST", headers:{"Content-Type":"application/json"},
+    const d = await apiJson("/api/set-key", { method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ key: key || "" }) });
-    const d = await res.json();
     if(!silent){
       if(d.success && d.llm_enabled){
         setKeyStatus(true, "已启用 DeepSeek 在线问答（" + (d.masked || "") + "）。");
@@ -2278,7 +2316,7 @@ async function applyDeepSeekKey(key, silent){
     }
     return d;
   }catch(e){
-    if(!silent) setKeyStatus(false, "请求失败：" + e);
+    if(!silent) setKeyStatus(false, "请求失败：" + (e && e.message ? e.message : e));
     return null;
   }
 }

@@ -2,7 +2,7 @@
 
 《智能软件系统》课程设计项目。PC端结合八类图像分类、DeepSeek辅助问答和SQLite历史记录，实验Notebook记录两套框架环境的基线与AKConv共四组训练。检查点核对发现成对结构与权重相同，不能写成四种不同架构比较。语音、树莓派采集和投屏是可选扩展，示例配置默认关闭；本机开关以系统设置为准。
 
-课程材料的事实基线、验证结果与报告待补项见 [工程与证据核对结果](docs/guide/工程与证据核对结果.md)。四份报告目前为经事实纠错的基础稿，尚需补充逐篇文献评述、架构流程图及深入实验分析。
+课程材料的事实基线、验证结果与已知限制见 [工程与证据核对结果](docs/guide/工程与证据核对结果.md)。四份课程设计报告（文献分析、技术方案设计、模型分析、实验分析）位于 `deliverables/course_design/`，均已按任务书要求完成正文扩充、设计图绘制与参考文献著录。
 
 ## 运行
 
@@ -19,7 +19,18 @@ Set-Location 'C:/Users/47449/Desktop/yolo/Intelligent_diagnosis_system'
 
 新PC环境在项目根目录执行 `python -m pip install -r requirements.txt`，然后运行 `python visualization_test2.py`。安装文件分为核心、PC、可选语音、可选硬件和测试依赖；当前版本基于已验证的PyTorch 2.5.1/TorchVision 0.20.1组合。
 
-详细步骤见 [PC运行与测试说明](docs/guide/PC运行与测试说明.md)。系统无登录账号；在线问答需要个人DeepSeek API密钥，分类和历史查询不需要在线API。
+详细步骤见 [PC运行与测试说明](docs/guide/PC运行与测试说明.md)。分类与历史查询不需要任何在线账号；在线问答需要个人 DeepSeek API 密钥。服务端口令校验为可选能力，由环境变量 `EYE_ACCESS_CODE` 控制：未设置时完全放行（当前线上部署即为此状态），设置后前端通过 `/api/access` 判断是否需要口令，并经 `/api/login` 校验。
+
+## 访问入口
+
+| 入口 | 地址 | 说明 |
+| --- | --- | --- |
+| 线上服务（IP 直连） | http://101.132.104.41:8000 | 已部署，实测 `/api/health` 正常返回 |
+| 线上服务（域名） | http://game.lingluotoki.dpdns.org:8000 | DDNS 域名，指向同一服务 |
+| 本机桌面端 | 双击 `启动系统.cmd` | 或执行 `python visualization_test2.py` |
+| 本机服务端 | http://127.0.0.1:8000 | 执行 `python -m uvicorn src.server.app:app --host 0.0.0.0 --port 8000` |
+
+健康检查接口 `/api/health` 返回模型加载状态、权重路径、输入尺寸与八类映射，可用于确认服务是否就绪。分类与历史查询免登录；使用在线问答前需在「系统设置」中填入个人 DeepSeek API 密钥（密钥仅保存在服务端内存，重启后需重新填写）。
 
 ## 设置和操作
 

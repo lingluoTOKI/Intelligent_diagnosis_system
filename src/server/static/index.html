@@ -329,6 +329,9 @@ td.name{color:var(--ink)}
 .key-status{margin-top:12px}
 .key-hint{margin:12px 0 0;font-size:.8em;line-height:1.7;color:var(--muted)}
 .statusbar{background:linear-gradient(90deg,rgba(36,44,55,.95),rgba(31,38,48,.9));border:1px solid var(--card-line);border-radius:10px;padding:6px 12px;font-size:var(--fs-small);color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.icp-line{margin-top:8px;text-align:center;font-size:var(--fs-small);color:var(--muted);line-height:1.6}
+.icp-line a{color:var(--muted);text-decoration:none}
+.icp-line a:hover{color:#7fb3ff;text-decoration:underline}
 .badge.preview{color:var(--section);background:#183445;border-color:#3A6172}
 
 /* 数据工作区：批量、历史和设置页共用完整高度与统一卡片层次 */
@@ -842,7 +845,12 @@ tbody tr{transition:background .15s var(--ease)}
 
   <div class="statusbar">
     <span id="barLeft">服务端部署入口 · ONNX Runtime</span>
-    <span id="barRight">v2026-10-14.26 · 输出结果不构成医学诊断依据</span>
+    <span id="barRight">v2026-10-15.27 · 输出结果不构成医学诊断依据</span>
+  </div>
+
+  <div class="icp-line">
+    <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener">赣ICP备2026025888号-1</a>
+    <span> · 输出结果不构成医学诊断依据，仅供教学与科研演示使用</span>
   </div>
 </div>
 
@@ -2477,7 +2485,7 @@ document.querySelectorAll("#rightTabs button").forEach(btn => {
 function updateViewport(){
   const width = document.documentElement.clientWidth;
   const ratio = window.devicePixelRatio ? window.devicePixelRatio.toFixed(2) : "1";
-  el("barRight").textContent = "v2026-10-14.26 · 视口 " + width + "px · 缩放 " + ratio +
+  el("barRight").textContent = "v2026-10-15.27 · 视口 " + width + "px · 缩放 " + ratio +
     "x · 输出结果不构成医学诊断依据";
 }
 window.addEventListener("resize", updateViewport);

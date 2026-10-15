@@ -25,10 +25,15 @@ Set-Location 'C:/Users/47449/Desktop/yolo/Intelligent_diagnosis_system'
 
 | 入口 | 地址 | 说明 |
 | --- | --- | --- |
-| 线上服务（IP 直连） | http://101.132.104.41:8000 | 已部署，实测 `/api/health` 正常返回 |
-| 线上服务（域名） | http://game.lingluotoki.dpdns.org:8000 | DDNS 域名，指向同一服务 |
+| **线上服务（正式域名，推荐）** | **https://lingluo-toki.top/** | 已备案域名，HTTPS 上线于 2026-10-15，页面底部展示赣ICP备2026025888号-1；证书由 Let's Encrypt 签发并自动续期 |
+| www 子域 | https://www.lingluo-toki.top/ | 与主域内容一致，DNS / 证书 / nginx 均已配置 |
+| 线上服务（IP 直连） | http://101.132.104.41:8000 | 同一服务，未经 HTTPS，仅作应急备用 |
 | 本机桌面端 | 双击 `启动系统.cmd` | 或执行 `python visualization_test2.py` |
 | 本机服务端 | http://127.0.0.1:8000 | 执行 `python -m uvicorn src.server.app:app --host 0.0.0.0 --port 8000` |
+
+> 服务器上同时运行着另一个项目的站点（`game.lingluotoki.dpdns.org`）。两者由 nginx 按域名精确匹配分流、互不影响，
+> 眼科系统只使用 `lingluo-toki.top` 与 `101.132.104.41:8000`，与该站点无关。旧 DDNS 地址
+> `game.lingluotoki.dpdns.org:8000` 已弃用，请勿再作为本项目入口。
 
 健康检查接口 `/api/health` 返回模型加载状态、权重路径、输入尺寸与八类映射，可用于确认服务是否就绪。分类与历史查询免登录；使用在线问答前需在「系统设置」中填入个人 DeepSeek API 密钥（密钥仅保存在服务端内存，重启后需重新填写）。
 

@@ -295,3 +295,9 @@ saved_api_key.txt
 /deliverables/course_design/*.pdf
 /deliverables/course_design/*_qa-*.png
 /deliverables/course_design/qa_montage.png
+
+# 文档编辑过程中的阶段性备份（插图 / 排版 / 图号引用 / 目录的回滚点）
+# 形如 xxx.docx.bak-20261015、xxx.docx.bak-toc；仅用于本机回滚，不入库
+*.bak-*
+*/*.bak-*
+
